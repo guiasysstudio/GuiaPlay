@@ -1,8 +1,8 @@
 # GuiaPlay
 
-Protótipo funcional M08 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais, distribuir atualizações verificadas e integrar opcionalmente o GuiaPlay ao Windows Explorer.
+Protótipo funcional M09 para operar vídeos e áudios locais por períodos prolongados, organizar/reordenar um cronograma em grupos virtuais, distribuir atualizações verificadas e integrar opcionalmente o GuiaPlay ao Windows Explorer.
 
-Versão: **0.8.0-prototipo**
+Versão: **0.9.0-prototipo**
 
 Plataforma: **Windows x64**
 
@@ -57,6 +57,7 @@ O executável Debug fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\
 6. Vídeo exige ao menos uma saída marcada; então **Reproduzir** inicia imediatamente, sem confirmação intermediária. Áudio pode tocar sem saída marcada e nunca abre nem altera janelas de vídeo.
 7. Controle pausa/continuação, busca, volume, mudo e parada no painel. A roda do mouse ajusta volume em passos de 5 pontos e avança/retrocede a timeline em 5 segundos; um clique direto na barra faz seek proporcional.
 8. Em **Configurações > Integração com Windows**, escolha separadamente se o GuiaPlay deve aparecer em **Abrir com** e se o Explorer deve mostrar **Abrir com GuiaPlay**. Nenhuma opção o torna player padrão automaticamente.
+9. Em **Configurações > Diagnóstico**, acompanhe uptime, CPU aproximada, memória, estado, saídas e frames. **Copiar diagnóstico** gera um resumo sem caminho completo da mídia, tokens ou dados pessoais.
 
 Com um único monitor, áudio continua disponível. Vídeo permanece carregado, mas **Reproduzir** fica desabilitado até existir uma saída pública selecionada.
 
@@ -74,10 +75,13 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Relatório do M06](docs/RELATORIO-M06.md)
 - [Relatório do M07](docs/RELATORIO-M07.md)
 - [Relatório do M08](docs/RELATORIO-M08.md)
+- [Relatório do M09](docs/RELATORIO-M09.md)
+- [Validação de performance e soak test](docs/VALIDACAO-PERFORMANCE.md)
 - [Notas da versão 0.5.0-prototipo](docs/releases/0.5.0-prototipo.md)
 - [Notas da versão 0.6.0-prototipo](docs/releases/0.6.0-prototipo.md)
 - [Notas da versão 0.7.0-prototipo](docs/releases/0.7.0-prototipo.md)
 - [Notas da versão 0.8.0-prototipo](docs/releases/0.8.0-prototipo.md)
+- [Notas da versão 0.9.0-prototipo](docs/releases/0.9.0-prototipo.md)
 - [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
@@ -102,6 +106,22 @@ Nenhum valor padrão de extensão ou `UserChoice` é alterado. Para escolher o p
 
 O comando registrado é `"GuiaPlay.exe" "%1"`. O arquivo passa pelo classificador antes de ser carregado; scripts e executáveis nunca são executados como mídia. A integração M08 usa um arquivo por invocação. Quando o GuiaPlay já está aberto, o mecanismo existente de Mutex + Named Pipe encaminha o caminho à mesma janela, traz a aplicação para frente e carrega sem autoplay.
 
+## Robustez, diagnóstico e performance
+
+O M09 mantém uma única sessão/relógio LibVLC e invalida callbacks tanto pela geração da mídia quanto pela identidade da sessão nativa. Trocas liberam `MediaPlayer`, `Media`, callbacks e buffers anteriores. O pipeline mantém no máximo três buffers nativos e agenda uma única renderização WPF pendente, apresentando o frame mais recente sem formar fila ilimitada.
+
+O diagnóstico faz amostragem somente ao abrir a área e a cada dois segundos. CPU é uma aproximação baseada no tempo de CPU do processo e no número de processadores; memória inclui Working Set, memória privada e heap gerenciado. Não há porcentagem de GPU inventada: GPU deve ser observada no Gerenciador de Tarefas ou Performance Monitor.
+
+O Named Pipe recebe rapidamente e processa solicitações em fila serial. Verificações de mídia potencialmente remota saem do Dispatcher e têm timeout amigável. Logs são limitados a 5 MiB com retenção máxima de cinco arquivos e snapshots pontuais em load/play/stop/fim/erro/fechamento.
+
+Para coletar CSV de uma sessão prolongada sem automação gráfica frágil:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\soak-test.ps1 -Launch -DurationMinutes 60
+```
+
+O roteiro e a tabela para anotar 720p/1080p/4K, codecs, saídas, CPU/RAM e GPU observada externamente estão em `docs/VALIDACAO-PERFORMANCE.md`.
+
 ### Como publicar uma nova versão
 
 1. Atualize `VersionPrefix`, `VersionSuffix` e `ProductReleaseDate` somente em `Directory.Build.props` e crie as release notes correspondentes.
@@ -119,7 +139,7 @@ O comando registrado é `"GuiaPlay.exe" "%1"`. O arquivo passa pelo classificado
 - A lista explícita de áudio contém somente pares módulo/dispositivo que o LibVLC informou aceitar. Lista vazia não prova ausência de áudio no Windows; **Padrão do Windows** continua disponível.
 - A aplicação pode detectar uma perda de dispositivo depois de um redirecionamento transitório feito pelo backend/Windows. Ela pausa e não faz fallback nem retoma deliberadamente, mas ausência absoluta de transiente requer validação física.
 - A classificação inicial de mídia usa extensões comuns; a decodificação efetiva continua sendo responsabilidade do LibVLC e depende do conteúdo/codecs do arquivo.
-- O upgrade público de `0.7.0-prototipo` para `0.8.0-prototipo` usa o mesmo fluxo de GitHub Releases, manifesto e SHA-256 exercitado em diretórios temporários antes da publicação.
+- O upgrade público de `0.8.0-prototipo` para `0.9.0-prototipo` usa o mesmo fluxo de GitHub Releases, manifesto e SHA-256 exercitado em diretórios temporários antes da publicação.
 - O menu de contexto pode ser apresentado pelo Windows 11 dentro de **Mostrar mais opções**, conforme a política do Explorer; o GuiaPlay não instala uma shell extension DLL.
 - Não há assinatura Authenticode nesta etapa; integridade do pacote de atualização é protegida pelo manifesto e SHA-256 publicado.
 
@@ -131,6 +151,6 @@ Um arquivo compatível pode ser carregado sem reprodução automática:
 .\GuiaPlay.exe "D:\Midias\Abertura.mp4"
 ```
 
-Se o GuiaPlay já estiver aberto, a nova execução encaminha o caminho por Named Pipe para a janela existente e termina. O M04 não registra associações de arquivos nem altera o player padrão do Windows.
+Se o GuiaPlay já estiver aberto, a nova execução encaminha o caminho por Named Pipe para uma fila serial na janela existente e termina. A integração opcional do M08 não altera o player padrão do Windows.
 
 O símbolo e o wordmark oficiais ficam em `src/GuiaPlay.App/Assets/Branding/`. Os ícones funcionais da interface são SVGs 24 Regular do projeto oficial [Microsoft Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), usados sob licença MIT; a licença está em `src/GuiaPlay.App/Assets/Icons/LICENSE-Fluent-System-Icons.txt`.

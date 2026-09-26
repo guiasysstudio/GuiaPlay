@@ -172,6 +172,56 @@ public sealed class OperationalFlowTests : IDisposable
         Assert.False(secondary.IsListening);
     }
 
+    [Fact]
+    public async Task RapidConcurrentExecutionsAreForwardedAndProcessedSerially()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        using var primary = new SingleInstanceCoordinator($"GuiaPlay.Tests.{suffix}", $"GuiaPlay.Tests.Pipe.{suffix}");
+        var secondaries = Enumerable.Range(0, 12)
+            .Select(_ => new SingleInstanceCoordinator($"GuiaPlay.Tests.{suffix}", $"GuiaPlay.Tests.Pipe.{suffix}"))
+            .ToArray();
+        var received = new List<string>();
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var activeHandlers = 0;
+        var maximumConcurrentHandlers = 0;
+        try
+        {
+            Assert.Equal(SingleInstanceStartResult.Primary, await primary.StartAsync(null, async path =>
+            {
+                var active = Interlocked.Increment(ref activeHandlers);
+                maximumConcurrentHandlers = Math.Max(maximumConcurrentHandlers, active);
+                await Task.Delay(10);
+                lock (received)
+                {
+                    received.Add(path!);
+                    if (received.Count == secondaries.Length)
+                    {
+                        completed.TrySetResult();
+                    }
+                }
+
+                Interlocked.Decrement(ref activeHandlers);
+            }));
+
+            var results = await Task.WhenAll(secondaries.Select((secondary, index) =>
+                secondary.StartAsync($@"C:\Mídia\arquivo-{index}.mp4", _ => Task.CompletedTask)));
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.All(results, result => Assert.Equal(SingleInstanceStartResult.Forwarded, result));
+            Assert.Equal(1, maximumConcurrentHandlers);
+            Assert.Equal(12, received.Distinct(StringComparer.Ordinal).Count());
+            Assert.True(primary.IsListening);
+            Assert.All(secondaries, secondary => Assert.False(secondary.IsListening));
+        }
+        finally
+        {
+            foreach (var secondary in secondaries)
+            {
+                secondary.Dispose();
+            }
+        }
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))

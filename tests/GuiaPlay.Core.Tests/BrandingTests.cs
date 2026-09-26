@@ -109,6 +109,21 @@ public sealed class BrandingTests
         Assert.Contains("Asset obrigatório de branding ausente ou vazio", script, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void M09DiagnosticsAndSoakScriptAvoidAggressiveSamplingAndFakeGpuMetrics()
+    {
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+        var soak = File.ReadAllText(PathInRepository("scripts/soak-test.ps1"));
+
+        Assert.Contains("Header=\"Diagnóstico\"", settings, StringComparison.Ordinal);
+        Assert.Contains("Copiar diagnóstico", settings, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromSeconds(2)", File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs")), StringComparison.Ordinal);
+        Assert.Contains("[int]$SampleSeconds = 5", soak, StringComparison.Ordinal);
+        Assert.Contains("WorkingSetMB", soak, StringComparison.Ordinal);
+        Assert.Contains("PrivateMemoryMB", soak, StringComparison.Ordinal);
+        Assert.DoesNotContain("GpuPercent", soak, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string PathInRepository(string relativePath) =>
         Path.Combine(RepositoryRoot, Normalize(relativePath));
 

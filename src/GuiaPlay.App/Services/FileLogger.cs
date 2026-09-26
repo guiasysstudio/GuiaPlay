@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.IO;
-using System.Text;
+using GuiaPlay.Core;
 
 namespace GuiaPlay.App.Services;
 
@@ -14,13 +14,14 @@ internal static class FileLogger
         "GuiaSys",
         "GuiaPlay");
     private static string LogPath => Path.Combine(DirectoryPath, "GuiaPlay.log");
+    private static readonly BoundedTextLog Log = new(LogPath, MaximumFileBytes, MaximumFiles);
 
     public static void Initialize()
     {
         try
         {
             Directory.CreateDirectory(DirectoryPath);
-            RotateIfNeeded();
+            Log.RotateIfNeeded();
             Info($"GuiaPlay {GuiaPlay.Core.ProductInfo.Version} iniciado.");
         }
         catch
@@ -39,14 +40,13 @@ internal static class FileLogger
         {
             lock (Gate)
             {
-                RotateIfNeeded();
                 var text = $"{DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture)} [{level}] {message}";
                 if (exception is not null)
                 {
                     text += $"{Environment.NewLine}{exception}";
                 }
 
-                File.AppendAllText(LogPath, text + Environment.NewLine, Encoding.UTF8);
+                Log.Append(text);
             }
         }
         catch
@@ -55,21 +55,4 @@ internal static class FileLogger
         }
     }
 
-    private static void RotateIfNeeded()
-    {
-        Directory.CreateDirectory(DirectoryPath);
-        if (File.Exists(LogPath) && new FileInfo(LogPath).Length >= MaximumFileBytes)
-        {
-            var archived = Path.Combine(DirectoryPath, $"GuiaPlay-{DateTime.Now:yyyyMMdd-HHmmss}.log");
-            File.Move(LogPath, archived);
-        }
-
-        foreach (var stale in new DirectoryInfo(DirectoryPath)
-                     .GetFiles("GuiaPlay-*.log")
-                     .OrderByDescending(file => file.LastWriteTimeUtc)
-                     .Skip(MaximumFiles - 1))
-        {
-            stale.Delete();
-        }
-    }
 }

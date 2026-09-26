@@ -1,4 +1,4 @@
-# Roteiro manual — GuiaPlay M08
+# Roteiro manual — GuiaPlay M09
 
 ## Preparação
 
@@ -165,3 +165,38 @@
 2. Confirmar que as entradas existentes do Explorer não são apagadas nem duplicadas.
 3. Confirmar `Current: 0.7.0-prototipo`, `Available: 0.8.0-prototipo`, `Status: UpdateAvailable` antes do update.
 4. Após atualizar, confirmar `Current: 0.8.0-prototipo`, `Available: 0.8.0-prototipo`, `Status: UpToDate`.
+
+## M09 — robustez e validação prolongada prioritária
+
+1. Reproduzir vídeo 1080p por 1 hora em uma saída e registrar diagnóstico/CSV no início e no fim.
+2. Repetir vídeo 1080p por 1 hora em duas saídas, registrando RAM inicial/final e CPU aproximada.
+3. Observar GPU externamente no Gerenciador de Tarefas; não comparar com uma métrica interna inexistente.
+4. Validar MP4/H.264, MKV e WebM; preencher também AVI, MOV, MPEG e TS/M2TS na matriz de performance.
+5. Validar MP3 e FLAC; preencher também WAV, OGG, AAC/M4A, WMA e OPUS.
+6. Fazer pelo menos 30 trocas de mídia; quando viável, completar 100 com arquivos curtos e conferir geração/log.
+7. Fazer seeks rápidos no início, meio e fim enquanto reproduzindo e pausado; testar também roda e clique direto.
+8. Testar play/pause/play/stop, replay após Stop e replay após fim natural; nenhuma janela preta deve permanecer.
+9. Desconectar/reconectar saída HDMI durante vídeo; as saídas restantes continuam e zero saídas causa pausa segura.
+10. Desconectar dispositivo de áudio explícito; confirmar pausa, ausência de fallback e nenhuma janela de vídeo para áudio.
+11. Remover USB depois de adicionar a mídia; a referência permanece e a tentativa falha inline sem loop.
+12. Indisponibilizar `\\servidor\midia\arquivo.mp4`; confirmar timeout controlado, UI responsiva e nenhuma cópia local.
+13. Tentar arquivo vazio, truncado e extensão de mídia com conteúdo inválido; continuar usando o programa depois do erro.
+14. Abrir/reordenar/salvar playlist com muitos itens e repetir com 100, 500 e 1.000 referências.
+15. Detectar e baixar update durante playback; confirmar reprodução responsiva e aplicação bloqueada até estado seguro.
+16. Fechar o app durante vídeo, áudio, pausa e download cancelável; confirmar encerramento e limpeza sem staging parcial.
+17. Abrir **Configurações > Diagnóstico**, copiar o texto e conferir ausência de caminho completo, token ou dados privados.
+18. Validar a nova guia em Claro, Escuro, Sistema, alto contraste, 1366 × 768 e DPI 100%, 125% e 150%.
+
+## M09 — sessões de 30 minutos, 1 hora e 2 horas
+
+1. Executar `scripts\soak-test.ps1 -Launch -DurationMinutes 30`, iniciar mídia conhecida e guardar o CSV local.
+2. Repetir por 60 minutos com 1080p/uma saída e por 60 minutos com 1080p/duas saídas.
+3. Executar sessão sequencial de 120 minutos alternando mídia, pausa, stop e seek.
+4. Em cada sessão, anotar memória inicial/final, CPU média/pico, frames, erros e responsividade.
+5. Preencher `docs/VALIDACAO-PERFORMANCE.md` somente com valores realmente observados.
+
+## M09 — atualização real 0.8 → 0.9
+
+1. Na instalação 0.8, confirmar `Current: 0.8.0-prototipo`, `Available: 0.9.0-prototipo`, `Status: UpdateAvailable`.
+2. Baixar, validar SHA-256, aplicar e reiniciar preservando settings, playlist e integração Explorer existente.
+3. Após atualizar, confirmar `Current: 0.9.0-prototipo`, `Available: 0.9.0-prototipo`, `Status: UpToDate`.

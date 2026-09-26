@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Security;
 using System.Windows;
+using System.Windows.Threading;
 using GuiaPlay.App.Models;
 using GuiaPlay.App.Services;
 using GuiaPlay.Core;
@@ -22,6 +23,8 @@ public partial class ScreenConfigurationWindow : Window
     private readonly IReadOnlyList<ScreenConfigurationItem> _items;
     private readonly UpdateManager _updateManager;
     private readonly WindowsIntegrationService _windowsIntegration;
+    private readonly Func<DiagnosticSnapshot> _diagnosticSnapshot;
+    private readonly DispatcherTimer _diagnosticTimer;
     private readonly bool _playbackActive;
     private CancellationTokenSource? _downloadCancellation;
     private readonly SettingsAppearanceChoice[] _appearanceChoices =
@@ -38,12 +41,14 @@ public partial class ScreenConfigurationWindow : Window
         IReadOnlyList<AudioDeviceIdentity> audioDevices,
         UpdateManager updateManager,
         WindowsIntegrationService windowsIntegration,
+        Func<DiagnosticSnapshot> diagnosticSnapshot,
         bool openUpdates,
         bool playbackActive)
     {
         InitializeComponent();
         _updateManager = updateManager;
         _windowsIntegration = windowsIntegration;
+        _diagnosticSnapshot = diagnosticSnapshot;
         _playbackActive = playbackActive;
         _items = monitors.Select(monitor => new ScreenConfigurationItem
         {
@@ -95,14 +100,25 @@ public partial class ScreenConfigurationWindow : Window
         AboutReleaseDateText.Text = $"Data da versão: {ProductInfo.ReleaseDate:dd/MM/yyyy}";
         CheckUpdatesAutomaticallyCheckBox.IsChecked = settings.CheckUpdatesAutomatically;
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
-        SettingsTabs.SelectedItem = openUpdates ? UpdatesTab : ScreensTab;
+        SettingsTabs.SelectedItem = openUpdates ? UpdatesTab : playbackActive || monitors.Count == 0 ? DiagnosticsTab : ScreensTab;
         ScreensTab.IsEnabled = !playbackActive;
         AppearanceAudioTab.IsEnabled = !playbackActive;
         _updateManager.StateChanged += UpdateManager_OnStateChanged;
+        _diagnosticTimer = new DispatcherTimer(
+            TimeSpan.FromSeconds(2),
+            DispatcherPriority.Background,
+            (_, _) => RefreshDiagnostics(),
+            Dispatcher);
+        _diagnosticTimer.Start();
         Closing += ScreenConfigurationWindow_OnClosing;
-        Closed += (_, _) => _updateManager.StateChanged -= UpdateManager_OnStateChanged;
+        Closed += (_, _) =>
+        {
+            _diagnosticTimer.Stop();
+            _updateManager.StateChanged -= UpdateManager_OnStateChanged;
+        };
         RefreshUpdateUi();
         RefreshWindowsIntegrationUi();
+        RefreshDiagnostics();
     }
 
     internal ScreenConfigurationResult? Result { get; private set; }
@@ -176,6 +192,32 @@ public partial class ScreenConfigurationWindow : Window
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             WindowsIntegrationMessageText.Text = $"Não foi possível abrir as Configurações do Windows: {exception.Message}";
+        }
+    }
+
+    private void RefreshDiagnostics()
+    {
+        try
+        {
+            DiagnosticText.Text = DiagnosticReportFormatter.Format(_diagnosticSnapshot());
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            DiagnosticText.Text = $"Diagnóstico temporariamente indisponível: {exception.Message}";
+        }
+    }
+
+    private void CopyDiagnosticsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            RefreshDiagnostics();
+            Clipboard.SetText(DiagnosticText.Text);
+            DiagnosticCopyStatusText.Text = "Diagnóstico copiado para a área de transferência.";
+        }
+        catch (Exception exception) when (exception is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
+        {
+            DiagnosticCopyStatusText.Text = $"Não foi possível copiar o diagnóstico: {exception.Message}";
         }
     }
 

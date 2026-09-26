@@ -1,6 +1,7 @@
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace GuiaPlay.Core;
 
@@ -98,12 +99,21 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
     private readonly string _mutexName = mutexName;
     private readonly string _pipeName = pipeName;
     private readonly CancellationTokenSource _shutdown = new();
+    private readonly Channel<string?> _requests = Channel.CreateBounded<string?>(new BoundedChannelOptions(64)
+    {
+        SingleReader = true,
+        SingleWriter = true,
+        AllowSynchronousContinuations = false,
+        FullMode = BoundedChannelFullMode.Wait
+    });
     private Mutex? _mutex;
     private Task? _listener;
+    private Task? _processor;
     private Func<string?, Task>? _requestHandler;
     private bool _disposed;
 
     public bool IsListening => _listener is not null && !_listener.IsCompleted;
+    public event Action<Exception>? RequestFailed;
 
     public async Task<SingleInstanceStartResult> StartAsync(
         string? mediaPath,
@@ -122,6 +132,7 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
         }
 
         _requestHandler = requestHandler;
+        _processor = Task.Run(ProcessRequestsAsync);
         _listener = Task.Run(ListenAsync);
         return SingleInstanceStartResult.Primary;
     }
@@ -134,9 +145,25 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
         }
 
         _disposed = true;
+        _requests.Writer.TryComplete();
         _shutdown.Cancel();
         _mutex?.Dispose();
-        _shutdown.Dispose();
+        var tasks = new[] { _listener, _processor }.OfType<Task>().ToArray();
+        if (tasks.Length == 0)
+        {
+            _shutdown.Dispose();
+            return;
+        }
+
+        _ = Task.WhenAll(tasks).ContinueWith(
+            completed =>
+            {
+                _ = completed.Exception;
+                _shutdown.Dispose();
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private async Task ForwardAsync(string? mediaPath, CancellationToken cancellationToken)
@@ -144,7 +171,9 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
         using var client = new NamedPipeClientStream(".", _pipeName, PipeDirection.Out, PipeOptions.Asynchronous);
         await client.ConnectAsync(5000, cancellationToken).ConfigureAwait(false);
         await using var writer = new StreamWriter(client, new UTF8Encoding(false), leaveOpen: false) { AutoFlush = true };
-        await writer.WriteLineAsync(JsonSerializer.Serialize(new SingleInstanceRequest(mediaPath))).ConfigureAwait(false);
+        await writer.WriteLineAsync(
+            JsonSerializer.Serialize(new SingleInstanceRequest(mediaPath)).AsMemory(),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ListenAsync()
@@ -164,9 +193,9 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
                 var line = await reader.ReadLineAsync(_shutdown.Token).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(line) &&
                     JsonSerializer.Deserialize<SingleInstanceRequest>(line) is { } request &&
-                    _requestHandler is { } handler)
+                    _requestHandler is not null)
                 {
-                    _ = Task.Run(() => handler(request.MediaPath));
+                    await _requests.Writer.WriteAsync(request.MediaPath, _shutdown.Token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
@@ -177,6 +206,36 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
             {
                 // The next loop creates a fresh server after a transient client failure.
             }
+            catch (JsonException exception) when (!_shutdown.IsCancellationRequested)
+            {
+                RequestFailed?.Invoke(exception);
+            }
+        }
+    }
+
+    private async Task ProcessRequestsAsync()
+    {
+        try
+        {
+            await foreach (var mediaPath in _requests.Reader.ReadAllAsync(_shutdown.Token).ConfigureAwait(false))
+            {
+                if (_requestHandler is not { } handler)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await handler(mediaPath).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    RequestFailed?.Invoke(exception);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
         }
     }
 

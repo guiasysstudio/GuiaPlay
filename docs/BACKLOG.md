@@ -58,11 +58,18 @@ Protótipo funcional multitelas, prévia/controles, motor compartilhado por call
 - Concluído: tarefas opt-in no Setup, configuração pós-instalação, abertura das Configurações oficiais de aplicativos padrão e limpeza seletiva na desinstalação.
 - Concluído: abstração de Registry, testes em memória e round-trip controlado sob subchave HKCU temporária.
 
-## Marcos futuros — não iniciados
+## M09 — 0.9.0-prototipo
 
-- **M09 — Robustez, performance e validação prolongada.**
+- Concluído: diagnóstico leve de sessão com memória, CPU aproximada, GC, uptime, playback, saídas, trocas e pipeline de frames, incluindo resumo copiável com redaction de caminhos.
+- Concluído: ciclo de vida LibVLC endurecido contra callbacks de sessões substituídas, falhas parciais de criação, corrida com dispose e acúmulo de recursos nativos.
+- Concluído: backpressure explícito, métricas pontuais, fila serial do Named Pipe, debounce de mudanças de monitor e probe assíncrono com timeout para mídia local/remota.
+- Concluído: rotação testável de logs, cenários de persistência corrompida/falha de replace, playlist com 1.000 itens, download cancelado e stress de trocas/instância única.
+- Concluído: `scripts/soak-test.ps1`, matriz de formatos e roteiro de 30 minutos/1 hora/2 horas sem inventar resultados físicos.
+
+## Marco futuro — não iniciado
+
 - **M10 — Estabilização final e preparação para 1.0.**
-- M09 e M10 permanecem separados desta entrega e não foram implementados.
+- O M10 permanece separado desta entrega e não foi iniciado.
 
 ## Não planejado para estes marcos
 

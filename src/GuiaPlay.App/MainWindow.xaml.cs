@@ -33,6 +33,9 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _monitorTimer;
     private readonly DispatcherTimer _settingsSaveTimer;
     private readonly ReconnectAuthorization _reconnectAuthorization = new();
+    private readonly NotificationDebouncer _displayChangeDebouncer = new(TimeSpan.FromMilliseconds(500));
+    private readonly SessionDiagnostics _diagnostics = new();
+    private readonly ProcessMetricsSampler _processMetrics = new();
     private readonly HashSet<string> _selectedOutputIdsThisSession = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _explicitOutputIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action _renderFrameCallback;
@@ -59,6 +62,7 @@ public partial class MainWindow : Window
     private IReadOnlyList<AudioDeviceIdentity> _audioDevices = [];
     private MonitorInfo? _operatorMonitor;
     private CancellationTokenSource? _identifierCancellation;
+    private CancellationTokenSource? _playlistAvailabilityCancellation;
     private Point _playlistDragStart;
     private object? _playlistDragSource;
     private bool _autoInstallInProgress;
@@ -183,9 +187,19 @@ public partial class MainWindow : Window
     private async Task<bool> LoadMediaAsync(string path, bool playImmediately)
     {
         var kind = MediaTypeDetector.Detect(path);
-        if (kind == MediaKind.Unknown || !File.Exists(path))
+        if (kind == MediaKind.Unknown)
         {
-            StatusText.Text = "Arquivo indisponível ou formato não reconhecido.";
+            StatusText.Text = "Formato de mídia não reconhecido.";
+            return false;
+        }
+
+        StatusText.Text = "Verificando disponibilidade da mídia…";
+        var probe = await MediaFileProbe.ProbeAsync(path, TimeSpan.FromSeconds(4));
+        if (probe != MediaProbeStatus.Available)
+        {
+            StatusText.Text = probe == MediaProbeStatus.TimedOut
+                ? "A mídia ou unidade de rede não respondeu no tempo esperado."
+                : "Arquivo indisponível; a referência permanece na playlist.";
             return false;
         }
 
@@ -231,14 +245,15 @@ public partial class MainWindow : Window
                 : _outputChoices.Any(choice => choice.IsSelected)
                     ? "Vídeo carregado; pronto para reproduzir."
                     : "Vídeo carregado; selecione ao menos uma saída.";
+            _diagnostics.RecordMediaChanged();
+            LogDiagnosticSnapshot("Mídia carregada");
             RefreshPlaybackControls();
         }
         catch (Exception exception)
         {
             _coordinator.PlaybackFailed(_coordinator.Generation);
-            FileLogger.Error($"Falha ao carregar '{path}'.", exception);
-            MessageBox.Show(this, exception.Message, "Não foi possível abrir a mídia", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusText.Text = "Falha ao carregar; você pode escolher outro arquivo.";
+            FileLogger.Error($"Falha ao carregar '{Path.GetFileName(path)}'; geração {_coordinator.Generation}; tipo {kind}.", exception);
+            StatusText.Text = $"Falha ao carregar {Path.GetFileName(path)}; você pode escolher outro arquivo.";
             return false;
         }
         finally
@@ -351,14 +366,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        var action = PlaylistActivationPolicy.Resolve(item.Item.Kind, item.IsAvailable, SelectedOutputCount());
+        var action = PlaylistActivationPolicy.Resolve(item.Item.Kind, isAvailable: true, SelectedOutputCount());
         if (action == PlaylistActivationAction.None)
         {
             StatusText.Text = $"Arquivo não encontrado: {item.Name}";
             return;
         }
 
-        await LoadMediaAsync(item.Item.OriginalPath, playImmediately: action == PlaylistActivationAction.LoadAndPlay);
+        var loaded = await LoadMediaAsync(item.Item.OriginalPath, playImmediately: action == PlaylistActivationAction.LoadAndPlay);
+        item.SetAvailability(loaded);
     }
 
     private void PlaylistTree_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -509,10 +525,47 @@ public partial class MainWindow : Window
 
     private void RebuildPlaylistTree()
     {
+        _playlistAvailabilityCancellation?.Cancel();
+        _playlistAvailabilityCancellation?.Dispose();
+        _playlistAvailabilityCancellation = new CancellationTokenSource();
         _playlistGroups.Clear();
         foreach (var group in _playlistCatalog.Snapshot.Groups)
         {
             _playlistGroups.Add(new PlaylistGroupNode(group));
+        }
+
+        _ = RefreshLocalPlaylistAvailabilityAsync(_playlistAvailabilityCancellation.Token);
+    }
+
+    private async Task RefreshLocalPlaylistAvailabilityAsync(CancellationToken cancellationToken)
+    {
+        var items = _playlistGroups.SelectMany(group => group.Items)
+            .Where(item => !item.Item.OriginalPath.StartsWith(@"\\", StringComparison.Ordinal))
+            .ToArray();
+        var results = new System.Collections.Concurrent.ConcurrentBag<(PlaylistItemNode Item, bool Available)>();
+        try
+        {
+            await Parallel.ForEachAsync(
+                items,
+                new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken },
+                async (item, token) =>
+                {
+                    var probe = await MediaFileProbe.ProbeAsync(item.Item.OriginalPath, TimeSpan.FromSeconds(2), token);
+                    if (probe is MediaProbeStatus.Available or MediaProbeStatus.Missing)
+                    {
+                        results.Add((item, probe == MediaProbeStatus.Available));
+                    }
+                });
+            await Dispatcher.InvokeAsync(() =>
+            {
+                foreach (var result in results)
+                {
+                    result.Item.SetAvailability(result.Available);
+                }
+            }, DispatcherPriority.Background, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -603,6 +656,7 @@ public partial class MainWindow : Window
             SetConfigurationControlsEnabled(false);
             RefreshPlaybackControls();
             FileLogger.Info($"Reprodução solicitada. Geração {generation}; tipo: {_coordinator.MediaKind}; saídas públicas: {(PlaybackRouting.UsesVideoOutputs(_coordinator.MediaKind) ? selected.Length : 0)}.");
+            LogDiagnosticSnapshot("Início de reprodução");
             SetControlsBusy(false);
         }
         catch (Exception exception)
@@ -647,6 +701,7 @@ public partial class MainWindow : Window
             UpdateTimeLabels(0, Math.Max(0, _engine.Length));
             StatusText.Text = "Parado; o arquivo continua carregado";
             LogPlaybackMetrics($"Parada da geração {_coordinator.Generation}");
+            LogDiagnosticSnapshot("Playback parado");
             PlayButtonText.Text = "Reproduzir";
             SetConfigurationControlsEnabled(true);
             RefreshPlaybackControls();
@@ -715,18 +770,6 @@ public partial class MainWindow : Window
 
     private async Task OpenSettingsAsync(bool openUpdates)
     {
-        if (_coordinator.IsActive && !openUpdates)
-        {
-            StatusText.Text = "Pare a reprodução antes de alterar a configuração das telas.";
-            return;
-        }
-
-        if (_monitors.Count == 0)
-        {
-            StatusText.Text = "Nenhuma tela ativa foi encontrada para configurar.";
-            return;
-        }
-
         var app = Application.Current as App;
         if (app is not { UpdateManager: { } updateManager, WindowsIntegration: { } windowsIntegration })
         {
@@ -743,6 +786,7 @@ public partial class MainWindow : Window
             _audioDevices,
             updateManager,
             windowsIntegration,
+            CaptureDiagnostics,
             openUpdates,
             _coordinator.IsActive)
         { Owner = this };
@@ -882,11 +926,11 @@ public partial class MainWindow : Window
 
     private void MuteButton_OnClick(object sender, RoutedEventArgs e)
     {
-        var muted = !(MuteButton.Tag as bool? ?? false);
-        MuteButton.Tag = muted;
-        UpdateMuteVisual(muted);
-        _engine.Muted = muted;
-        VolumeText.Text = muted ? "mudo" : $"{(int)VolumeSlider.Value}%";
+        var state = MediaControlBehavior.ToggleMute((int)VolumeSlider.Value, MuteButton.Tag as bool? ?? false);
+        MuteButton.Tag = state.Muted;
+        UpdateMuteVisual(state.Muted);
+        _engine.Muted = state.Muted;
+        VolumeText.Text = state.Muted ? "mudo" : $"{state.Volume}%";
         ScheduleSettingsSave();
     }
 
@@ -922,15 +966,15 @@ public partial class MainWindow : Window
 
     private void VolumeSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        var value = (int)e.NewValue;
+        var state = MediaControlBehavior.SetVolume((int)e.NewValue, MuteButton?.Tag as bool? ?? false);
         if (VolumeText is not null)
         {
-            VolumeText.Text = MuteButton?.Tag as bool? == true ? "mudo" : $"{value}%";
+            VolumeText.Text = state.Muted ? "mudo" : $"{state.Volume}%";
         }
 
         if (_engine is not null)
         {
-            _engine.Volume = value;
+            _engine.Volume = state.Volume;
         }
 
         if (_settingsInitialized)
@@ -1021,8 +1065,14 @@ public partial class MainWindow : Window
 
     private void Engine_OnFrameReady(long generation)
     {
+        if (_isClosing || !_coordinator.AcceptsCallback(PlaybackCallbackKind.FrameReady, generation))
+        {
+            return;
+        }
+
+        _diagnostics.RecordFrameReceived();
         Interlocked.Increment(ref _frameCallbacks);
-        _frameGeneration = generation;
+        Volatile.Write(ref _frameGeneration, generation);
         if (Interlocked.Exchange(ref _renderPending, 1) == 0)
         {
             _ = Dispatcher.BeginInvoke(DispatcherPriority.Render, _renderFrameCallback);
@@ -1032,8 +1082,9 @@ public partial class MainWindow : Window
     private void RenderLatestFrame()
     {
         Interlocked.Exchange(ref _renderPending, 0);
-        var generation = _frameGeneration;
-        if (generation != _coordinator.Generation || !_engine.TryAcquireLatestFrame(generation, out var frame))
+        var generation = Volatile.Read(ref _frameGeneration);
+        if (!_coordinator.AcceptsCallback(PlaybackCallbackKind.FrameReady, generation) ||
+            !_engine.TryAcquireLatestFrame(generation, out var frame))
         {
             return;
         }
@@ -1058,8 +1109,10 @@ public partial class MainWindow : Window
                 frame.Pointer,
                 checked((int)(frame.Pitch * frame.Height)),
                 (int)frame.Pitch);
-            Interlocked.Add(ref _copyTicks, Stopwatch.GetTimestamp() - copyStart);
+            var copyElapsed = Stopwatch.GetElapsedTime(copyStart);
+            Interlocked.Add(ref _copyTicks, copyElapsed.Ticks * Stopwatch.Frequency / TimeSpan.TicksPerSecond);
             Interlocked.Increment(ref _framesRendered);
+            _diagnostics.RecordFrameRendered(copyElapsed);
             if (_outputsAwaitingFirstFrame)
             {
                 foreach (var window in _outputWindows.Values)
@@ -1089,7 +1142,7 @@ public partial class MainWindow : Window
 
     private void Engine_OnPaused(long generation)
     {
-        if (generation != _coordinator.Generation)
+        if (!_coordinator.AcceptsCallback(PlaybackCallbackKind.Paused, generation))
         {
             return;
         }
@@ -1112,6 +1165,7 @@ public partial class MainWindow : Window
         RefreshPlaybackControls();
         ProgressSlider.Value = ProgressSlider.Maximum;
         LogPlaybackMetrics($"Fim natural da geração {generation}");
+        LogDiagnosticSnapshot("Fim natural");
         _ = TryAutomaticInstallationAsync();
     }
 
@@ -1128,7 +1182,7 @@ public partial class MainWindow : Window
         SetConfigurationControlsEnabled(true);
         RefreshPlaybackControls();
         FileLogger.Error($"Erro do LibVLC na geração {generation}: {message}");
-        MessageBox.Show(this, message, "Erro de reprodução", MessageBoxButton.OK, MessageBoxImage.Error);
+        LogDiagnosticSnapshot("Erro de reprodução");
     }
 
     private void LogPlaybackMetrics(string reason)
@@ -1142,7 +1196,7 @@ public partial class MainWindow : Window
 
     private void UpdateTime(long generation, long time)
     {
-        if (generation != _coordinator.Generation)
+        if (!_coordinator.AcceptsCallback(PlaybackCallbackKind.TimeChanged, generation))
         {
             return;
         }
@@ -1159,7 +1213,7 @@ public partial class MainWindow : Window
 
     private void UpdateLength(long generation, long length)
     {
-        if (generation != _coordinator.Generation)
+        if (!_coordinator.AcceptsCallback(PlaybackCallbackKind.LengthChanged, generation))
         {
             return;
         }
@@ -1538,7 +1592,7 @@ public partial class MainWindow : Window
 
     private void Engine_OnAudioDeviceChanged(long generation, string deviceId)
     {
-        if (generation != _coordinator.Generation)
+        if (!_coordinator.AcceptsCallback(PlaybackCallbackKind.AudioDeviceChanged, generation))
         {
             return;
         }
@@ -1664,6 +1718,11 @@ public partial class MainWindow : Window
     {
         if (message == WmDisplayChange)
         {
+            if (!_displayChangeDebouncer.TryAccept())
+            {
+                return nint.Zero;
+            }
+
             CloseIdentifierWindows();
             foreach (var window in _outputWindows.Values)
             {
@@ -1746,8 +1805,12 @@ public partial class MainWindow : Window
         Hide();
         _monitorTimer.Stop();
         _settingsSaveTimer.Stop();
+        _playlistAvailabilityCancellation?.Cancel();
+        _playlistAvailabilityCancellation?.Dispose();
+        _playlistAvailabilityCancellation = null;
         CloseIdentifierWindows();
         CloseOutputWindows();
+        LogDiagnosticSnapshot("Encerramento da aplicação");
         try
         {
             await _engine.DisposeAsync();
@@ -1759,6 +1822,35 @@ public partial class MainWindow : Window
 
         _allowClose = true;
         Close();
+    }
+
+    private DiagnosticSnapshot CaptureDiagnostics()
+    {
+        var updateManager = (Application.Current as App)?.UpdateManager;
+        var updateState = updateManager?.IsPreparing == true
+            ? updateManager.PreparationProgress.Stage.ToString()
+            : updateManager?.LastResult?.Status.ToString() ?? "Não verificado";
+        return _diagnostics.Capture(
+            _processMetrics.Sample(),
+            _coordinator.Status,
+            _coordinator.MediaPath,
+            _coordinator.MediaKind,
+            _outputWindows.Count,
+            updateState);
+    }
+
+    private void LogDiagnosticSnapshot(string reason)
+    {
+        var snapshot = CaptureDiagnostics();
+        var cpu = snapshot.Resources.CpuPercent is { } value
+            ? $"{value.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}%"
+            : "coletando";
+        FileLogger.Info(
+            $"{reason}; estado={snapshot.PlaybackState}; geração={_coordinator.Generation}; tipo={snapshot.MediaType}; " +
+            $"saídas={snapshot.OutputCount}; working-set={snapshot.Resources.WorkingSetBytes}; privada={snapshot.Resources.PrivateMemoryBytes}; " +
+            $"gerenciada={snapshot.Resources.ManagedMemoryBytes}; cpu={cpu}; " +
+            $"frames={snapshot.FramesReceived}/{snapshot.FramesRendered}/{snapshot.FramesReplaced}; " +
+            $"cópia-média={snapshot.AverageFrameCopyMilliseconds:F3} ms; trocas={snapshot.MediaSwitches}.");
     }
 
 }

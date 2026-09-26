@@ -89,7 +89,8 @@ public sealed class PlaybackCoordinator
 
     public bool MarkPlaying(long generation)
     {
-        if (!IsCurrent(generation) || Status != PlaybackStatus.Preparing)
+        if (!PlaybackCallbackPolicy.ShouldAccept(PlaybackCallbackKind.Playing, generation, Generation, Status) ||
+            Status != PlaybackStatus.Preparing)
         {
             return false;
         }
@@ -133,7 +134,7 @@ public sealed class PlaybackCoordinator
 
     public PlaybackTransition NaturalEnd(long generation)
     {
-        if (!IsCurrent(generation) || Status is not PlaybackStatus.Playing and not PlaybackStatus.Paused and not PlaybackStatus.Preparing)
+        if (!AcceptsCallback(PlaybackCallbackKind.EndReached, generation))
         {
             return new(false);
         }
@@ -144,7 +145,7 @@ public sealed class PlaybackCoordinator
 
     public PlaybackTransition PlaybackFailed(long generation)
     {
-        if (!IsCurrent(generation))
+        if (!AcceptsCallback(PlaybackCallbackKind.Error, generation))
         {
             return new(false);
         }
@@ -178,6 +179,9 @@ public sealed class PlaybackCoordinator
         Status = PlaybackStatus.Paused;
         return new(true, PauseEngine: true);
     }
+
+    public bool AcceptsCallback(PlaybackCallbackKind callback, long generation) =>
+        PlaybackCallbackPolicy.ShouldAccept(callback, generation, Generation, Status);
 
     private bool IsCurrent(long generation) => generation == Generation;
 }

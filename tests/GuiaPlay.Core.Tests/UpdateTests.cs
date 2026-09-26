@@ -11,7 +11,7 @@ public sealed class ProductVersionTests
     [Fact]
     public void ProductMetadataUsesCentralVersionAndReleaseDate()
     {
-        Assert.Equal("0.8.0-prototipo", ProductInfo.Version);
+        Assert.Equal("0.9.0-prototipo", ProductInfo.Version);
         Assert.Equal(new DateOnly(2026, 9, 26), ProductInfo.ReleaseDate);
         Assert.Equal(UpdateChannel.Prototype, ProductInfo.Channel);
     }
@@ -368,6 +368,23 @@ public sealed class PackageSecurityTests : IDisposable
     }
 
     [Fact]
+    public async Task CancelledDownloadDeletesPartialPackage()
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "partial.zip");
+        using var client = new HttpClient(new StreamingHandler(new PartialThenBlockStream()));
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new UpdatePackageDownloader(client).DownloadAsync(
+                new Uri("https://example.test/partial.zip"),
+                path,
+                cancellationToken: cancellation.Token));
+
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
     public void InvalidManifestIsRejected()
     {
         Assert.False(UpdateManifest.TryParse("{\"schema\":2}", out _, out var error));
@@ -456,6 +473,43 @@ public sealed class PackageSecurityTests : IDisposable
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new UnknownLengthContent(bytes) });
+    }
+
+    private sealed class StreamingHandler(Stream stream) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(stream) });
+    }
+
+    private sealed class PartialThenBlockStream : Stream
+    {
+        private bool _sent;
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (!_sent)
+            {
+                _sent = true;
+                var count = Math.Min(1024, buffer.Length);
+                buffer.Span[..count].Fill(0x5A);
+                return count;
+            }
+
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return 0;
+        }
+
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class UnknownLengthContent(byte[] bytes) : HttpContent

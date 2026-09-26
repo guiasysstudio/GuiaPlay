@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Diagnostics;
 using GuiaPlay.Core;
 using Xunit;
 
@@ -198,6 +199,61 @@ public sealed class PlaylistTests : IDisposable
         Assert.Null(savedItem["bytes"]);
         Assert.Null(savedItem["content"]);
         Assert.Null(savedItem["data"]);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("{")]
+    [InlineData("{\"schemaVersion\":1,\"groups\":[")]
+    public void EmptyOrTruncatedPlaylistFallsBackWithoutCrashing(string invalidJson)
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(PlaylistPath, invalidJson);
+
+        var result = new PlaylistStore(PlaylistPath).Load();
+
+        Assert.Empty(result.Playlist.Groups);
+        Assert.NotNull(result.Warning);
+    }
+
+    [Fact]
+    public void FailedSavePreservesPreviouslyValidPlaylist()
+    {
+        Directory.CreateDirectory(_directory);
+        var original = new PlaylistDocument(1, [new PlaylistGroup(Guid.NewGuid(), "Original", 0, [])]);
+        var store = new PlaylistStore(PlaylistPath);
+        Assert.True(store.Save(original).Succeeded);
+        var previousBytes = File.ReadAllBytes(PlaylistPath);
+        using var lockStream = new FileStream(PlaylistPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        var result = store.Save(new PlaylistDocument(1, [new PlaylistGroup(Guid.NewGuid(), "Nova", 0, [])]));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(previousBytes, File.ReadAllBytes(PlaylistPath));
+    }
+
+    [Fact]
+    public void ThousandItemCatalogReordersSerializesAndLoadsWithinGenerousThreshold()
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var catalog = new PlaylistCatalog(PlaylistDocument.Empty);
+        var firstGroup = catalog.CreateGroup("Catálogo A");
+        var secondGroup = catalog.CreateGroup("Catálogo B");
+        for (var index = 0; index < 1000; index++)
+        {
+            catalog.AddItem(firstGroup.Id, Path.Combine(_directory, $"referência-{index:0000}.mp4"));
+        }
+
+        var first = catalog.Snapshot.Groups[0].Items[0];
+        Assert.True(catalog.MoveItem(firstGroup.Id, first.Id, secondGroup.Id, 0));
+        var store = new PlaylistStore(PlaylistPath);
+        Assert.True(store.Save(catalog.Snapshot).Succeeded);
+        var loaded = store.Load().Playlist;
+        stopwatch.Stop();
+
+        Assert.Equal(1000, loaded.Groups.Sum(group => group.Items.Count));
+        Assert.Equal(first.Id, Assert.Single(loaded.Groups[1].Items).Id);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(15), $"Operação levou {stopwatch.Elapsed}.");
     }
 
     public void Dispose()

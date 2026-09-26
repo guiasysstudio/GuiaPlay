@@ -110,6 +110,38 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.Equal(2, Directory.GetFiles(_directory, "settings.invalid-*.json").Length);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("{")]
+    [InlineData("{\"audio\":")]
+    public void EmptyOrTruncatedSettingsRecoverToSafeDefaults(string invalidJson)
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(SettingsPath, invalidJson);
+
+        var result = new AppSettingsStore(SettingsPath).Load();
+
+        Assert.Equal(AppSettings.Default, result.Settings);
+        Assert.True(result.RecoveredFromInvalidFile);
+        Assert.NotNull(result.Warning);
+    }
+
+    [Fact]
+    public void FailedReplacementDoesNotDestroyPreviouslyValidSettings()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = new AppSettingsStore(SettingsPath);
+        _ = store.Load();
+        Assert.True(store.Save(AppSettings.Default with { Volume = 80 }).Succeeded);
+        var previousBytes = File.ReadAllBytes(SettingsPath);
+        using var lockStream = new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        var result = store.Save(AppSettings.Default with { Volume = 25 });
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(previousBytes, File.ReadAllBytes(SettingsPath));
+    }
+
     [Fact]
     public void InvalidValuesFallBackAndVolumeIsClamped()
     {

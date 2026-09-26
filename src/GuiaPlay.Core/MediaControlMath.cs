@@ -1,6 +1,7 @@
 namespace GuiaPlay.Core;
 
 public readonly record struct VolumeWheelResult(int Volume, bool Muted);
+public readonly record struct VolumeState(int Volume, bool Muted);
 
 public static class MediaControlBehavior
 {
@@ -12,6 +13,12 @@ public static class MediaControlBehavior
 
     public static VolumeWheelResult AdjustVolume(int current, bool muted, int wheelDelta) =>
         new(AdjustVolume(current, wheelDelta), muted);
+
+    public static VolumeState SetVolume(int requestedVolume, bool muted) =>
+        new(Math.Clamp(requestedVolume, 0, 100), muted);
+
+    public static VolumeState ToggleMute(int volume, bool muted) =>
+        new(Math.Clamp(volume, 0, 100), !muted);
 
     public static long PositionFromPoint(double coordinate, double controlWidth, long durationMilliseconds)
     {

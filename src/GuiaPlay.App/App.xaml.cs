@@ -38,15 +38,14 @@ public partial class App : Application
             return;
         }
 
-        var launchArgument = LaunchArgumentParser.Parse(e.Args);
+        var launchArgument = e.Args.FirstOrDefault(argument => !string.IsNullOrWhiteSpace(argument));
         _singleInstance = new SingleInstanceCoordinator(
             @"Local\GuiaPlay.M04.SingleInstance",
             "GuiaPlay.M04.Commands");
         SingleInstanceStartResult instanceResult;
         try
         {
-            var forwardedArgument = launchArgument.MediaPath ?? e.Args.FirstOrDefault(argument => !string.IsNullOrWhiteSpace(argument));
-            instanceResult = _singleInstance.StartAsync(forwardedArgument, HandleForwardedRequestAsync)
+            instanceResult = _singleInstance.StartAsync(launchArgument, HandleForwardedRequestAsync)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -68,6 +67,12 @@ public partial class App : Application
         }
 
         FileLogger.Initialize();
+        _singleInstance.RequestFailed += exception =>
+            FileLogger.Error("Falha ao processar uma solicitação da instância única.", exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            FileLogger.Error("Falha não tratada no processo.", args.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+            FileLogger.Error("Falha não observada em tarefa assíncrona.", args.Exception);
         var settingsPathOverride = Environment.GetEnvironmentVariable("GUIAPLAY_SETTINGS_PATH");
         var settingsPath = string.IsNullOrWhiteSpace(settingsPathOverride)
             ? Path.Combine(
@@ -105,8 +110,20 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             FileLogger.Error("Falha não tratada na interface.", args.Exception);
+            if (args.Exception is not IOException and not UnauthorizedAccessException)
+            {
+                MessageBox.Show(
+                    $"O GuiaPlay encontrou uma falha crítica e será encerrado de forma controlada.\n\n{args.Exception.Message}",
+                    "GuiaPlay — falha crítica",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                args.Handled = true;
+                Shutdown(1);
+                return;
+            }
+
             MessageBox.Show(
-                $"O GuiaPlay encontrou um erro e continuará aberto quando possível.\n\n{args.Exception.Message}",
+                $"O GuiaPlay encontrou uma falha de acesso a arquivo, mas a sessão pode continuar.\n\n{args.Exception.Message}",
                 "GuiaPlay — erro",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -116,11 +133,7 @@ public partial class App : Application
         MainWindow = window;
         window.Loaded += async (_, _) =>
         {
-            if (launchArgument.Warning is { } warning)
-            {
-                window.ShowExternalRequestStatus(warning);
-            }
-            else if (launchArgument.MediaPath is { } mediaPath)
+            if (launchArgument is { } mediaPath)
             {
                 await window.HandleExternalMediaAsync(mediaPath);
             }
@@ -202,14 +215,7 @@ public partial class App : Application
                 return;
             }
 
-            var parsed = LaunchArgumentParser.Parse([argument]);
-            if (parsed.Warning is { } warning)
-            {
-                window.ShowExternalRequestStatus(warning);
-                return;
-            }
-
-            await window.HandleExternalMediaAsync(parsed.MediaPath!);
+            await window.HandleExternalMediaAsync(argument);
         }).Task.Unwrap();
     }
 }

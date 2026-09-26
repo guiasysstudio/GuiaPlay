@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.IO;
 using GuiaPlay.Core;
 using LibVLCSharp.Shared;
 
@@ -27,15 +26,15 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
     public event Action<long, long>? LengthChanged;
     public event Action<long, string>? AudioDeviceChanged;
 
-    public long Time => _current?.Player.Time ?? 0;
-    public long Length => _current?.Player.Length ?? 0;
+    public long Time => Volatile.Read(ref _current)?.Player.Time ?? 0;
+    public long Length => Volatile.Read(ref _current)?.Player.Length ?? 0;
 
     public int Volume
     {
-        get => _current?.Player.Volume ?? 100;
+        get => Volatile.Read(ref _current)?.Player.Volume ?? 100;
         set
         {
-            if (_current is { } session)
+            if (Volatile.Read(ref _current) is { } session)
             {
                 session.Player.Volume = Math.Clamp(value, 0, 100);
             }
@@ -44,10 +43,10 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
 
     public bool Muted
     {
-        get => _current?.Player.Mute ?? false;
+        get => Volatile.Read(ref _current)?.Player.Mute ?? false;
         set
         {
-            if (_current is { } session)
+            if (Volatile.Read(ref _current) is { } session)
             {
                 session.Player.Mute = value;
             }
@@ -84,14 +83,10 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
     public async Task LoadAsync(string path, MediaKind mediaKind, long generation, AudioOutputPreference audioOutput)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!File.Exists(path))
-        {
-            throw new FileNotFoundException("O arquivo selecionado não existe.", path);
-        }
-
         await _lifecycle.WaitAsync().ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             var previous = Interlocked.Exchange(ref _current, null);
             if (previous is not null)
             {
@@ -116,6 +111,7 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         await _lifecycle.WaitAsync().ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             var previous = Interlocked.Exchange(ref _current, null);
             if (previous is null)
             {
@@ -136,7 +132,7 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
 
     public bool Play()
     {
-        var session = _current ?? throw new InvalidOperationException("Nenhuma mídia foi carregada.");
+        var session = Volatile.Read(ref _current) ?? throw new InvalidOperationException("Nenhuma mídia foi carregada.");
         if (session.Player.Time >= Math.Max(0, session.Player.Length - 250))
         {
             session.Player.Time = 0;
@@ -145,13 +141,13 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         return session.Player.Play();
     }
 
-    public void Pause() => _current?.Player.SetPause(true);
+    public void Pause() => Volatile.Read(ref _current)?.Player.SetPause(true);
 
-    public void Resume() => _current?.Player.SetPause(false);
+    public void Resume() => Volatile.Read(ref _current)?.Player.SetPause(false);
 
     public void Seek(long milliseconds)
     {
-        if (_current is { } session && session.Player.IsSeekable)
+        if (Volatile.Read(ref _current) is { } session && session.Player.IsSeekable)
         {
             session.Player.Time = Math.Clamp(milliseconds, 0, Math.Max(0, session.Player.Length));
         }
@@ -159,22 +155,25 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
 
     public async Task StopAsync()
     {
-        var session = _current;
-        if (session is null)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        await _lifecycle.WaitAsync().ConfigureAwait(false);
+        try
         {
-            return;
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (Volatile.Read(ref _current) is { } session)
+            {
+                await session.StopAsync().ConfigureAwait(false);
+            }
         }
-
-        await Task.Run(() =>
+        finally
         {
-            session.Player.Stop();
-            session.Player.Time = 0;
-        }).ConfigureAwait(false);
+            _lifecycle.Release();
+        }
     }
 
     public bool TryAcquireLatestFrame(long generation, out FrameBufferRing.FrameLease lease)
     {
-        var session = _current;
+        var session = Volatile.Read(ref _current);
         if (session is null || session.Generation != generation)
         {
             lease = default;
@@ -182,6 +181,17 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         }
 
         return session.Buffers.TryAcquireLatest(out lease);
+    }
+
+    private bool IsCurrent(Session session) =>
+        !_disposed && !session.IsDisposed && ReferenceEquals(Volatile.Read(ref _current), session);
+
+    private void Publish(Session session, Action publish)
+    {
+        if (IsCurrent(session))
+        {
+            publish();
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -206,7 +216,6 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         finally
         {
             _lifecycle.Release();
-            _lifecycle.Dispose();
         }
     }
 
@@ -233,41 +242,59 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
             Generation = generation;
             Buffers = new FrameBufferRing();
             Media = new Media(libVlc, new Uri(path));
-            if (mediaKind == MediaKind.Audio)
+            MediaPlayer? player = null;
+            try
             {
-                Media.AddOption(":no-video");
-            }
-
-            Player = new MediaPlayer(libVlc) { Media = Media };
-            if (audioOutput.IsExplicit)
-            {
-                if (!Player.SetAudioOutput(audioOutput.Module!))
+                if (mediaKind == MediaKind.Audio)
                 {
-                    throw new InvalidOperationException($"O LibVLC não aceitou o módulo de áudio '{audioOutput.Module}'.");
+                    Media.AddOption(":no-video");
                 }
 
-                Player.SetOutputDevice(audioOutput.DeviceId!, audioOutput.Module!);
-            }
+                player = new MediaPlayer(libVlc) { Media = Media };
+                Player = player;
+                if (audioOutput.IsExplicit)
+                {
+                    if (!Player.SetAudioOutput(audioOutput.Module!))
+                    {
+                        throw new InvalidOperationException($"O LibVLC não aceitou o módulo de áudio '{audioOutput.Module}'.");
+                    }
 
-            if (mediaKind == MediaKind.Video)
+                    Player.SetOutputDevice(audioOutput.DeviceId!, audioOutput.Module!);
+                }
+
+                if (mediaKind == MediaKind.Video)
+                {
+                    _lockCallback = LockVideo;
+                    _displayCallback = DisplayVideo;
+                    _formatCallback = FormatVideo;
+                    _cleanupCallback = CleanupVideo;
+                    Player.SetVideoCallbacks(_lockCallback, null, _displayCallback);
+                    Player.SetVideoFormatCallbacks(_formatCallback, _cleanupCallback);
+                }
+
+                Player.SetVideoTitleDisplay(Position.Disable, 0);
+                SubscribeEvents();
+            }
+            catch
             {
-                _lockCallback = LockVideo;
-                _displayCallback = DisplayVideo;
-                _formatCallback = FormatVideo;
-                _cleanupCallback = CleanupVideo;
-                Player.SetVideoCallbacks(_lockCallback, null, _displayCallback);
-                Player.SetVideoFormatCallbacks(_formatCallback, _cleanupCallback);
+                try
+                {
+                    player?.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        Media.Dispose();
+                    }
+                    finally
+                    {
+                        Buffers.Dispose();
+                    }
+                }
+
+                throw;
             }
-
-            Player.SetVideoTitleDisplay(Position.Disable, 0);
-
-            Player.Playing += (_, _) => _owner.Playing?.Invoke(Generation);
-            Player.Paused += (_, _) => _owner.Paused?.Invoke(Generation);
-            Player.EndReached += (_, _) => _owner.EndReached?.Invoke(Generation);
-            Player.EncounteredError += (_, _) => _owner.Error?.Invoke(Generation, "A mídia não pôde ser reproduzida.");
-            Player.TimeChanged += (_, args) => _owner.TimeChanged?.Invoke(Generation, args.Time);
-            Player.LengthChanged += (_, args) => _owner.LengthChanged?.Invoke(Generation, args.Length);
-            Player.AudioDevice += (_, args) => _owner.AudioDeviceChanged?.Invoke(Generation, args.AudioDevice);
         }
 
         public string Path { get; }
@@ -276,6 +303,21 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         public Media Media { get; }
         public MediaPlayer Player { get; }
         public FrameBufferRing Buffers { get; }
+        public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
+
+        public async Task StopAsync()
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            await Task.Run(Player.Stop).ConfigureAwait(false);
+            if (!IsDisposed)
+            {
+                Player.Time = 0;
+            }
+        }
 
         public async Task StopAndDisposeAsync()
         {
@@ -284,10 +326,29 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
                 return;
             }
 
-            await Task.Run(Player.Stop).ConfigureAwait(false);
-            Player.Dispose();
-            Media.Dispose();
-            Buffers.Dispose();
+            UnsubscribeEvents();
+            try
+            {
+                await Task.Run(Player.Stop).ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    Player.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        Media.Dispose();
+                    }
+                    finally
+                    {
+                        Buffers.Dispose();
+                    }
+                }
+            }
         }
 
         private nint LockVideo(nint opaque, nint planes) => Buffers.AcquireWrite(planes);
@@ -295,7 +356,7 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         private void DisplayVideo(nint opaque, nint picture)
         {
             Buffers.Commit(picture);
-            _owner.FrameReady?.Invoke(Generation);
+            _owner.Publish(this, () => _owner.FrameReady?.Invoke(Generation));
         }
 
         private uint FormatVideo(
@@ -317,6 +378,49 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         }
 
         private void CleanupVideo(ref nint opaque) => Buffers.Reset();
+
+        private void SubscribeEvents()
+        {
+            Player.Playing += OnPlaying;
+            Player.Paused += OnPaused;
+            Player.EndReached += OnEndReached;
+            Player.EncounteredError += OnEncounteredError;
+            Player.TimeChanged += OnTimeChanged;
+            Player.LengthChanged += OnLengthChanged;
+            Player.AudioDevice += OnAudioDeviceChanged;
+        }
+
+        private void UnsubscribeEvents()
+        {
+            Player.Playing -= OnPlaying;
+            Player.Paused -= OnPaused;
+            Player.EndReached -= OnEndReached;
+            Player.EncounteredError -= OnEncounteredError;
+            Player.TimeChanged -= OnTimeChanged;
+            Player.LengthChanged -= OnLengthChanged;
+            Player.AudioDevice -= OnAudioDeviceChanged;
+        }
+
+        private void OnPlaying(object? sender, EventArgs args) =>
+            _owner.Publish(this, () => _owner.Playing?.Invoke(Generation));
+
+        private void OnPaused(object? sender, EventArgs args) =>
+            _owner.Publish(this, () => _owner.Paused?.Invoke(Generation));
+
+        private void OnEndReached(object? sender, EventArgs args) =>
+            _owner.Publish(this, () => _owner.EndReached?.Invoke(Generation));
+
+        private void OnEncounteredError(object? sender, EventArgs args) =>
+            _owner.Publish(this, () => _owner.Error?.Invoke(Generation, "A mídia não pôde ser reproduzida."));
+
+        private void OnTimeChanged(object? sender, MediaPlayerTimeChangedEventArgs args) =>
+            _owner.Publish(this, () => _owner.TimeChanged?.Invoke(Generation, args.Time));
+
+        private void OnLengthChanged(object? sender, MediaPlayerLengthChangedEventArgs args) =>
+            _owner.Publish(this, () => _owner.LengthChanged?.Invoke(Generation, args.Length));
+
+        private void OnAudioDeviceChanged(object? sender, MediaPlayerAudioDeviceEventArgs args) =>
+            _owner.Publish(this, () => _owner.AudioDeviceChanged?.Invoke(Generation, args.AudioDevice));
 
         private static uint Align32(uint value) => checked((value + 31u) & ~31u);
     }
