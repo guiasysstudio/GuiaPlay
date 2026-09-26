@@ -1,0 +1,35 @@
+GUIAPLAY - PACOTE DO SITE
+
+Este ZIP foi montado para ser extraído na RAIZ do repositório GuiaPlay.
+
+Depois de extrair, a estrutura deve ficar assim:
+
+GuiaPlay/
+  site/
+    index.html
+    download/
+    sobre/
+    assets/
+  .github/
+    workflows/
+      pages.yml
+
+COMO SUBIR PELO GITHUB DESKTOP
+1. Feche este ZIP e extraia o conteúdo na pasta local do repositório GuiaPlay.
+2. Confirme que a pasta "site" ficou ao lado de "src", "tests" e "docs".
+3. Confirme que o arquivo ".github/workflows/pages.yml" existe.
+4. Abra o GitHub Desktop.
+5. Revise os arquivos alterados.
+6. Commit sugerido: "Site: adiciona página oficial do GuiaPlay"
+7. Faça Push origin.
+8. Como o Pages já está configurado para GitHub Actions, o workflow publicará somente a pasta /site.
+
+ENDEREÇO ESPERADO
+https://guiasysstudio.github.io/GuiaPlay/
+
+OBSERVAÇÕES
+- Os prints atuais são provisórios e podem ser substituídos depois mantendo os mesmos nomes de arquivo.
+- Aparência e Áudio usam temporariamente o mesmo print.
+- Usuário e Licença usa temporariamente o print da área Sobre.
+- O botão de download tenta localizar automaticamente o instalador mais recente publicado. Se a consulta falhar, existe fallback para 0.9.0-prototipo.
+- Não há menção visível ao provedor de hospedagem nas páginas do site.
