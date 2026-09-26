@@ -5,6 +5,7 @@ using System.IO;
 using System.Security;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
 using GuiaPlay.App.Models;
@@ -196,19 +197,39 @@ public partial class ScreenConfigurationWindow : Window
                 SystemParameters.HighContrast));
         if (palette.UsesSystemColors)
         {
+            AppearancePreviewCard.Background = SystemColors.WindowBrush;
+            AppearancePreviewCard.BorderBrush = SystemColors.WindowTextBrush;
+            AppearancePreviewSurface.Background = SystemColors.WindowBrush;
+            AppearancePreviewSurface.BorderBrush = SystemColors.WindowTextBrush;
+            AppearancePreviewSidebar.Background = SystemColors.ControlBrush;
+            AppearancePreviewSecondary.Background = SystemColors.WindowBrush;
+            AppearancePreviewSecondary.BorderBrush = SystemColors.WindowTextBrush;
+            AppearancePreviewSelection.Background = SystemColors.HighlightBrush;
+            AppearancePreviewSelectionText.Foreground = SystemColors.HighlightTextBrush;
+            AppearancePreviewControl.Background = SystemColors.ControlBrush;
             AppearancePreviewAccent.Background = SystemColors.HighlightBrush;
             AppearancePreviewAccent.Foreground = SystemColors.HighlightTextBrush;
-            AppearancePreviewCard.BorderBrush = SystemColors.HighlightBrush;
-            AppearancePreviewCard.Background = SystemColors.WindowBrush;
+            TextElement.SetForeground(AppearancePreviewContent, SystemColors.WindowTextBrush);
             return;
         }
 
-        var accent = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.AccentHex));
-        AppearancePreviewAccent.Background = accent;
-        AppearancePreviewAccent.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.ForegroundHex));
-        AppearancePreviewCard.BorderBrush = accent;
-        AppearancePreviewCard.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.SubtleHex));
+        AppearancePreviewCard.Background = PaletteBrush(palette.WindowBackgroundHex);
+        AppearancePreviewCard.BorderBrush = PaletteBrush(palette.DividerHex);
+        AppearancePreviewSurface.Background = PaletteBrush(palette.SurfacePrimaryHex);
+        AppearancePreviewSurface.BorderBrush = PaletteBrush(palette.DividerHex);
+        AppearancePreviewSidebar.Background = PaletteBrush(palette.SidebarBackgroundHex);
+        AppearancePreviewSecondary.Background = PaletteBrush(palette.SurfaceSecondaryHex);
+        AppearancePreviewSecondary.BorderBrush = PaletteBrush(palette.DividerHex);
+        AppearancePreviewSelection.Background = PaletteBrush(palette.SelectionBackgroundHex);
+        AppearancePreviewSelectionText.Foreground = PaletteBrush(palette.SelectionForegroundHex);
+        AppearancePreviewControl.Background = PaletteBrush(palette.ControlBackgroundHex);
+        AppearancePreviewAccent.Background = PaletteBrush(palette.AccentHex);
+        AppearancePreviewAccent.Foreground = PaletteBrush(palette.AccentForegroundHex);
+        TextElement.SetForeground(AppearancePreviewContent, PaletteBrush(palette.TextPrimaryHex));
     }
+
+    private static SolidColorBrush PaletteBrush(string hex) =>
+        new((Color)ColorConverter.ConvertFromString(hex));
 
     private void EqualizerEnabledCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {

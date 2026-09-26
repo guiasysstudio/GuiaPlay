@@ -199,16 +199,43 @@ public partial class App : Application
         {
             Resources["GuiaPlayAccentBrush"] = SystemColors.HighlightBrush;
             Resources["GuiaPlayAccentForegroundBrush"] = SystemColors.HighlightTextBrush;
-            Resources["GuiaPlayAccentSubtleBrush"] = SystemColors.WindowBrush;
+            Resources["GuiaPlayAccentSubtleBrush"] = SystemColors.ControlBrush;
             Resources["GuiaPlayAccentBorderBrush"] = SystemColors.HighlightBrush;
+            Resources["GuiaPlayWindowBackgroundBrush"] = SystemColors.WindowBrush;
+            Resources["GuiaPlaySurfacePrimaryBrush"] = SystemColors.WindowBrush;
+            Resources["GuiaPlaySurfaceSecondaryBrush"] = SystemColors.ControlBrush;
+            Resources["GuiaPlaySurfaceElevatedBrush"] = SystemColors.WindowBrush;
+            Resources["GuiaPlaySidebarBrush"] = SystemColors.ControlBrush;
+            Resources["GuiaPlayControlSurfaceBrush"] = SystemColors.ControlBrush;
+            Resources["GuiaPlayControlHoverBrush"] = SystemColors.HighlightBrush;
+            Resources["GuiaPlaySelectionBrush"] = SystemColors.HighlightBrush;
+            Resources["GuiaPlaySelectionForegroundBrush"] = SystemColors.HighlightTextBrush;
+            Resources["GuiaPlayDividerBrush"] = SystemColors.WindowTextBrush;
+            Resources["GuiaPlayTextPrimaryBrush"] = SystemColors.WindowTextBrush;
+            Resources["GuiaPlayTextSecondaryBrush"] = SystemColors.GrayTextBrush;
             return;
         }
 
-        Resources["GuiaPlayAccentBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.AccentHex));
-        Resources["GuiaPlayAccentForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.ForegroundHex));
-        Resources["GuiaPlayAccentSubtleBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.SubtleHex));
-        Resources["GuiaPlayAccentBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.AccentHex)) { Opacity = 0.55 };
+        Resources["GuiaPlayAccentBrush"] = Brush(palette.AccentHex);
+        Resources["GuiaPlayAccentForegroundBrush"] = Brush(palette.AccentForegroundHex);
+        Resources["GuiaPlayAccentSubtleBrush"] = Brush(palette.AccentSubtleHex);
+        Resources["GuiaPlayAccentBorderBrush"] = Brush(palette.AccentBorderHex);
+        Resources["GuiaPlayWindowBackgroundBrush"] = Brush(palette.WindowBackgroundHex);
+        Resources["GuiaPlaySurfacePrimaryBrush"] = Brush(palette.SurfacePrimaryHex);
+        Resources["GuiaPlaySurfaceSecondaryBrush"] = Brush(palette.SurfaceSecondaryHex);
+        Resources["GuiaPlaySurfaceElevatedBrush"] = Brush(palette.SurfaceElevatedHex);
+        Resources["GuiaPlaySidebarBrush"] = Brush(palette.SidebarBackgroundHex);
+        Resources["GuiaPlayControlSurfaceBrush"] = Brush(palette.ControlBackgroundHex);
+        Resources["GuiaPlayControlHoverBrush"] = Brush(palette.ControlHoverHex);
+        Resources["GuiaPlaySelectionBrush"] = Brush(palette.SelectionBackgroundHex);
+        Resources["GuiaPlaySelectionForegroundBrush"] = Brush(palette.SelectionForegroundHex);
+        Resources["GuiaPlayDividerBrush"] = Brush(palette.DividerHex);
+        Resources["GuiaPlayTextPrimaryBrush"] = Brush(palette.TextPrimaryHex);
+        Resources["GuiaPlayTextSecondaryBrush"] = Brush(palette.TextSecondaryHex);
     }
+
+    private static SolidColorBrush Brush(string hex) =>
+        new((Color)ColorConverter.ConvertFromString(hex));
 
     private void SystemEvents_OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e) =>
         Dispatcher.BeginInvoke(() => ApplyAppearance(Settings.Appearance, Settings.AccentColor, persist: false));

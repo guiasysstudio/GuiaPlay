@@ -137,24 +137,99 @@ public sealed class AppearancePaletteTests
     [Fact]
     public void HighContrastOverridesModeAndCustomAccent()
     {
-        var mode = AppearancePaletteResolver.ResolveMode(AppearancePreference.Dark, true, highContrast: true);
-        var palette = AppearancePaletteResolver.Resolve(AccentColorPreference.Pink, mode);
+        foreach (var accent in Enum.GetValues<AccentColorPreference>())
+        {
+            var mode = AppearancePaletteResolver.ResolveMode(AppearancePreference.Dark, true, highContrast: true);
+            var palette = AppearancePaletteResolver.Resolve(accent, mode);
 
-        Assert.Equal(ResolvedAppearanceMode.HighContrast, mode);
-        Assert.True(palette.UsesSystemColors);
+            Assert.Equal(ResolvedAppearanceMode.HighContrast, mode);
+            Assert.Equal(ResolvedAppearanceMode.HighContrast, palette.Mode);
+            Assert.True(palette.UsesSystemColors);
+        }
+    }
+
+    [Theory]
+    [InlineData(ResolvedAppearanceMode.Light)]
+    [InlineData(ResolvedAppearanceMode.Dark)]
+    public void EveryAccentAndModeProvidesACompleteValidPalette(ResolvedAppearanceMode mode)
+    {
+        foreach (var accent in Enum.GetValues<AccentColorPreference>())
+        {
+            var palette = AppearancePaletteResolver.Resolve(accent, mode);
+            var colors = new[]
+            {
+                palette.AccentHex,
+                palette.AccentForegroundHex,
+                palette.AccentSubtleHex,
+                palette.AccentBorderHex,
+                palette.WindowBackgroundHex,
+                palette.SurfacePrimaryHex,
+                palette.SurfaceSecondaryHex,
+                palette.SurfaceElevatedHex,
+                palette.SidebarBackgroundHex,
+                palette.ControlBackgroundHex,
+                palette.ControlHoverHex,
+                palette.SelectionBackgroundHex,
+                palette.SelectionForegroundHex,
+                palette.DividerHex,
+                palette.TextPrimaryHex,
+                palette.TextSecondaryHex
+            };
+
+            Assert.Equal(accent, palette.Preference);
+            Assert.Equal(mode, palette.Mode);
+            Assert.False(palette.UsesSystemColors);
+            Assert.All(colors, color => Assert.Matches("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$", color));
+            Assert.True(Contrast(palette.TextPrimaryHex, palette.WindowBackgroundHex) >= 4.5);
+            Assert.True(Contrast(palette.TextSecondaryHex, palette.WindowBackgroundHex) >= 4.5);
+            Assert.True(Contrast(palette.AccentForegroundHex, palette.AccentHex) >= 4.5);
+            Assert.True(Contrast(palette.SelectionForegroundHex, palette.SelectionBackgroundHex) >= 4.5);
+            Assert.True(Contrast(palette.SelectionForegroundHex, palette.ControlHoverHex) >= 4.5);
+        }
+    }
+
+    [Theory]
+    [InlineData(ResolvedAppearanceMode.Light)]
+    [InlineData(ResolvedAppearanceMode.Dark)]
+    public void AccentChangesWindowAndMainSurfacesNotOnlyButtons(ResolvedAppearanceMode mode)
+    {
+        var palettes = Enum.GetValues<AccentColorPreference>()
+            .Select(accent => AppearancePaletteResolver.Resolve(accent, mode))
+            .ToArray();
+
+        Assert.Equal(palettes.Length, palettes.Select(palette => palette.WindowBackgroundHex).Distinct().Count());
+        Assert.Equal(palettes.Length, palettes.Select(palette => palette.SurfacePrimaryHex).Distinct().Count());
+        Assert.Equal(palettes.Length, palettes.Select(palette => palette.SidebarBackgroundHex).Distinct().Count());
     }
 
     [Fact]
-    public void EveryAccentHasDistinctLightAndDarkVariants()
+    public void EveryAccentHasDistinctLightAndDarkIdentity()
     {
         foreach (var accent in Enum.GetValues<AccentColorPreference>())
         {
             var light = AppearancePaletteResolver.Resolve(accent, ResolvedAppearanceMode.Light);
             var dark = AppearancePaletteResolver.Resolve(accent, ResolvedAppearanceMode.Dark);
             Assert.NotEqual(light.AccentHex, dark.AccentHex);
-            Assert.StartsWith("#", light.AccentHex);
-            Assert.StartsWith("#", dark.AccentHex);
+            Assert.NotEqual(light.WindowBackgroundHex, dark.WindowBackgroundHex);
+            Assert.NotEqual(light.SurfacePrimaryHex, dark.SurfacePrimaryHex);
         }
+    }
+
+    private static double Contrast(string first, string second)
+    {
+        var lighter = Math.Max(Luminance(first), Luminance(second));
+        var darker = Math.Min(Luminance(first), Luminance(second));
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    private static double Luminance(string hex)
+    {
+        var rgb = hex.Length == 9 ? hex[3..] : hex[1..];
+        var channels = Enumerable.Range(0, 3)
+            .Select(index => Convert.ToInt32(rgb.Substring(index * 2, 2), 16) / 255d)
+            .Select(channel => channel <= 0.04045 ? channel / 12.92 : Math.Pow((channel + 0.055) / 1.055, 2.4))
+            .ToArray();
+        return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
     }
 }
 

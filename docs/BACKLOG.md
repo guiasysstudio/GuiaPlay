@@ -74,6 +74,13 @@ Protótipo funcional multitelas, prévia/controles, motor compartilhado por call
 - Concluído: consulta real ao GitHub uma vez por novo processo quando habilitada, sem o cache/intervalo de 12 horas suprimir a verificação de startup.
 - Preservados: integração Explorer opt-in, instância única, updater, instalador per-user e robustez/diagnóstico M09.
 
+## M10.1 — 0.10.1-prototipo
+
+- Concluído: correção da aplicação visual dos seis accents em toda a identidade da interface, com 12 paletas explícitas para Claro/Escuro.
+- Concluído: fundos, cards, sidebar, playlist, transporte, controles, hover, seleção e divisores usam recursos semânticos dinâmicos do GuiaPlay.
+- Concluído: alto contraste continua resolvendo todas as superfícies para `SystemColors`; Sistema recalcula tema e paleta quando a preferência do Windows muda.
+- Preservados sem mudança de schema: equalizador M10, integração Windows M08 e consulta real de update em cada novo processo.
+
 ## Próximo marco — não iniciado
 
 - **1.0.0-rc1 — estabilização final.**

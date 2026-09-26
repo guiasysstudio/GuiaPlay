@@ -241,3 +241,27 @@
 3. Validar vídeo 1080p em uma e duas saídas, áudio sem saída visual, seek, pausa, stop/fim natural e pelo menos uma sessão prolongada do roteiro M09.
 4. Conferir tema/contraste em hardware real e ouvir presets/equalização em dispositivo conhecido; testes automatizados não substituem essa percepção física.
 5. Confirmar que o Setup 0.10 continua per-user, sem administrador, com tarefas de Explorer e execução final desmarcadas por padrão.
+
+## M10.1 — paletas completas
+
+1. Instalar/abrir `0.10.1-prototipo` e acessar **Configurações > Aparência**.
+2. No modo Escuro, selecionar sucessivamente Azul GuiaPlay, Ciano, Roxo, Verde, Laranja e Rosa. Conferir que fundo, cards, sidebar, conteúdo, playlist, transporte, status, controles, hover, seleção e bordas mudam juntos, sem fundo saturado.
+3. Repetir as seis cores no modo Claro, confirmando fundos muito claros tingidos e contraste de texto.
+4. Conferir que a prévia mostra janela, sidebar, item selecionado, card secundário, controle e botão antes de Salvar.
+5. Clicar **Cancelar** e confirmar que a paleta global não muda; repetir com **Salvar**, reiniciar e confirmar persistência sem mudança de schema.
+6. Em Sistema, alternar o Windows entre claro e escuro com o GuiaPlay aberto. Confirmar que todas as superfícies são recalculadas, sem restos da paleta anterior.
+7. Ativar alto contraste e conferir que cores do sistema prevalecem em todas as seis preferências.
+8. Repetir em 1366 × 768 e DPI 100%, 125% e 150%.
+9. Confirmar que a área de vídeo permanece preta e que avisos/erros continuam com suas cores semânticas.
+
+## M10.1 — atualização automática física 0.10.0 → 0.10.1
+
+1. Manter `0.10.0-prototipo` instalado com **Verificar atualizações automaticamente** habilitado.
+2. Não abrir Configurações e não clicar em **Procurar atualizações**.
+3. Fechar todas as instâncias e abrir normalmente o GuiaPlay 0.10.0.
+4. Aguardar alguns segundos depois de a janela aparecer.
+5. Confirmar que a seta de download aparece automaticamente ao lado de Configurações.
+6. Clicar na seta somente depois que ela aparecer e confirmar `Current: 0.10.0-prototipo`, `Available: 0.10.1-prototipo`, `Status: UpdateAvailable`.
+7. Conferir no log as mensagens de agendamento, automático habilitado, consulta iniciada/concluída e `UpdateAvailable 0.10.1-prototipo`.
+8. Baixar/aplicar o update e confirmar preservação de aparência/accent, equalizador, playlist e integração Explorer.
+9. Reiniciar em 0.10.1 e confirmar `Current: 0.10.1-prototipo`, `Available: 0.10.1-prototipo`, `Status: UpToDate`.

@@ -169,10 +169,63 @@ public sealed class BrandingTests
 
         Assert.Contains("manager.CheckOnStartupAsync()", main, StringComparison.Ordinal);
         Assert.Contains("UpdateManager_OnStateChanged", main, StringComparison.Ordinal);
+        Assert.Contains("Update startup: scheduled", main, StringComparison.Ordinal);
         Assert.Contains("Update startup: querying GitHub", updateManager, StringComparison.Ordinal);
+        Assert.Contains("Update startup: query completed", updateManager, StringComparison.Ordinal);
         Assert.Contains("ApplyEqualizer(session.Player)", engine, StringComparison.Ordinal);
         Assert.Contains("SetEqualizer", adapter, StringComparison.Ordinal);
         Assert.Contains("UnsetEqualizer", adapter, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M101AppliesSemanticPaletteResourcesAcrossMainAndSettingsSurfaces()
+    {
+        var app = File.ReadAllText(PathInRepository("src/GuiaPlay.App/App.xaml"));
+        var appCode = File.ReadAllText(PathInRepository("src/GuiaPlay.App/App.xaml.cs"));
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+        var resourceNames = new[]
+        {
+            "GuiaPlayWindowBackgroundBrush",
+            "GuiaPlaySurfacePrimaryBrush",
+            "GuiaPlaySurfaceSecondaryBrush",
+            "GuiaPlaySurfaceElevatedBrush",
+            "GuiaPlaySidebarBrush",
+            "GuiaPlayControlSurfaceBrush",
+            "GuiaPlayControlHoverBrush",
+            "GuiaPlaySelectionBrush",
+            "GuiaPlayDividerBrush"
+        };
+
+        Assert.All(resourceNames, resource =>
+        {
+            Assert.Contains($"x:Key=\"{resource}\"", app, StringComparison.Ordinal);
+            Assert.Contains($"Resources[\"{resource}\"]", appCode, StringComparison.Ordinal);
+        });
+        Assert.Contains("Background=\"{DynamicResource GuiaPlayWindowBackgroundBrush}\"", main, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlaySurfacePrimaryBrush", main, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlaySurfaceSecondaryBrush", main, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlaySelectionBrush", main, StringComparison.Ordinal);
+        Assert.Contains("Background=\"Black\"", main, StringComparison.Ordinal);
+        Assert.Contains("Background=\"{DynamicResource GuiaPlayWindowBackgroundBrush}\"", settings, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlaySidebarBrush", settings, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlaySelectionBrush", settings, StringComparison.Ordinal);
+        Assert.Contains("AppearancePreviewSidebar", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("CardBackgroundFillColorDefaultBrush", main, StringComparison.Ordinal);
+        Assert.DoesNotContain("CardBackgroundFillColorDefaultBrush", settings, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M101HighContrastMapsEveryCustomSurfaceBackToSystemColors()
+    {
+        var appCode = File.ReadAllText(PathInRepository("src/GuiaPlay.App/App.xaml.cs"));
+
+        Assert.Contains("SystemColors.WindowBrush", appCode, StringComparison.Ordinal);
+        Assert.Contains("SystemColors.ControlBrush", appCode, StringComparison.Ordinal);
+        Assert.Contains("SystemColors.HighlightBrush", appCode, StringComparison.Ordinal);
+        Assert.Contains("SystemColors.HighlightTextBrush", appCode, StringComparison.Ordinal);
+        Assert.Contains("SystemColors.WindowTextBrush", appCode, StringComparison.Ordinal);
+        Assert.Contains("SystemColors.GrayTextBrush", appCode, StringComparison.Ordinal);
     }
 
     private static string PathInRepository(string relativePath) =>

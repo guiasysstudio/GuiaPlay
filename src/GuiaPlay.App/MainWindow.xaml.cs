@@ -898,6 +898,7 @@ public partial class MainWindow : Window
     private async Task CheckForUpdatesOnStartupAsync()
     {
         if (Application.Current is not App { UpdateManager: { } manager } app) return;
+        FileLogger.Info("Update startup: scheduled after window load (1.5 s)");
         await Task.Delay(TimeSpan.FromSeconds(1.5));
         await manager.CheckOnStartupAsync();
         RefreshUpdateIndicator();

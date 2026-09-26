@@ -66,6 +66,7 @@ internal sealed class UpdateManager
                 FileLogger.Info("Update startup: automatic enabled");
                 FileLogger.Info("Update startup: querying GitHub");
                 var result = await QueryGitHubAsync("startup", CancellationToken.None).ConfigureAwait(false);
+                FileLogger.Info("Update startup: query completed");
                 var detail = result.Release?.Version.ToString();
                 FileLogger.Info(result.Status switch
                 {

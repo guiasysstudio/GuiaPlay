@@ -5,10 +5,26 @@
         Title="GuiaPlay"
         Icon="/GuiaPlay;component/Assets/Branding/Icons/GuiaPlay.ico"
         Width="1120" Height="690" MinWidth="840" MinHeight="560"
-        Background="{DynamicResource ApplicationPageBackgroundThemeBrush}"
+        Background="{DynamicResource GuiaPlayWindowBackgroundBrush}"
+        Foreground="{DynamicResource GuiaPlayTextPrimaryBrush}"
         WindowStartupLocation="CenterScreen"
         PreviewKeyDown="MainWindow_OnPreviewKeyDown">
     <Window.Resources>
+        <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+            <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="3" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource GuiaPlaySelectionBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <HierarchicalDataTemplate DataType="{x:Type models:PlaylistGroupNode}" ItemsSource="{Binding Items}">
             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="2,3" />
         </HierarchicalDataTemplate>
@@ -17,7 +33,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <TextBlock x:Name="ItemName" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                 <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding AvailabilityLabel}"
-                           FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                           FontSize="11" Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
             </Grid>
             <DataTemplate.Triggers>
                 <DataTrigger Binding="{Binding IsAvailable}" Value="False">
@@ -31,7 +47,8 @@
     <Grid Margin="18">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Padding="14,10" Margin="0,0,0,12">
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfaceElevatedBrush}"
+                Padding="14,10" Margin="0,0,0,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
@@ -40,11 +57,11 @@
                 <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
                        Width="128" Height="38" Stretch="Uniform" VerticalAlignment="Center" ToolTip="GuiaPlay" />
                 <Border Grid.Column="1" Width="1" Height="34" Margin="15,0"
-                        Background="{DynamicResource CardStrokeColorDefaultBrush}" VerticalAlignment="Center" />
+                        Background="{DynamicResource GuiaPlayDividerBrush}" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
                     <TextBlock x:Name="FileNameText" Text="Nenhuma mídia carregada"
                                FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Margin="0,3,0,0" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                    <TextBlock Margin="0,3,0,0" FontSize="12" Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
                                Text="{Binding Text, ElementName=StatusText}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
@@ -69,7 +86,7 @@
                 <ColumnDefinition Width="3*" MinWidth="390" /><ColumnDefinition Width="12" />
                 <ColumnDefinition Width="2*" MinWidth="310" />
             </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="12">
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <Grid Margin="2,0,2,10">
@@ -96,7 +113,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="12">
+            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
@@ -121,8 +138,8 @@
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Excluir" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </WrapPanel>
-                    <Border Grid.Row="2" CornerRadius="7" Padding="5" Background="{DynamicResource ControlFillColorDefaultBrush}"
-                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Border Grid.Row="2" CornerRadius="7" Padding="5" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                            BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
                         <TreeView x:Name="PlaylistTree" MouseDoubleClick="PlaylistTree_OnMouseDoubleClick" AllowDrop="True"
                                   PreviewMouseLeftButtonDown="PlaylistTree_OnPreviewMouseLeftButtonDown"
                                   PreviewMouseMove="PlaylistTree_OnPreviewMouseMove" PreviewDragOver="PlaylistTree_OnPreviewDragOver"
@@ -144,13 +161,15 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="2" Margin="0,12,0,0" Style="{StaticResource CardStyle}" Padding="14,12">
+        <Border Grid.Row="2" Margin="0,12,0,0" Style="{StaticResource CardStyle}"
+                Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="14,12">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="52" /><ColumnDefinition Width="*" /><ColumnDefinition Width="112" /></Grid.ColumnDefinitions>
                     <TextBlock x:Name="ElapsedText" Text="00:00" VerticalAlignment="Center" />
                     <Slider x:Name="ProgressSlider" Grid.Column="1" Margin="9,0" Minimum="0" Maximum="1" Value="0"
+                            Foreground="{DynamicResource GuiaPlayAccentBrush}"
                             ToolTip="Posição da mídia" PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
                             PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted" PreviewMouseWheel="ProgressSlider_OnMouseWheel" />
                     <TextBlock x:Name="RemainingText" Grid.Column="2" Text="-00:00 / 00:00" VerticalAlignment="Center"
@@ -170,7 +189,9 @@
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource StopIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Parar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </WrapPanel>
-                    <Border Grid.Column="1" Margin="12,0" Padding="10,7" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
+                    <Border Grid.Column="1" Margin="12,0" Padding="10,7" CornerRadius="6"
+                            Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                            BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
                         <TextBlock x:Name="StatusText" Text="Pronto" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -182,6 +203,7 @@
                             </StackPanel>
                         </Button>
                         <Slider x:Name="VolumeSlider" Width="110" Minimum="0" Maximum="100" Value="100" Margin="9,0"
+                                Foreground="{DynamicResource GuiaPlayAccentBrush}"
                                 ToolTip="Volume do GuiaPlay" ValueChanged="VolumeSlider_OnValueChanged" PreviewMouseWheel="VolumeSlider_OnMouseWheel" />
                         <TextBlock x:Name="VolumeText" Text="100%" Width="42" VerticalAlignment="Center" TextAlignment="Right" />
                     </StackPanel>

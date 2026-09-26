@@ -4,7 +4,8 @@
         Title="Configurações — GuiaPlay"
         Icon="/GuiaPlay;component/Assets/Branding/Icons/GuiaPlay.ico"
         Width="960" Height="650" MinWidth="780" MinHeight="520"
-        Background="{DynamicResource ApplicationPageBackgroundThemeBrush}"
+        Background="{DynamicResource GuiaPlayWindowBackgroundBrush}"
+        Foreground="{DynamicResource GuiaPlayTextPrimaryBrush}"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -28,8 +29,13 @@
             </StackPanel>
         </Grid>
 
-        <TabControl x:Name="SettingsTabs" Grid.Row="1" TabStripPlacement="Left"
-                    Background="Transparent" BorderThickness="0">
+        <Grid Grid.Row="1">
+            <Border Width="180" HorizontalAlignment="Left" Background="{DynamicResource GuiaPlaySidebarBrush}"
+                    BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1" CornerRadius="9" />
+            <Border Margin="180,0,0,0" Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}"
+                    BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1" CornerRadius="9" />
+            <TabControl x:Name="SettingsTabs" TabStripPlacement="Left"
+                        Background="Transparent" BorderThickness="0">
             <TabControl.Resources>
                 <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
                     <Setter Property="MinWidth" Value="168" />
@@ -37,6 +43,18 @@
                     <Setter Property="Padding" Value="14,10" />
                     <Setter Property="HorizontalContentAlignment" Value="Left" />
                     <Setter Property="Margin" Value="0,0,12,4" />
+                    <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
+                    <Setter Property="Background" Value="Transparent" />
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource GuiaPlaySelectionBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                        </Trigger>
+                    </Style.Triggers>
                 </Style>
             </TabControl.Resources>
             <TabItem x:Name="ScreensTab" Header="Telas">
@@ -113,15 +131,40 @@
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="AppearancePreviewCard" Padding="16" CornerRadius="10" BorderThickness="1">
-                            <StackPanel>
+                        <Border x:Name="AppearancePreviewCard" Padding="14" CornerRadius="10" BorderThickness="1">
+                            <StackPanel x:Name="AppearancePreviewContent">
                                 <TextBlock Text="Prévia" FontWeight="SemiBold" FontSize="16" />
-                                <TextBlock Margin="0,5,0,12" Text="A cor afeta ações principais e destaques; a base continua Fluent clara ou escura."
+                                <TextBlock Margin="0,5,0,12" Text="Fundo, sidebar, cards, controles, seleção e accent são resolvidos como uma paleta completa."
                                            Style="{StaticResource SecondaryTextStyle}" />
-                                <StackPanel Orientation="Horizontal">
-                                    <Button x:Name="AppearancePreviewAccent" Content="Ação principal" Padding="16,8" Margin="0,0,10,0" />
-                                    <RadioButton IsChecked="True" Content="Controle selecionado" VerticalAlignment="Center" />
-                                </StackPanel>
+                                <Border x:Name="AppearancePreviewSurface" Padding="10" CornerRadius="8" BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="125" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border x:Name="AppearancePreviewSidebar" Padding="9" CornerRadius="6" Margin="0,0,10,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Configurações" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                                <Border x:Name="AppearancePreviewSelection" Padding="8,6" CornerRadius="5">
+                                                    <TextBlock x:Name="AppearancePreviewSelectionText" Text="Aparência" />
+                                                </Border>
+                                                <TextBlock Text="Áudio" Margin="8,8,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border x:Name="AppearancePreviewSecondary" Grid.Column="1" Padding="12" CornerRadius="6" BorderThickness="1">
+                                            <StackPanel>
+                                                <TextBlock Text="Card de conteúdo" FontWeight="SemiBold" />
+                                                <TextBlock Text="Superfície secundária" Margin="0,3,0,12" />
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button x:Name="AppearancePreviewAccent" Content="Ação principal" Padding="14,7" Margin="0,0,8,0" />
+                                                    <Border x:Name="AppearancePreviewControl" Padding="10,7" CornerRadius="5">
+                                                        <TextBlock Text="Controle" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -223,8 +266,8 @@
                         </Grid>
 
                         <Border Margin="0,18,0,16" Padding="12" CornerRadius="6"
-                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
+                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
                             <StackPanel>
                                 <TextBlock x:Name="UpdateStatusText" Text="Ainda não verificado." FontWeight="SemiBold" TextWrapping="Wrap" />
                                 <TextBlock x:Name="AvailableVersionText" Margin="0,7,0,0" TextWrapping="Wrap"
@@ -268,8 +311,8 @@
                                    Text="O GuiaPlay pode se registrar como opção compatível sem assumir formatos nem alterar o player padrão." />
 
                         <Border Padding="12" CornerRadius="6"
-                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
+                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="210" />
@@ -316,8 +359,8 @@
                                    Style="{StaticResource SecondaryTextStyle}"
                                    Text="Snapshot leve para suporte e testes. Atualizado a cada dois segundos; não inclui caminhos completos, conteúdo de mídia, tokens ou métrica estimada de GPU." />
                         <Border Padding="12" CornerRadius="6"
-                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
+                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
                             <TextBlock x:Name="DiagnosticText" FontFamily="Consolas" FontSize="12"
                                        TextWrapping="Wrap" />
                         </Border>
@@ -345,7 +388,8 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-        </TabControl>
+            </TabControl>
+        </Grid>
 
         <Grid Grid.Row="2" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>

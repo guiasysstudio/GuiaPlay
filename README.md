@@ -2,7 +2,7 @@
 
 Protótipo funcional M10 com Interface 2.0, aparência avançada, equalizador nativo do LibVLC, operação prolongada de vídeos/áudios locais, cronograma em grupos virtuais, atualizações verificadas e integração opcional ao Windows Explorer.
 
-Versão: **0.10.0-prototipo**
+Versão: **0.10.1-prototipo**
 
 Plataforma: **Windows x64**
 
@@ -78,6 +78,7 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Relatório do M08](docs/RELATORIO-M08.md)
 - [Relatório do M09](docs/RELATORIO-M09.md)
 - [Relatório do M10](docs/RELATORIO-M10.md)
+- [Relatório da correção M10.1](docs/RELATORIO-M10.1.md)
 - [Validação de performance e soak test](docs/VALIDACAO-PERFORMANCE.md)
 - [Notas da versão 0.5.0-prototipo](docs/releases/0.5.0-prototipo.md)
 - [Notas da versão 0.6.0-prototipo](docs/releases/0.6.0-prototipo.md)
@@ -85,6 +86,7 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Notas da versão 0.8.0-prototipo](docs/releases/0.8.0-prototipo.md)
 - [Notas da versão 0.9.0-prototipo](docs/releases/0.9.0-prototipo.md)
 - [Notas da versão 0.10.0-prototipo](docs/releases/0.10.0-prototipo.md)
+- [Notas da versão 0.10.1-prototipo](docs/releases/0.10.1-prototipo.md)
 - [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
@@ -113,7 +115,7 @@ O comando registrado é `"GuiaPlay.exe" "%1"`. O arquivo passa pelo classificado
 
 A Interface 2.0 organiza cabeçalho, mídia, prévia, playlist e transporte em cartões, mantendo Abrir, Reproduzir, Pausar e Parar diretamente visíveis. Configurações usa uma barra lateral compacta. O layout mínimo é 840 × 560 DIPs e a validação física cobre 1366 × 768 e escalas 100%, 125% e 150%.
 
-Sistema acompanha o modo de aplicativos do Windows; Claro e Escuro permanecem explícitos. Alto contraste sempre usa as cores oficiais do sistema. Azul GuiaPlay, Ciano, Roxo, Verde, Laranja e Rosa têm variantes próprias para superfícies claras/escuras e uma prévia antes de salvar.
+Sistema acompanha o modo de aplicativos do Windows; Claro e Escuro permanecem explícitos. Alto contraste sempre usa as cores oficiais do sistema. Azul GuiaPlay, Ciano, Roxo, Verde, Laranja e Rosa possuem paletas claras/escuras completas: fundo da janela, cards, sidebar, controles, hover, seleção, bordas e accent mudam em conjunto. A prévia mostra essa identidade visual antes de salvar.
 
 O equalizador usa somente a API nativa do LibVLC e começa desativado. A aplicação descobre presets e bandas em runtime, permite preamp/ganhos entre -20 e +20 dB, muda para **Personalizado** após edição manual, aplica alterações à sessão atual e reaplica a novas mídias. Se o recurso nativo falhar, a mídia continua sem equalização e o erro fica disponível no estado/log.
 
