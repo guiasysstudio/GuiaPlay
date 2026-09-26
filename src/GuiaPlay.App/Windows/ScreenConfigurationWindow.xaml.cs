@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
+using System.Security;
 using System.Windows;
 using GuiaPlay.App.Models;
 using GuiaPlay.App.Services;
@@ -19,6 +21,7 @@ public partial class ScreenConfigurationWindow : Window
 {
     private readonly IReadOnlyList<ScreenConfigurationItem> _items;
     private readonly UpdateManager _updateManager;
+    private readonly WindowsIntegrationService _windowsIntegration;
     private readonly bool _playbackActive;
     private CancellationTokenSource? _downloadCancellation;
     private readonly SettingsAppearanceChoice[] _appearanceChoices =
@@ -34,11 +37,13 @@ public partial class ScreenConfigurationWindow : Window
         AppSettings settings,
         IReadOnlyList<AudioDeviceIdentity> audioDevices,
         UpdateManager updateManager,
+        WindowsIntegrationService windowsIntegration,
         bool openUpdates,
         bool playbackActive)
     {
         InitializeComponent();
         _updateManager = updateManager;
+        _windowsIntegration = windowsIntegration;
         _playbackActive = playbackActive;
         _items = monitors.Select(monitor => new ScreenConfigurationItem
         {
@@ -97,6 +102,7 @@ public partial class ScreenConfigurationWindow : Window
         Closing += ScreenConfigurationWindow_OnClosing;
         Closed += (_, _) => _updateManager.StateChanged -= UpdateManager_OnStateChanged;
         RefreshUpdateUi();
+        RefreshWindowsIntegrationUi();
     }
 
     internal ScreenConfigurationResult? Result { get; private set; }
@@ -140,6 +146,62 @@ public partial class ScreenConfigurationWindow : Window
         {
             UseShellExecute = true
         });
+
+    private void ConfigureWindowsIntegrationButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var state = _windowsIntegration.Configure(
+                RegisterAssociationsCheckBox.IsChecked == true,
+                RegisterContextMenuCheckBox.IsChecked == true);
+            ApplyWindowsIntegrationState(state);
+            WindowsIntegrationMessageText.Text = state.ExplorerIntegrationEnabled
+                ? "Integração atualizada. O Explorer pode levar alguns instantes para renovar os menus."
+                : "Integração removida. Nenhuma associação de outros aplicativos foi alterada.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            WindowsIntegrationMessageText.Text = $"Não foi possível atualizar a integração: {exception.Message}";
+            RefreshWindowsIntegrationUi();
+        }
+    }
+
+    private void OpenDefaultAppsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("ms-settings:defaultapps") { UseShellExecute = true });
+            WindowsIntegrationMessageText.Text = "Escolha o aplicativo padrão diretamente nas Configurações do Windows.";
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            WindowsIntegrationMessageText.Text = $"Não foi possível abrir as Configurações do Windows: {exception.Message}";
+        }
+    }
+
+    private void RefreshWindowsIntegrationUi()
+    {
+        try
+        {
+            ApplyWindowsIntegrationState(_windowsIntegration.GetState());
+            ConfigureWindowsIntegrationButton.IsEnabled = true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            ExplorerIntegrationStatusText.Text = "Indisponível";
+            AssociationsStatusText.Text = "Indisponíveis";
+            ConfigureWindowsIntegrationButton.IsEnabled = false;
+            WindowsIntegrationMessageText.Text = $"Não foi possível consultar o Registry: {exception.Message}";
+        }
+    }
+
+    private void ApplyWindowsIntegrationState(WindowsIntegrationState state)
+    {
+        ExplorerIntegrationStatusText.Text = state.ContextMenuRegistered ? "Ativada" : "Desativada";
+        AssociationsStatusText.Text = state.AssociationsRegistered ? "Registradas" : "Não registradas";
+        RegisterAssociationsCheckBox.IsChecked = state.AssociationsRegistered;
+        RegisterContextMenuCheckBox.IsChecked = state.ContextMenuRegistered;
+    }
 
     private async void CheckUpdatesButton_OnClick(object sender, RoutedEventArgs e)
     {

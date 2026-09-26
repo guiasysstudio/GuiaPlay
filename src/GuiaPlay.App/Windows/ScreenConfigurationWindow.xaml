@@ -23,7 +23,7 @@
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <TextBlock Text="Configurações" FontSize="24" FontWeight="SemiBold" />
                 <TextBlock Margin="0,4,0,0" Style="{StaticResource SecondaryTextStyle}"
-                           Text="Preferências permanentes do programa. Nada muda até Salvar." />
+                           Text="Preferências permanentes; ações explícitas de integração são aplicadas imediatamente." />
             </StackPanel>
         </Grid>
 
@@ -135,6 +135,55 @@
                                     Click="CancelDownloadButton_OnClick" Style="{StaticResource StandardButtonStyle}"
                                     Margin="8,0,0,0" Visibility="Collapsed" />
                         </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem x:Name="WindowsIntegrationTab" Header="Integração com Windows">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="18" MaxWidth="620" HorizontalAlignment="Left">
+                        <TextBlock Text="Integração com Windows e Explorer" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Margin="0,7,0,16" TextWrapping="Wrap"
+                                   Style="{StaticResource SecondaryTextStyle}"
+                                   Text="O GuiaPlay pode se registrar como opção compatível sem assumir formatos nem alterar o player padrão." />
+
+                        <Border Padding="12" CornerRadius="6"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="210" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Integração com Explorer" FontWeight="SemiBold" />
+                                <TextBlock x:Name="ExplorerIntegrationStatusText" Grid.Column="1" />
+                                <TextBlock Grid.Row="1" Margin="0,8,0,0" Text="Associações" FontWeight="SemiBold" />
+                                <TextBlock x:Name="AssociationsStatusText" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" />
+                            </Grid>
+                        </Border>
+
+                        <CheckBox x:Name="RegisterAssociationsCheckBox" Margin="0,18,0,10"
+                                  Content="Registrar o GuiaPlay em Abrir com para formatos compatíveis" />
+                        <CheckBox x:Name="RegisterContextMenuCheckBox" Margin="0,0,0,6"
+                                  Content="Adicionar Abrir com GuiaPlay ao menu de contexto" />
+                        <TextBlock Margin="24,0,0,16" TextWrapping="Wrap"
+                                   Style="{StaticResource SecondaryTextStyle}"
+                                   Text="As opções são por usuário e podem ser removidas aqui. O Windows continua controlando os aplicativos padrão." />
+
+                        <WrapPanel>
+                            <Button x:Name="ConfigureWindowsIntegrationButton" Content="Configurar integração"
+                                    Click="ConfigureWindowsIntegrationButton_OnClick"
+                                    Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,8" />
+                            <Button Content="Abrir configurações de aplicativos padrão"
+                                    Click="OpenDefaultAppsButton_OnClick"
+                                    Style="{StaticResource StandardButtonStyle}" Margin="0,0,0,8" />
+                        </WrapPanel>
+                        <TextBlock x:Name="WindowsIntegrationMessageText" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Style="{StaticResource SecondaryTextStyle}" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

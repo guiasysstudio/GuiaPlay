@@ -728,7 +728,7 @@ public partial class MainWindow : Window
         }
 
         var app = Application.Current as App;
-        if (app is not { UpdateManager: { } updateManager })
+        if (app is not { UpdateManager: { } updateManager, WindowsIntegration: { } windowsIntegration })
         {
             StatusText.Text = "O serviço de atualizações ainda não está disponível.";
             return;
@@ -742,6 +742,7 @@ public partial class MainWindow : Window
             currentSettings,
             _audioDevices,
             updateManager,
+            windowsIntegration,
             openUpdates,
             _coordinator.IsActive)
         { Owner = this };

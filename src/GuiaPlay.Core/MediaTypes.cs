@@ -9,15 +9,17 @@ public enum MediaKind
 
 public static class MediaTypeDetector
 {
-    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".m4v", ".mpg", ".mpeg", ".ts", ".m2ts", ".3gp", ".ogv"
-    };
+    public static IReadOnlyList<string> SupportedVideoExtensions { get; } =
+        [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".m4v", ".mpg", ".mpeg", ".ts", ".m2ts", ".3gp", ".ogv"];
 
-    private static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a", ".wma", ".opus", ".aiff", ".alac"
-    };
+    public static IReadOnlyList<string> SupportedAudioExtensions { get; } =
+        [".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a", ".wma", ".opus", ".aiff", ".alac"];
+
+    public static IReadOnlyList<string> SupportedExtensions { get; } =
+        [.. SupportedVideoExtensions, .. SupportedAudioExtensions];
+
+    private static readonly HashSet<string> VideoExtensions = new(SupportedVideoExtensions, StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> AudioExtensions = new(SupportedAudioExtensions, StringComparer.OrdinalIgnoreCase);
 
     public static MediaKind Detect(string path)
     {

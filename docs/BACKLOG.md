@@ -51,11 +51,18 @@ Protótipo funcional multitelas, prévia/controles, motor compartilhado por call
 - Concluído: scroll de volume/timeline, click-to-seek, opção **Executar GuiaPlay** desmarcada por padrão e preservação integral do instalador M06.
 - Cobertura automatizada ampliada para cache, agenda, persistência, download, controles de mídia e script do instalador.
 
+## M08 — 0.8.0-prototipo
+
+- Concluído: registro por usuário em **Abrir com**, ProgIDs próprios de vídeo/áudio, `Capabilities`, `RegisteredApplications` e `OpenWithProgids`, sem alterar `UserChoice` ou assumir formatos.
+- Concluído: verbo opcional **Abrir com GuiaPlay**, reaproveitando argumento de linha de comando, instância única e Named Pipe, sempre sem autoplay.
+- Concluído: tarefas opt-in no Setup, configuração pós-instalação, abertura das Configurações oficiais de aplicativos padrão e limpeza seletiva na desinstalação.
+- Concluído: abstração de Registry, testes em memória e round-trip controlado sob subchave HKCU temporária.
+
 ## Marcos futuros — não iniciados
 
-- Abrir pelo Explorer após associação opt-in feita pelo usuário.
-- Validação integrada prolongada no computador da igreja, incluindo recuperação de falhas e matriz de formatos.
-- Itens de M08 e posteriores permanecem separados desta entrega e não foram implementados.
+- **M09 — Robustez, performance e validação prolongada.**
+- **M10 — Estabilização final e preparação para 1.0.**
+- M09 e M10 permanecem separados desta entrega e não foram implementados.
 
 ## Não planejado para estes marcos
 

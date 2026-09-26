@@ -14,6 +14,7 @@ public partial class App : Application
     public PlaylistStore? PlaylistStore { get; private set; }
     public PlaylistDocument Playlist { get; set; } = PlaylistDocument.Empty;
     internal UpdateManager? UpdateManager { get; private set; }
+    internal WindowsIntegrationService? WindowsIntegration { get; private set; }
     public AppearancePreference Appearance => Settings.Appearance;
     public string? StartupSettingsWarning { get; private set; }
     public string? StartupPlaylistWarning { get; private set; }
@@ -21,6 +22,22 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args is [var command] &&
+            string.Equals(command, WindowsIntegrationService.RemoveCommandLineSwitch, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                CreateWindowsIntegrationService().RemoveAll();
+                Shutdown(0);
+            }
+            catch
+            {
+                Shutdown(1);
+            }
+
+            return;
+        }
+
         var launchArgument = LaunchArgumentParser.Parse(e.Args);
         _singleInstance = new SingleInstanceCoordinator(
             @"Local\GuiaPlay.M04.SingleInstance",
@@ -82,6 +99,7 @@ public partial class App : Application
         }
 
         UpdateManager = new UpdateManager(this);
+        WindowsIntegration = CreateWindowsIntegrationService();
 
         ApplyAppearance(Settings.Appearance, persist: false);
         DispatcherUnhandledException += (_, args) =>
@@ -158,6 +176,15 @@ public partial class App : Application
         }
 
         return result.Succeeded;
+    }
+
+    private static WindowsIntegrationService CreateWindowsIntegrationService()
+    {
+        var executablePath = Path.Combine(AppContext.BaseDirectory, "GuiaPlay.exe");
+        return new WindowsIntegrationService(
+            new WindowsRegistryStore(),
+            executablePath,
+            ShellAssociationNotifier.NotifyChanged);
     }
 
     private Task HandleForwardedRequestAsync(string? argument)

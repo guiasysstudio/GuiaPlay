@@ -48,6 +48,33 @@ public sealed class OperationalFlowTests : IDisposable
         Assert.Null(result.Warning);
     }
 
+    [Fact]
+    public void CommandLineAcceptsSpacesAccentsParenthesesAndUnicode()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "Vídeo 01 (João) 🎵.mkv");
+        File.WriteAllText(path, "test");
+
+        var result = LaunchArgumentParser.Parse([path]);
+
+        Assert.Equal(Path.GetFullPath(path), result.MediaPath);
+        Assert.Null(result.Warning);
+    }
+
+    [Fact]
+    public void MultipleArgumentsHaveExplicitSingleFileBehavior()
+    {
+        Directory.CreateDirectory(_directory);
+        var first = Path.Combine(_directory, "primeiro.mp4");
+        var second = Path.Combine(_directory, "segundo.mp3");
+        File.WriteAllText(first, "test");
+        File.WriteAllText(second, "test");
+
+        var result = LaunchArgumentParser.Parse([first, second]);
+
+        Assert.Equal(Path.GetFullPath(first), result.MediaPath);
+    }
+
     [Theory]
     [InlineData("ausente.mp4", "não foi encontrado")]
     [InlineData("invalido.txt", "não foi encontrado")]
@@ -72,6 +99,32 @@ public sealed class OperationalFlowTests : IDisposable
         Assert.Contains("não é suportado", result.Warning!, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("script.bat")]
+    [InlineData("comando.cmd")]
+    [InlineData("automacao.ps1")]
+    [InlineData("programa.exe")]
+    public void ExecutableOrScriptArgumentsAreNeverAcceptedAsMedia(string fileName)
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, fileName);
+        File.WriteAllText(path, "unsafe");
+
+        var result = LaunchArgumentParser.Parse([path]);
+
+        Assert.Null(result.MediaPath);
+        Assert.Contains("não é suportado", result.Warning!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void UnavailableNetworkPathIsReportedAsMissing()
+    {
+        var result = LaunchArgumentParser.Parse([@"\\SERVIDOR-INEXISTENTE\Midias\video.mp4"]);
+
+        Assert.Null(result.MediaPath);
+        Assert.Contains("não foi encontrado", result.Warning!, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task SecondInstanceForwardsRequestAndDoesNotBecomePersistentListener()
     {
@@ -91,6 +144,30 @@ public sealed class OperationalFlowTests : IDisposable
 
         Assert.Equal(SingleInstanceStartResult.Forwarded, secondaryResult);
         Assert.Equal(@"D:\Midias\Video.mp4", await received.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.True(primary.IsListening);
+        Assert.False(secondary.IsListening);
+    }
+
+    [Fact]
+    public async Task ExistingInstanceReceivesUnicodeMediaAndSecondInstanceExits()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "Abertura João (Final).mp4");
+        File.WriteAllText(path, "test");
+        var suffix = Guid.NewGuid().ToString("N");
+        using var primary = new SingleInstanceCoordinator($"GuiaPlay.Tests.{suffix}", $"GuiaPlay.Tests.Pipe.{suffix}");
+        using var secondary = new SingleInstanceCoordinator($"GuiaPlay.Tests.{suffix}", $"GuiaPlay.Tests.Pipe.{suffix}");
+        var received = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Assert.Equal(SingleInstanceStartResult.Primary, await primary.StartAsync(null, forwarded =>
+        {
+            received.TrySetResult(forwarded);
+            return Task.CompletedTask;
+        }));
+
+        var result = await secondary.StartAsync(path, _ => Task.CompletedTask);
+
+        Assert.Equal(SingleInstanceStartResult.Forwarded, result);
+        Assert.Equal(path, await received.Task.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.True(primary.IsListening);
         Assert.False(secondary.IsListening);
     }

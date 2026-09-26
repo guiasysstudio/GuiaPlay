@@ -1,4 +1,4 @@
-# Roteiro manual — GuiaPlay M07
+# Roteiro manual — GuiaPlay M08
 
 ## Preparação
 
@@ -139,3 +139,29 @@
 4. Confirmar que **Criar atalho na Área de Trabalho** continua opcional e desmarcado por padrão.
 5. Quando marcado, validar que o atalho aponta para `GuiaPlay.exe`, usa o ícone oficial e é removido na desinstalação.
 6. Confirmar preservação de `%LocalAppData%\GuiaSys\GuiaPlay`, incluindo settings, playlist, preferências e histórico local existente.
+
+## M08 — integração Windows e Explorer
+
+1. Instalar `GuiaPlay-Setup-0.8.0-prototipo.exe` deixando **Integrar GuiaPlay ao menu Abrir com do Windows** e **Adicionar Abrir com GuiaPlay ao menu de contexto** desmarcadas.
+2. Confirmar que o GuiaPlay não assume formatos, não altera players padrão e não aparece como integração habilitada em Configurações.
+3. Reinstalar habilitando as duas opções, ou ativá-las em **Configurações > Integração com Windows**.
+4. Clicar com o botão direito em um MP4 e localizar **Abrir com GuiaPlay**; no Windows 11, conferir também **Mostrar mais opções**.
+5. Abrir o MP4 e confirmar que o GuiaPlay inicia, carrega o arquivo e não reproduz automaticamente.
+6. Com o GuiaPlay aberto, usar **Abrir com GuiaPlay** em outro arquivo e confirmar que a mesma instância vem à frente e recebe a nova mídia.
+7. Repetir com MP3 e MKV.
+8. Testar `C:\Vídeos do Culto\Abertura.mp4` e `D:\Mídia João\Vídeo 01 (Final).mkv`, incluindo acentos, espaços, parênteses e Unicode válido.
+9. Testar arquivo em unidade USB; remover a unidade antes de abrir e confirmar aviso inline sem travamento.
+10. Testar um caminho UNC acessível, como `\\SERVIDOR\Midias\video.mp4`, confirmando uso do arquivo original sem cópia.
+11. Tornar a rede indisponível e confirmar tratamento como arquivo ausente.
+12. Usar o botão **Abrir configurações de aplicativos padrão** e confirmar que somente o Windows oferece a escolha; o GuiaPlay não seleciona a si próprio.
+13. Desabilitar as duas opções pela interface e conferir a remoção no Explorer.
+14. Habilitar novamente, desinstalar o GuiaPlay e confirmar remoção de `GuiaPlay.Video`, `GuiaPlay.Audio`, `RegisteredApplications`, `Capabilities`, `OpenWithProgids` do GuiaPlay e verbos `GuiaPlay.Open`.
+15. Confirmar que associações e menus de outros players permanecem intactos após a remoção.
+16. Confirmar que `%LocalAppData%\GuiaSys\GuiaPlay` continua preservado e que não existe serviço, processo residente, watcher ou shell extension do GuiaPlay.
+
+## M08 — atualização real 0.7 → 0.8
+
+1. Em uma instalação 0.7 com ou sem integrações existentes, instalar a atualização 0.8 pelo updater.
+2. Confirmar que as entradas existentes do Explorer não são apagadas nem duplicadas.
+3. Confirmar `Current: 0.7.0-prototipo`, `Available: 0.8.0-prototipo`, `Status: UpdateAvailable` antes do update.
+4. Após atualizar, confirmar `Current: 0.8.0-prototipo`, `Available: 0.8.0-prototipo`, `Status: UpToDate`.

@@ -73,6 +73,21 @@ public sealed class BrandingTests
         Assert.Contains("Tasks: desktopicon", installer, StringComparison.Ordinal);
         Assert.Contains("Flags: unchecked", installer, StringComparison.Ordinal);
         Assert.Contains("Flags: nowait postinstall skipifsilent unchecked", installer, StringComparison.Ordinal);
+        Assert.Contains("Name: \"windowsintegration\"", installer, StringComparison.Ordinal);
+        Assert.Contains("Name: \"contextmenu\"", installer, StringComparison.Ordinal);
+        Assert.Contains(
+            "Flags: unchecked",
+            installer.Split('\n').Single(line => line.Contains("Name: \"windowsintegration\"", StringComparison.Ordinal)),
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Flags: unchecked",
+            installer.Split('\n').Single(line => line.Contains("Name: \"contextmenu\"", StringComparison.Ordinal)),
+            StringComparison.Ordinal);
+        Assert.Contains("Software\\RegisteredApplications", installer, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlay.Video", installer, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlay.Audio", installer, StringComparison.Ordinal);
+        Assert.Contains("--remove-windows-integration", installer, StringComparison.Ordinal);
+        Assert.DoesNotContain("UserChoice", installer, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

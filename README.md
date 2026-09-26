@@ -1,8 +1,8 @@
 # GuiaPlay
 
-Protótipo funcional M07 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais e distribuir atualizações verificadas por GitHub Releases, com cache persistente de update, progresso real de download e controles de mídia refinados.
+Protótipo funcional M08 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais, distribuir atualizações verificadas e integrar opcionalmente o GuiaPlay ao Windows Explorer.
 
-Versão: **0.7.0-prototipo**
+Versão: **0.8.0-prototipo**
 
 Plataforma: **Windows x64**
 
@@ -56,6 +56,7 @@ O executável Debug fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\
 5. Use **Abrir mídia…** ou dê duplo clique em um item da playlist. Arquivos ausentes continuam listados e aparecem como não encontrados.
 6. Vídeo exige ao menos uma saída marcada; então **Reproduzir** inicia imediatamente, sem confirmação intermediária. Áudio pode tocar sem saída marcada e nunca abre nem altera janelas de vídeo.
 7. Controle pausa/continuação, busca, volume, mudo e parada no painel. A roda do mouse ajusta volume em passos de 5 pontos e avança/retrocede a timeline em 5 segundos; um clique direto na barra faz seek proporcional.
+8. Em **Configurações > Integração com Windows**, escolha separadamente se o GuiaPlay deve aparecer em **Abrir com** e se o Explorer deve mostrar **Abrir com GuiaPlay**. Nenhuma opção o torna player padrão automaticamente.
 
 Com um único monitor, áudio continua disponível. Vídeo permanece carregado, mas **Reproduzir** fica desabilitado até existir uma saída pública selecionada.
 
@@ -72,9 +73,11 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Relatório do M05](docs/RELATORIO-M05.md)
 - [Relatório do M06](docs/RELATORIO-M06.md)
 - [Relatório do M07](docs/RELATORIO-M07.md)
+- [Relatório do M08](docs/RELATORIO-M08.md)
 - [Notas da versão 0.5.0-prototipo](docs/releases/0.5.0-prototipo.md)
 - [Notas da versão 0.6.0-prototipo](docs/releases/0.6.0-prototipo.md)
 - [Notas da versão 0.7.0-prototipo](docs/releases/0.7.0-prototipo.md)
+- [Notas da versão 0.8.0-prototipo](docs/releases/0.8.0-prototipo.md)
 - [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
@@ -88,6 +91,16 @@ O canal interno `Prototype` consulta assincronamente a lista de Releases de `gui
 Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. O download mostra bytes e percentual reais quando `Content-Length` existe, usa estado indeterminado sem tamanho conhecido e distingue download, SHA-256, preparação e início do updater. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
 
 A distribuição é self-contained para Windows x64, sem trimming e sem single-file no aplicativo principal, preservando as dependências nativas do LibVLC. O updater é um executável separado e temporário: espera o GuiaPlay encerrar, faz backup, aplica o staging, tenta rollback em falha e reinicia a aplicação. O log dele fica em `%LocalAppData%\GuiaSys\GuiaPlay\updater.log`.
+
+## Integração com Windows e Explorer
+
+A integração é sempre opt-in, por usuário e sem elevação. O Setup oferece duas tarefas inicialmente desmarcadas; as mesmas opções podem ser ativadas ou removidas depois em Configurações. O estado é detectado diretamente no Registry, sem duplicação no `settings.json`.
+
+O GuiaPlay registra `GuiaPlay.Video` e `GuiaPlay.Audio`, `OpenWithProgids` somente para as 23 extensões reconhecidas pelo classificador, uma aplicação em `Software\Classes\Applications\GuiaPlay.exe`, capacidades em `Software\Clients\Media\GuiaPlay\Capabilities` e a referência correspondente em `Software\RegisteredApplications`. O menu de contexto usa verbos próprios em `Software\Classes\SystemFileAssociations\<extensão>\shell\GuiaPlay.Open`. Todas as chaves são relativas a `HKEY_CURRENT_USER`.
+
+Nenhum valor padrão de extensão ou `UserChoice` é alterado. Para escolher o player padrão, use o botão que abre as Configurações oficiais do Windows. A desinstalação remove somente ProgIDs, valores, capacidades e verbos pertencentes ao GuiaPlay. Entradas de outros players são preservadas.
+
+O comando registrado é `"GuiaPlay.exe" "%1"`. O arquivo passa pelo classificador antes de ser carregado; scripts e executáveis nunca são executados como mídia. A integração M08 usa um arquivo por invocação. Quando o GuiaPlay já está aberto, o mecanismo existente de Mutex + Named Pipe encaminha o caminho à mesma janela, traz a aplicação para frente e carrega sem autoplay.
 
 ### Como publicar uma nova versão
 
@@ -106,7 +119,8 @@ A distribuição é self-contained para Windows x64, sem trimming e sem single-f
 - A lista explícita de áudio contém somente pares módulo/dispositivo que o LibVLC informou aceitar. Lista vazia não prova ausência de áudio no Windows; **Padrão do Windows** continua disponível.
 - A aplicação pode detectar uma perda de dispositivo depois de um redirecionamento transitório feito pelo backend/Windows. Ela pausa e não faz fallback nem retoma deliberadamente, mas ausência absoluta de transiente requer validação física.
 - A classificação inicial de mídia usa extensões comuns; a decodificação efetiva continua sendo responsabilidade do LibVLC e depende do conteúdo/codecs do arquivo.
-- O upgrade público de `0.6.0-prototipo` para `0.7.0-prototipo` usa o mesmo fluxo de GitHub Releases, manifesto e SHA-256 exercitado em diretórios temporários antes da publicação.
+- O upgrade público de `0.7.0-prototipo` para `0.8.0-prototipo` usa o mesmo fluxo de GitHub Releases, manifesto e SHA-256 exercitado em diretórios temporários antes da publicação.
+- O menu de contexto pode ser apresentado pelo Windows 11 dentro de **Mostrar mais opções**, conforme a política do Explorer; o GuiaPlay não instala uma shell extension DLL.
 - Não há assinatura Authenticode nesta etapa; integridade do pacote de atualização é protegida pelo manifesto e SHA-256 publicado.
 
 ## Argumento de linha de comando e instância única
