@@ -21,7 +21,7 @@ internal static class FileLogger
         {
             Directory.CreateDirectory(DirectoryPath);
             RotateIfNeeded();
-            Info("GuiaPlay 0.4.0-prototipo iniciado.");
+            Info($"GuiaPlay {GuiaPlay.Core.ProductInfo.Version} iniciado.");
         }
         catch
         {

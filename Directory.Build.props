@@ -6,8 +6,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <VersionPrefix>0.4.0</VersionPrefix>
+    <VersionPrefix>0.5.0</VersionPrefix>
     <VersionSuffix>prototipo</VersionSuffix>
-    <InformationalVersion>0.4.0-prototipo</InformationalVersion>
+    <Version>$(VersionPrefix)-$(VersionSuffix)</Version>
+    <InformationalVersion>$(Version)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <ProductReleaseDate>2026-09-25</ProductReleaseDate>
+    <UpdateChannel>Prototype</UpdateChannel>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="ReleaseDate" Value="$(ProductReleaseDate)" />
+    <AssemblyMetadata Include="UpdateChannel" Value="$(UpdateChannel)" />
+    <AssemblyMetadata Include="RepositoryOwner" Value="guiasysstudio" />
+    <AssemblyMetadata Include="RepositoryName" Value="GuiaPlay" />
+  </ItemGroup>
 </Project>

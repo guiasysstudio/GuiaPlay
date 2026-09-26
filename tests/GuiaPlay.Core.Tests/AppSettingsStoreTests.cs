@@ -25,7 +25,10 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.Contains("public", loaded.SelectedOutputIds);
         Assert.Equal(42, loaded.Volume);
         Assert.True(loaded.Muted);
-        Assert.Equal(3, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(4, json["schemaVersion"]!.GetValue<int>());
+        Assert.True(loaded.CheckUpdatesAutomatically);
+        Assert.False(loaded.InstallUpdatesAutomatically);
+        Assert.Null(loaded.LastUpdateCheckUtc);
     }
 
     [Fact]
@@ -59,7 +62,10 @@ public sealed class AppSettingsStoreTests : IDisposable
             new HashSet<string> { "monitor-path-b" },
             new AudioOutputPreference(AudioOutputMode.Explicit, "mmdevice", "endpoint-1", "Mesa USB"),
             64,
-            true);
+            true,
+            false,
+            true,
+            new DateTimeOffset(2026, 9, 25, 12, 0, 0, TimeSpan.Zero));
         var store = new AppSettingsStore(SettingsPath);
         _ = store.Load();
 
@@ -74,6 +80,9 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.Equal(settings.AudioOutput, reloaded.AudioOutput);
         Assert.Equal(64, reloaded.Volume);
         Assert.True(reloaded.Muted);
+        Assert.False(reloaded.CheckUpdatesAutomatically);
+        Assert.True(reloaded.InstallUpdatesAutomatically);
+        Assert.Equal(settings.LastUpdateCheckUtc, reloaded.LastUpdateCheckUtc);
         Assert.Equal(7, json["screens"]!["futureScreenKey"]!.GetValue<int>());
         Assert.Equal("ok", json["audio"]!["futureAudioKey"]!.GetValue<string>());
     }

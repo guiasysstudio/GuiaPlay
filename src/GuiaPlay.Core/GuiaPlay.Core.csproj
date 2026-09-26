@@ -2,4 +2,7 @@
   <PropertyGroup>
     <Description>Lógica testável do protótipo GuiaPlay.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="GuiaPlay.Core.Tests" />
+  </ItemGroup>
 </Project>

@@ -82,3 +82,16 @@
 3. Reproduzir por 30 minutos e registrar CPU, GPU e memória após 1, 10 e 30 minutos.
 4. Conferir o log em `%LocalAppData%\GuiaSys\GuiaPlay`, principalmente quadros recebidos/apresentados/coalescidos e média de cópia.
 5. Não declarar 4K, codecs específicos, duas saídas físicas ou estabilidade prolongada validados sem executar esses cenários no hardware real.
+
+## M05 — atualizações e instalação física
+
+1. Em Claro e Escuro, abrir **Configurações > Atualizações** em 1366 × 768 e DPI 100%, 125% e 150%; confirmar ausência de cortes e versão `0.5.0-prototipo`/data `25/09/2026`.
+2. Clicar **Procurar atualizações** online e confirmar resultado inline. Repetir offline e confirmar erro amigável sem travar mídia, playlist ou telas.
+3. Com a versão atual igual à release, confirmar seta de download totalmente oculta e sem espaço reservado.
+4. Em teste controlado com uma versão superior, confirmar seta à esquerda da engrenagem e que o clique abre diretamente a guia **Atualizações**, sem iniciar instalação.
+5. Instalar `GuiaPlay-Setup-0.5.0-prototipo.exe` por usuário; conferir Menu Iniciar, atalho opcional, desinstalação registrada e execução sem .NET previamente instalado.
+6. Confirmar `install.json` somente na instalação do Setup. Executar em `bin/Debug`/`bin/Release` e verificar que instalação automática é recusada sem alterar o projeto.
+7. Reinstalar/atualizar em cenário controlado e conferir preservação de `settings.json`, `playlist.json`, nomes de telas, áudio, volume, mudo, aparência e preferências de update.
+8. Com áudio e vídeo em reprodução/pausa, habilitar instalação automática e confirmar que nada é fechado/interrompido; o update deve permanecer pendente até o término/parada.
+9. Conferir `%LocalAppData%\GuiaSys\GuiaPlay\GuiaPlay.log` e `updater.log` sem tokens ou dados sensíveis.
+10. Desinstalar e confirmar remoção dos binários/atalhos, preservando deliberadamente os dados locais do usuário.

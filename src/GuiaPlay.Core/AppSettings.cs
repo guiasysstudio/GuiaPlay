@@ -27,9 +27,12 @@ public sealed record AppSettings(
     IReadOnlySet<string> SelectedOutputIds,
     AudioOutputPreference AudioOutput,
     int Volume,
-    bool Muted)
+    bool Muted,
+    bool CheckUpdatesAutomatically,
+    bool InstallUpdatesAutomatically,
+    DateTimeOffset? LastUpdateCheckUtc)
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     public static AppSettings Default { get; } = new(
         AppearancePreference.System,
@@ -38,7 +41,10 @@ public sealed record AppSettings(
         new HashSet<string>(StringComparer.OrdinalIgnoreCase),
         AudioOutputPreference.Default,
         100,
-        false);
+        false,
+        true,
+        false,
+        null);
 }
 
 public sealed record SettingsLoadResult(AppSettings Settings, bool RecoveredFromInvalidFile, string? Warning);
@@ -193,6 +199,10 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
 
         var volume = ReadInt(audio?["volume"], 100);
         var muted = ReadBool(audio?["muted"], false);
+        var updates = root["updates"] as JsonObject;
+        var checkAutomatically = ReadBool(updates?["checkAutomatically"], true);
+        var installAutomatically = ReadBool(updates?["installAutomatically"], false);
+        var lastCheckUtc = ReadDateTimeOffset(updates?["lastCheckUtc"]);
         return new AppSettings(
             appearance,
             operatorId,
@@ -200,7 +210,10 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
             outputs,
             new AudioOutputPreference(mode, module, deviceId, displayName),
             Math.Clamp(volume, 0, 100),
-            muted);
+            muted,
+            checkAutomatically,
+            installAutomatically,
+            lastCheckUtc);
     }
 
     private void UpdateRoot(AppSettings settings)
@@ -237,6 +250,12 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
         audio["displayName"] = settings.AudioOutput.DisplayName;
         audio["volume"] = Math.Clamp(settings.Volume, 0, 100);
         audio["muted"] = settings.Muted;
+
+        var updates = _root["updates"] as JsonObject ?? new JsonObject();
+        _root["updates"] = updates;
+        updates["checkAutomatically"] = settings.CheckUpdatesAutomatically;
+        updates["installAutomatically"] = settings.InstallUpdatesAutomatically;
+        updates["lastCheckUtc"] = settings.LastUpdateCheckUtc?.ToUniversalTime().ToString("O");
     }
 
     private bool TryBackupInvalidFile()
@@ -276,6 +295,11 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
 
     private static bool ReadBool(JsonNode? node, bool fallback) =>
         node is JsonValue value && value.TryGetValue<bool>(out var result) ? result : fallback;
+
+    private static DateTimeOffset? ReadDateTimeOffset(JsonNode? node) =>
+        DateTimeOffset.TryParse(ReadString(node), null, System.Globalization.DateTimeStyles.RoundtripKind, out var result)
+            ? result.ToUniversalTime()
+            : null;
 
     private static string? NormalizeMonitorName(string? value)
     {

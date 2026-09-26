@@ -1,10 +1,13 @@
 # GuiaPlay
 
-Protótipo funcional M04 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais e integrar o fluxo com arraste do Explorer, argumentos de linha de comando e instância única.
+Protótipo funcional M05 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais e distribuir atualizações verificadas por GitHub Releases.
 
-Versão: **0.4.0-prototipo**  
-Plataforma: **Windows x64**  
-Interface: **C# + WPF, .NET 10**  
+Versão: **0.5.0-prototipo**
+
+Plataforma: **Windows x64**
+
+Interface: **C# + WPF, .NET 10**
+
 Motor incorporado: **LibVLCSharp 3.10.1 + LibVLC 3.0.24 para Windows**
 
 O pacote `VideoLAN.LibVLC.Windows` leva o motor e os codecs junto com a aplicação. Não é necessário instalar o aplicativo VLC.
@@ -15,6 +18,7 @@ O pacote `VideoLAN.LibVLC.Windows` leva o motor e os codecs junto com a aplicaç
 - .NET SDK 10.0.300 ou patch compatível da linha 10.0 para compilar;
 - para executar uma compilação dependente de framework, .NET Desktop Runtime 10 x64;
 - monitores configurados no Windows em **Estender estes monitores** para o teste multitelas.
+- Inno Setup 6 (`JRSoftware.InnoSetup`) para gerar o instalador.
 
 ## Compilar e executar
 
@@ -32,6 +36,12 @@ Validação completa de compilação e testes:
 dotnet test .\GuiaPlay.slnx -c Debug
 dotnet build .\GuiaPlay.slnx -c Release
 dotnet test .\GuiaPlay.slnx -c Release --no-build
+```
+
+Para montar o publish self-contained win-x64, ZIP, manifesto, checksums e Setup:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-release.ps1
 ```
 
 O executável Debug fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\GuiaPlay.exe`.
@@ -59,10 +69,29 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Relatório do M02](docs/RELATORIO-M02.md)
 - [Relatório do M03](docs/RELATORIO-M03.md)
 - [Relatório do M04](docs/RELATORIO-M04.md)
+- [Relatório do M05](docs/RELATORIO-M05.md)
+- [Notas da versão 0.5.0-prototipo](docs/releases/0.5.0-prototipo.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
 Os logs locais ficam em `%LocalAppData%\GuiaSys\GuiaPlay\GuiaPlay.log`, com rotação a 5 MiB e retenção máxima de cinco arquivos.
-As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: aparência, identidade/nome das telas, operador, pré-seleção pública, saída de áudio, volume e mudo. O esquema 3 migra os anteriores, preserva chaves desconhecidas e mantém gravação atômica. A playlist fica separada em `playlist.json` e contém somente metadados leves e caminhos absolutos; nunca contém bytes de mídia.
+As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: aparência, identidade/nome das telas, operador, pré-seleção pública, saída de áudio, volume, mudo e política de atualização. O esquema 4 migra os anteriores, preserva chaves desconhecidas e mantém gravação atômica. A playlist fica separada em `playlist.json` e contém somente metadados leves e caminhos absolutos; nunca contém bytes de mídia. Esses dados ficam fora de `%LocalAppData%\Programs\GuiaPlay` e não são substituídos pelo updater.
+
+## Atualizações e distribuição
+
+O canal interno `Prototype` consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, incluindo prereleases compatíveis e ignorando drafts/tags inválidas. A checagem automática é ativada por padrão e limitada a uma tentativa a cada 12 horas; a instalação automática começa desativada e nunca interrompe mídia ativa.
+
+Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
+
+A distribuição é self-contained para Windows x64, sem trimming e sem single-file no aplicativo principal, preservando as dependências nativas do LibVLC. O updater é um executável separado e temporário: espera o GuiaPlay encerrar, faz backup, aplica o staging, tenta rollback em falha e reinicia a aplicação. O log dele fica em `%LocalAppData%\GuiaSys\GuiaPlay\updater.log`.
+
+### Como publicar uma nova versão
+
+1. Atualize `VersionPrefix`, `VersionSuffix` e `ProductReleaseDate` somente em `Directory.Build.props` e crie as release notes correspondentes.
+2. Execute `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-release.ps1` e corrija qualquer falha. O script valida formato, builds/testes Debug e Release, publish, LibVLC, updater, instalador, manifesto e checksums.
+3. Revise `git status`, `git diff` e confirme que `artifacts/`, dados pessoais, logs e segredos não serão versionados.
+4. Faça commit e `git push origin main`; confirme `main` sincronizada e limpa.
+5. Execute `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1`. Ele recusa branch/origin/árvore incorretos, tags ou releases existentes e checksums divergentes; então cria a tag anotada, envia a tag e publica a prerelease com os quatro assets.
+6. Consulte a Release pela API/`gh`, baixe os assets em uma pasta temporária e valide novamente os hashes.
 
 ## Limites conhecidos do protótipo
 
@@ -72,7 +101,8 @@ As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: apar�
 - A lista explícita de áudio contém somente pares módulo/dispositivo que o LibVLC informou aceitar. Lista vazia não prova ausência de áudio no Windows; **Padrão do Windows** continua disponível.
 - A aplicação pode detectar uma perda de dispositivo depois de um redirecionamento transitório feito pelo backend/Windows. Ela pausa e não faz fallback nem retoma deliberadamente, mas ausência absoluta de transiente requer validação física.
 - A classificação inicial de mídia usa extensões comuns; a decodificação efetiva continua sendo responsabilidade do LibVLC e depende do conteúdo/codecs do arquivo.
-- Associação automática de formatos, alterações no Registro, instalador e empacotamento ainda não fazem parte desta entrega.
+- O primeiro upgrade público entre versões distintas só poderá ser observado quando existir uma versão posterior (por exemplo, `0.6.0-prototipo`). O mecanismo de aplicação e rollback é exercitado no M05 em instalação temporária simulada.
+- Não há assinatura Authenticode nesta etapa; integridade do pacote de atualização é protegida pelo manifesto e SHA-256 publicado.
 
 ## Argumento de linha de comando e instância única
 

@@ -13,6 +13,7 @@ public partial class App : Application
     public AppSettings Settings { get; private set; } = AppSettings.Default;
     public PlaylistStore? PlaylistStore { get; private set; }
     public PlaylistDocument Playlist { get; set; } = PlaylistDocument.Empty;
+    internal UpdateManager? UpdateManager { get; private set; }
     public AppearancePreference Appearance => Settings.Appearance;
     public string? StartupSettingsWarning { get; private set; }
     public string? StartupPlaylistWarning { get; private set; }
@@ -79,6 +80,8 @@ public partial class App : Application
         {
             FileLogger.Info(playlistLoadResult.Warning);
         }
+
+        UpdateManager = new UpdateManager(this);
 
         ApplyAppearance(Settings.Appearance, persist: false);
         DispatcherUnhandledException += (_, args) =>

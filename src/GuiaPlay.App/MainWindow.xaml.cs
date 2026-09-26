@@ -60,10 +60,12 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _identifierCancellation;
     private Point _playlistDragStart;
     private object? _playlistDragSource;
+    private bool _autoInstallInProgress;
 
     public MainWindow()
     {
         InitializeComponent();
+        Title = $"GuiaPlay {ProductInfo.Version}";
         _renderFrameCallback = RenderLatestFrame;
         OutputsList.ItemsSource = _outputChoices;
         PlaylistTree.ItemsSource = _playlistGroups;
@@ -96,6 +98,10 @@ public partial class MainWindow : Window
             IsEnabled = false
         };
         _settingsInitialized = true;
+        if (app?.UpdateManager is { } updateManager)
+        {
+            updateManager.StateChanged += UpdateManager_OnStateChanged;
+        }
         Loaded += (_, _) =>
         {
             FitToWorkArea();
@@ -119,6 +125,7 @@ public partial class MainWindow : Window
             }
 
             FileLogger.Info("Painel do operador carregado.");
+            _ = CheckForUpdatesOnStartupAsync();
         };
         SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessageHook);
         Closing += MainWindow_OnClosing;
@@ -628,6 +635,7 @@ public partial class MainWindow : Window
         CloseOutputWindows();
         _coordinator.Stop();
         SetControlsBusy(true);
+        var stoppedSafely = false;
         try
         {
             await _engine.StopAsync();
@@ -640,6 +648,7 @@ public partial class MainWindow : Window
             PlayButtonText.Text = "Reproduzir";
             SetConfigurationControlsEnabled(true);
             RefreshPlaybackControls();
+            stoppedSafely = true;
         }
         catch (Exception exception)
         {
@@ -649,6 +658,11 @@ public partial class MainWindow : Window
         finally
         {
             SetControlsBusy(false);
+        }
+
+        if (stoppedSafely)
+        {
+            await TryAutomaticInstallationAsync();
         }
     }
 
@@ -691,9 +705,15 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void ConfigureScreensButton_OnClick(object sender, RoutedEventArgs e)
+    private async void ConfigureScreensButton_OnClick(object sender, RoutedEventArgs e) =>
+        await OpenSettingsAsync(openUpdates: false);
+
+    private async void UpdateAvailableButton_OnClick(object sender, RoutedEventArgs e) =>
+        await OpenSettingsAsync(openUpdates: true);
+
+    private async Task OpenSettingsAsync(bool openUpdates)
     {
-        if (_coordinator.IsActive)
+        if (_coordinator.IsActive && !openUpdates)
         {
             StatusText.Text = "Pare a reprodução antes de alterar a configuração das telas.";
             return;
@@ -706,13 +726,38 @@ public partial class MainWindow : Window
         }
 
         var app = Application.Current as App;
-        var currentSettings = app?.Settings ?? AppSettings.Default;
+        if (app is not { UpdateManager: { } updateManager })
+        {
+            StatusText.Text = "O serviço de atualizações ainda não está disponível.";
+            return;
+        }
+        var currentSettings = app.Settings;
         var names = currentSettings.MonitorNames;
         RefreshAudioDevices(force: true);
-        var dialog = new ScreenConfigurationWindow(_monitors, _operatorMonitor?.Id, currentSettings, _audioDevices) { Owner = this };
+        var dialog = new ScreenConfigurationWindow(
+            _monitors,
+            _operatorMonitor?.Id,
+            currentSettings,
+            _audioDevices,
+            updateManager,
+            openUpdates,
+            _coordinator.IsActive)
+        { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Result is not { } result)
         {
             StatusText.Text = "Configuração de telas cancelada; nada foi alterado.";
+            return;
+        }
+
+        if (_coordinator.IsActive)
+        {
+            _ = app.UpdateSettings(current => current with
+            {
+                CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
+                InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
+            }, out var activeSaveError);
+            ShowSettingsSaveFailure(activeSaveError);
+            StatusText.Text = "Preferências de atualização salvas; reprodução preservada.";
             return;
         }
 
@@ -747,7 +792,9 @@ public partial class MainWindow : Window
                 MonitorNames = mergedNames,
                 SelectedOutputIds = new HashSet<string>(_explicitOutputIds, StringComparer.OrdinalIgnoreCase),
                 Appearance = result.Appearance,
-                AudioOutput = result.AudioOutput
+                AudioOutput = result.AudioOutput,
+                CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
+                InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
             }, out var error);
             ShowSettingsSaveFailure(error);
             app.ApplyAppearance(result.Appearance, persist: false);
@@ -778,6 +825,56 @@ public partial class MainWindow : Window
             : "O operador nunca aparece entre as saídas públicas.";
         WindowPlacement.PlaceOperatorPanel(this, _operatorMonitor);
         StatusText.Text = "Configurações salvas e aplicadas.";
+    }
+
+    private void UpdateManager_OnStateChanged(object? sender, EventArgs e) => Dispatch(RefreshUpdateIndicator);
+
+    private void RefreshUpdateIndicator()
+    {
+        var status = (Application.Current as App)?.UpdateManager?.LastResult?.Status;
+        UpdateAvailableButton.Visibility = status is not null && UpdateIndicatorState.IsVisible(status.Value)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        if (Application.Current is not App { UpdateManager: { } manager } app) return;
+        await manager.CheckAsync(manual: false);
+        RefreshUpdateIndicator();
+        if (UpdateInstallationPolicy.CanAutoInstall(
+                app.Settings.InstallUpdatesAutomatically,
+                manager.LastResult?.Status == UpdateCheckStatus.UpdateAvailable,
+                _coordinator.IsActive,
+                Environment.ProcessPath is { } path && ManagedInstallationDetector.Detect(path) is not null))
+        {
+            await TryAutomaticInstallationAsync();
+        }
+    }
+
+    private async Task TryAutomaticInstallationAsync()
+    {
+        if (_autoInstallInProgress || _coordinator.IsActive || Application.Current is not App { UpdateManager: { } manager } app ||
+            !UpdateInstallationPolicy.CanAutoInstall(
+                app.Settings.InstallUpdatesAutomatically,
+                manager.LastResult?.Status == UpdateCheckStatus.UpdateAvailable,
+                playbackActive: false,
+                Environment.ProcessPath is { } path && ManagedInstallationDetector.Detect(path) is not null))
+        {
+            return;
+        }
+
+        _autoInstallInProgress = true;
+        var result = await manager.PrepareAndLaunchInstallerAsync();
+        if (result.Launched)
+        {
+            Application.Current.Shutdown();
+        }
+        else
+        {
+            _autoInstallInProgress = false;
+            FileLogger.Info($"Instalação automática adiada: {result.Message}");
+        }
     }
 
     private void MuteButton_OnClick(object sender, RoutedEventArgs e)
@@ -946,6 +1043,7 @@ public partial class MainWindow : Window
         RefreshPlaybackControls();
         ProgressSlider.Value = ProgressSlider.Maximum;
         LogPlaybackMetrics($"Fim natural da geração {generation}");
+        _ = TryAutomaticInstallationAsync();
     }
 
     private void Engine_OnError(long generation, string message)
@@ -1571,6 +1669,10 @@ public partial class MainWindow : Window
         }
 
         _isClosing = true;
+        if (Application.Current is App { UpdateManager: { } updateManager })
+        {
+            updateManager.StateChanged -= UpdateManager_OnStateChanged;
+        }
         FlushDeferredSettings();
         Hide();
         _monitorTimer.Stop();

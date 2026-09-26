@@ -17,8 +17,8 @@
                        Text="Preferências permanentes do programa. Nada muda até Salvar." />
         </StackPanel>
 
-        <TabControl Grid.Row="1">
-            <TabItem Header="Telas">
+        <TabControl x:Name="SettingsTabs" Grid.Row="1">
+            <TabItem x:Name="ScreensTab" Header="Telas">
                 <Grid Margin="14">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -58,7 +58,7 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Aparência e áudio">
+            <TabItem x:Name="AppearanceAudioTab" Header="Aparência e áudio">
                 <StackPanel Margin="18" MaxWidth="600" HorizontalAlignment="Left">
                     <TextBlock Text="Aparência" Style="{StaticResource SectionTitleStyle}" />
                     <ComboBox x:Name="AppearanceCombo" Width="260" MinHeight="38"
@@ -71,6 +71,54 @@
                     <TextBlock x:Name="AudioHelpText" Margin="0,6,0,0" TextWrapping="Wrap"
                                Style="{StaticResource SecondaryTextStyle}" />
                 </StackPanel>
+            </TabItem>
+
+            <TabItem x:Name="UpdatesTab" Header="Atualizações">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="18" MaxWidth="620" HorizontalAlignment="Left">
+                        <TextBlock Text="Atualizações do GuiaPlay" FontSize="18" FontWeight="SemiBold" />
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Versão atual" FontWeight="SemiBold" />
+                            <TextBlock x:Name="CurrentVersionText" Grid.Column="1" />
+                            <TextBlock Grid.Row="1" Margin="0,8,0,0" Text="Data da versão" FontWeight="SemiBold" />
+                            <TextBlock x:Name="CurrentReleaseDateText" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" />
+                        </Grid>
+
+                        <Border Margin="0,18,0,16" Padding="12" CornerRadius="6"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock x:Name="UpdateStatusText" Text="Ainda não verificado." FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock x:Name="AvailableVersionText" Margin="0,7,0,0" TextWrapping="Wrap"
+                                           Style="{StaticResource SecondaryTextStyle}" Visibility="Collapsed" />
+                                <TextBlock x:Name="ReleaseNotesText" Margin="0,8,0,0" MaxHeight="90" TextWrapping="Wrap"
+                                           TextTrimming="CharacterEllipsis" Style="{StaticResource SecondaryTextStyle}" Visibility="Collapsed" />
+                            </StackPanel>
+                        </Border>
+
+                        <CheckBox x:Name="CheckUpdatesAutomaticallyCheckBox"
+                                  Content="Verificar atualizações automaticamente" Margin="0,0,0,10" />
+                        <CheckBox x:Name="InstallUpdatesAutomaticallyCheckBox"
+                                  Content="Instalar atualizações automaticamente" Margin="0,0,0,6" />
+                        <TextBlock Text="A instalação automática nunca interrompe mídia ativa e só funciona em uma instalação feita pelo GuiaPlay Setup."
+                                   Style="{StaticResource SecondaryTextStyle}" Margin="24,0,0,16" />
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="CheckUpdatesButton" Content="Procurar atualizações"
+                                    Click="CheckUpdatesButton_OnClick" Style="{StaticResource StandardButtonStyle}" Margin="0,0,8,0" />
+                            <Button x:Name="InstallUpdateButton" Content="Baixar e instalar"
+                                    Click="InstallUpdateButton_OnClick" Style="{StaticResource PrimaryButtonStyle}" Visibility="Collapsed" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 

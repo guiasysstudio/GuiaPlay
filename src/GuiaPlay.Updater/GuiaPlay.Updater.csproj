@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>GuiaPlay.Updater</AssemblyName>
+    <RootNamespace>GuiaPlay.Updater</RootNamespace>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GuiaPlay.Core\GuiaPlay.Core.csproj" />
+  </ItemGroup>
+</Project>
