@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Lógica testável do protótipo GuiaPlay.</Description>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/GuiaPlay.Core/GuiaPlay.Core.csproj" />
+  <Project Path="src/GuiaPlay.App/GuiaPlay.App.csproj" />
+  <Project Path="tests/GuiaPlay.Core.Tests/GuiaPlay.Core.Tests.csproj" />
+</Solution>
