@@ -5,6 +5,10 @@
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <SolidColorBrush x:Key="IdentifierBrush" Color="#37B878" />
+        <SolidColorBrush x:Key="GuiaPlayAccentBrush" Color="#005FB8" />
+        <SolidColorBrush x:Key="GuiaPlayAccentForegroundBrush" Color="#FFFFFFFF" />
+        <SolidColorBrush x:Key="GuiaPlayAccentSubtleBrush" Color="#19005FB8" />
+        <SolidColorBrush x:Key="GuiaPlayAccentBorderBrush" Color="#66005FB8" />
         <!-- Paths derived from Microsoft Fluent System Icons 24 Regular (MIT). -->
         <Geometry x:Key="ArrowDownloadIconGeometry">M18.2498 20.5009C18.664 20.5008 19 20.8365 19 21.2507C19 21.6649 18.6644 22.0008 18.2502 22.0009L5.25022 22.0047C4.836 22.0048 4.5 21.6691 4.5 21.2549C4.5 20.8407 4.83557 20.5048 5.24978 20.5047L18.2498 20.5009ZM11.6482 2.01271L11.75 2.00586C12.1297 2.00586 12.4435 2.28801 12.4932 2.65409L12.5 2.75586L12.499 16.4409L16.2208 12.7205C16.4871 12.4543 16.9038 12.4301 17.1974 12.648L17.2815 12.7206C17.5477 12.9869 17.5719 13.4036 17.354 13.6972L17.2814 13.7813L12.2837 18.7779C12.0176 19.044 11.6012 19.0683 11.3076 18.8507L11.2235 18.7782L6.22003 13.7816C5.92694 13.4889 5.92661 13.014 6.21931 12.7209C6.48539 12.4545 6.90204 12.43 7.1958 12.6477L7.27997 12.7202L10.999 16.4339L11 2.75586C11 2.37616 11.2822 2.06237 11.6482 2.01271L11.75 2.00586L11.6482 2.01271Z</Geometry>
         <Geometry x:Key="SettingsIconGeometry">M12.0122 2.25C12.7462 2.25846 13.4773 2.34326 14.1937 2.50304C14.5064 2.57279 14.7403 2.83351 14.7758 3.15196L14.946 4.67881C15.0231 5.37986 15.615 5.91084 16.3206 5.91158C16.5103 5.91188 16.6979 5.87238 16.8732 5.79483L18.2738 5.17956C18.5651 5.05159 18.9055 5.12136 19.1229 5.35362C20.1351 6.43464 20.8889 7.73115 21.3277 9.14558C21.4223 9.45058 21.3134 9.78203 21.0564 9.9715L19.8149 10.8866C19.4607 11.1468 19.2516 11.56 19.2516 11.9995C19.2516 12.4389 19.4607 12.8521 19.8157 13.1129L21.0582 14.0283C21.3153 14.2177 21.4243 14.5492 21.3297 14.8543C20.8911 16.2685 20.1377 17.5649 19.1261 18.6461C18.9089 18.8783 18.5688 18.9483 18.2775 18.8206L16.8712 18.2045C16.4688 18.0284 16.0068 18.0542 15.6265 18.274C15.2463 18.4937 14.9933 18.8812 14.945 19.3177L14.7759 20.8444C14.741 21.1592 14.5122 21.4182 14.204 21.4915C12.7556 21.8361 11.2465 21.8361 9.79803 21.4915C9.48991 21.4182 9.26105 21.1592 9.22618 20.8444L9.05736 19.32C9.00777 18.8843 8.75434 18.498 8.37442 18.279C7.99451 18.06 7.5332 18.0343 7.1322 18.2094L5.72557 18.8256C5.43422 18.9533 5.09403 18.8833 4.87678 18.6509C3.86462 17.5685 3.11119 16.2705 2.6732 14.8548C2.57886 14.5499 2.68786 14.2186 2.94485 14.0293L4.18818 13.1133C4.54232 12.8531 4.75147 12.4399 4.75147 12.0005C4.75147 11.561 4.54232 11.1478 4.18771 10.8873L2.94516 9.97285C2.6878 9.78345 2.5787 9.45178 2.67337 9.14658C3.11212 7.73215 3.86594 6.43564 4.87813 5.35462C5.09559 5.12236 5.43594 5.05259 5.72724 5.18056L7.12762 5.79572C7.53056 5.97256 7.9938 5.94585 8.37577 5.72269C8.75609 5.50209 9.00929 5.11422 9.05817 4.67764L9.22824 3.15196C9.26376 2.83335 9.49786 2.57254 9.8108 2.50294C10.5281 2.34342 11.26 2.25865 12.0122 2.25ZM12 8.25A3.75 3.75 0 1 1 12 15.75A3.75 3.75 0 0 1 12 8.25ZM12 9.75A2.25 2.25 0 1 0 12 14.25A2.25 2.25 0 0 0 12 9.75Z</Geometry>
@@ -36,6 +40,8 @@
             </Style.Triggers>
         </Style>
         <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource GuiaPlayAccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource GuiaPlayAccentForegroundBrush}" />
             <Setter Property="Padding" Value="18,8" />
             <Setter Property="MinHeight" Value="38" />
             <Setter Property="MinWidth" Value="112" />
@@ -45,6 +51,13 @@
                     <Setter Property="Opacity" Value="0.62" />
                 </Trigger>
             </Style.Triggers>
+        </Style>
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16" />
         </Style>
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="15" />

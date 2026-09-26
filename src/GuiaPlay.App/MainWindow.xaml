@@ -4,22 +4,17 @@
         xmlns:models="clr-namespace:GuiaPlay.App.Models"
         Title="GuiaPlay"
         Icon="/GuiaPlay;component/Assets/Branding/Icons/GuiaPlay.ico"
-        Width="1040" Height="560" MinWidth="800" MinHeight="450"
+        Width="1120" Height="690" MinWidth="840" MinHeight="560"
+        Background="{DynamicResource ApplicationPageBackgroundThemeBrush}"
         WindowStartupLocation="CenterScreen"
         PreviewKeyDown="MainWindow_OnPreviewKeyDown">
     <Window.Resources>
         <HierarchicalDataTemplate DataType="{x:Type models:PlaylistGroupNode}" ItemsSource="{Binding Items}">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="▾" Margin="0,0,7,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-            </StackPanel>
+            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="2,3" />
         </HierarchicalDataTemplate>
         <DataTemplate DataType="{x:Type models:PlaylistItemNode}">
-            <Grid Margin="0,3">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+            <Grid Margin="0,4">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                 <TextBlock x:Name="ItemName" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                 <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding AvailabilityLabel}"
                            FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -34,243 +29,179 @@
     </Window.Resources>
 
     <Grid Margin="18">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
-                   Width="132" Height="40" Stretch="Uniform"
-                   HorizontalAlignment="Left" VerticalAlignment="Center"
-                   ToolTip="GuiaPlay" />
-            <Border Grid.Column="1" Width="1" Height="28" Margin="14,0"
-                    Background="{DynamicResource CardStrokeColorDefaultBrush}"
-                    VerticalAlignment="Center" />
-            <TextBlock x:Name="FileNameText" Grid.Column="2" Text="Nenhuma mídia carregada"
-                       FontSize="22" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                       VerticalAlignment="Center" />
-            <StackPanel Grid.Column="3" Orientation="Horizontal">
-                <Button x:Name="UpdateAvailableButton" Visibility="Collapsed"
-                        Width="44" Height="40" Padding="10" MinWidth="44" Margin="0,0,6,0"
-                        Style="{StaticResource StandardButtonStyle}"
-                        ToolTip="Atualização disponível"
-                        Click="UpdateAvailableButton_OnClick">
-                    <Path Data="{StaticResource ArrowDownloadIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
-                </Button>
-                <Button x:Name="ConfigureScreensButton"
-                        Width="44" Height="40" Padding="10" MinWidth="44"
-                        Style="{StaticResource StandardButtonStyle}"
-                        ToolTip="Configurações do programa"
-                        Click="ConfigureScreensButton_OnClick">
-                    <Path Data="{StaticResource SettingsIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
-                </Button>
-            </StackPanel>
-        </Grid>
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Padding="14,10" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
+                       Width="128" Height="38" Stretch="Uniform" VerticalAlignment="Center" ToolTip="GuiaPlay" />
+                <Border Grid.Column="1" Width="1" Height="34" Margin="15,0"
+                        Background="{DynamicResource CardStrokeColorDefaultBrush}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock x:Name="FileNameText" Text="Nenhuma mídia carregada"
+                               FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Margin="0,3,0,0" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Text="{Binding Text, ElementName=StatusText}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="UpdateAvailableButton" Visibility="Collapsed" Width="44" Height="40" Padding="10"
+                            MinWidth="44" Margin="0,0,8,0" Background="{DynamicResource GuiaPlayAccentBrush}"
+                            Foreground="{DynamicResource GuiaPlayAccentForegroundBrush}"
+                            BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}"
+                            ToolTip="Atualização disponível" Click="UpdateAvailableButton_OnClick">
+                        <Path Data="{StaticResource ArrowDownloadIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                    </Button>
+                    <Button x:Name="ConfigureScreensButton" Width="44" Height="40" Padding="10" MinWidth="44"
+                            Style="{StaticResource StandardButtonStyle}" ToolTip="Configurações do programa"
+                            Click="ConfigureScreensButton_OnClick">
+                        <Path Data="{StaticResource SettingsIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*" MinWidth="390" />
-                <ColumnDefinition Width="14" />
-                <ColumnDefinition Width="2*" MinWidth="330" />
+                <ColumnDefinition Width="3*" MinWidth="390" /><ColumnDefinition Width="12" />
+                <ColumnDefinition Width="2*" MinWidth="310" />
             </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0" Background="Black" CornerRadius="8" ClipToBounds="True" MinHeight="220">
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="12">
                 <Grid>
-                    <Image x:Name="PreviewImage" Stretch="Uniform" />
-                    <TextBlock x:Name="PreviewPlaceholder"
-                               Text="Prévia de vídeo"
-                               Foreground="#FF9CA3AF" FontSize="15"
-                               Margin="28" TextWrapping="Wrap"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               TextAlignment="Center" />
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <Grid Margin="2,0,2,10">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Prévia" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="Uma sessão compartilhada com todas as saídas"
+                                       Style="{StaticResource SecondaryTextStyle}" Margin="0,3,0,0" />
+                        </StackPanel>
+                        <Border Grid.Column="1" Padding="9,4" CornerRadius="12"
+                                Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
+                                BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}" BorderThickness="1">
+                            <TextBlock Text="PRÉVIA" FontSize="10" FontWeight="SemiBold" />
+                        </Border>
+                    </Grid>
+                    <Border Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True" MinHeight="180">
+                        <Grid>
+                            <Image x:Name="PreviewImage" Stretch="Uniform" />
+                            <TextBlock x:Name="PreviewPlaceholder" Text="Prévia de vídeo" Foreground="#FFB5BBC5"
+                                       FontSize="15" Margin="28" TextWrapping="Wrap" HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" TextAlignment="Center" />
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" CornerRadius="8" Padding="12"
-                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1">
+            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" /><RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Playlist" FontSize="20" FontWeight="SemiBold" />
-                    <WrapPanel Grid.Row="1" Margin="0,10,0,8">
+                    <StackPanel>
+                        <TextBlock Text="Playlist" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="Organize e execute mídias sem copiar os arquivos"
+                                   Style="{StaticResource SecondaryTextStyle}" Margin="0,3,0,0" />
+                    </StackPanel>
+                    <WrapPanel Grid.Row="1" Margin="0,10,0,7">
                         <Button Click="NewGroupButton_OnClick" ToolTip="Criar grupo virtual"
-                                Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,6,6">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource FolderAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
-                                <TextBlock Text="Grupo" VerticalAlignment="Center" />
-                            </StackPanel>
+                                Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,6,6" Padding="12,7" MinWidth="90">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource FolderAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Grupo" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                         <Button Click="RenameGroupButton_OnClick" ToolTip="Renomear grupo selecionado"
-                                Style="{StaticResource StandardButtonStyle}" Margin="0,0,6,6">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource EditIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
-                                <TextBlock Text="Renomear" VerticalAlignment="Center" />
-                            </StackPanel>
+                                Style="{StaticResource StandardButtonStyle}" Margin="0,0,6,6" Padding="11,7" MinWidth="90">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource EditIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Renomear" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                         <Button Click="DeleteGroupButton_OnClick" ToolTip="Excluir grupo virtual"
-                                Style="{StaticResource StandardButtonStyle}" Margin="0,0,0,6">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
-                                <TextBlock Text="Excluir" VerticalAlignment="Center" />
-                            </StackPanel>
+                                Style="{StaticResource StandardButtonStyle}" Margin="0,0,0,6" Padding="11,7" MinWidth="82">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Excluir" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </WrapPanel>
-                    <TreeView x:Name="PlaylistTree" Grid.Row="2"
-                              MouseDoubleClick="PlaylistTree_OnMouseDoubleClick"
-                              AllowDrop="True"
-                              PreviewMouseLeftButtonDown="PlaylistTree_OnPreviewMouseLeftButtonDown"
-                              PreviewMouseMove="PlaylistTree_OnPreviewMouseMove"
-                              PreviewDragOver="PlaylistTree_OnPreviewDragOver"
-                              Drop="PlaylistTree_OnDrop"
-                              BorderThickness="0" Background="Transparent"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                    <Border Grid.Row="2" CornerRadius="7" Padding="5" Background="{DynamicResource ControlFillColorDefaultBrush}"
+                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                        <TreeView x:Name="PlaylistTree" MouseDoubleClick="PlaylistTree_OnMouseDoubleClick" AllowDrop="True"
+                                  PreviewMouseLeftButtonDown="PlaylistTree_OnPreviewMouseLeftButtonDown"
+                                  PreviewMouseMove="PlaylistTree_OnPreviewMouseMove" PreviewDragOver="PlaylistTree_OnPreviewDragOver"
+                                  Drop="PlaylistTree_OnDrop" BorderThickness="0" Background="Transparent"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                    </Border>
                     <Grid Grid.Row="3" Margin="0,9,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <Button Click="AddPlaylistItemButton_OnClick" ToolTip="Adicionar referências de mídia ao grupo"
-                                Style="{StaticResource StandardButtonStyle}" HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource DocumentAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
-                                <TextBlock Text="Adicionar mídia…" VerticalAlignment="Center" />
-                            </StackPanel>
+                                Style="{StaticResource StandardButtonStyle}" HorizontalAlignment="Left" Padding="11,7">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DocumentAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Adicionar mídia…" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                         <Button Grid.Column="1" Click="RemovePlaylistItemButton_OnClick" ToolTip="Remover referência sem apagar o arquivo"
-                                Style="{StaticResource StandardButtonStyle}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
-                                <TextBlock Text="Remover item" VerticalAlignment="Center" />
-                            </StackPanel>
+                                Style="{StaticResource StandardButtonStyle}" Padding="11,7">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Remover" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </Grid>
                 </Grid>
             </Border>
         </Grid>
 
-        <Border Grid.Row="2" Margin="0,12,0,0" Padding="12" CornerRadius="8"
-                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+        <Border Grid.Row="2" Margin="0,12,0,0" Style="{StaticResource CardStyle}" Padding="14,12">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="52" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="112" />
-                    </Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="52" /><ColumnDefinition Width="*" /><ColumnDefinition Width="112" /></Grid.ColumnDefinitions>
                     <TextBlock x:Name="ElapsedText" Text="00:00" VerticalAlignment="Center" />
-                    <Slider x:Name="ProgressSlider" Grid.Column="1" Margin="8,0"
-                            Minimum="0" Maximum="1" Value="0" ToolTip="Posição da mídia"
-                            PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
-                            PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted"
-                            PreviewMouseWheel="ProgressSlider_OnMouseWheel" />
-                    <TextBlock x:Name="RemainingText" Grid.Column="2" Text="-00:00 / 00:00"
-                               VerticalAlignment="Center" TextAlignment="Right" />
+                    <Slider x:Name="ProgressSlider" Grid.Column="1" Margin="9,0" Minimum="0" Maximum="1" Value="0"
+                            ToolTip="Posição da mídia" PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
+                            PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted" PreviewMouseWheel="ProgressSlider_OnMouseWheel" />
+                    <TextBlock x:Name="RemainingText" Grid.Column="2" Text="-00:00 / 00:00" VerticalAlignment="Center"
+                               TextAlignment="Right" />
                 </Grid>
-
                 <Grid Grid.Row="1" Margin="0,9,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <WrapPanel>
-                        <Button x:Name="OpenButton" Content="Abrir mídia…" Click="OpenButton_OnClick"
-                                Style="{StaticResource StandardButtonStyle}" Margin="0,0,7,0" />
-                        <Button x:Name="PlayButton" Click="PlayButton_OnClick" IsEnabled="False"
-                                Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,7,0" ToolTip="Reproduzir mídia">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource PlayIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
-                                <TextBlock x:Name="PlayButtonText" Text="Reproduzir" VerticalAlignment="Center" />
-                            </StackPanel>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <WrapPanel VerticalAlignment="Center">
+                        <Button x:Name="OpenButton" Content="Abrir mídia…" Click="OpenButton_OnClick" Style="{StaticResource StandardButtonStyle}" Margin="0,0,7,0" />
+                        <Button x:Name="PlayButton" Click="PlayButton_OnClick" IsEnabled="False" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,7,0" ToolTip="Reproduzir mídia">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource PlayIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock x:Name="PlayButtonText" Text="Reproduzir" VerticalAlignment="Center" /></StackPanel>
                         </Button>
-                        <Button x:Name="PauseButton" Click="PauseButton_OnClick" IsEnabled="False"
-                                Style="{StaticResource StandardButtonStyle}" Margin="0,0,7,0" ToolTip="Pausar reprodução">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource PauseIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
-                                <TextBlock Text="Pausar" VerticalAlignment="Center" />
-                            </StackPanel>
+                        <Button x:Name="PauseButton" Click="PauseButton_OnClick" IsEnabled="False" Style="{StaticResource StandardButtonStyle}" Margin="0,0,7,0" ToolTip="Pausar reprodução">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource PauseIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Pausar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
-                        <Button x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False"
-                                Style="{StaticResource StandardButtonStyle}" ToolTip="Parar reprodução">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource StopIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
-                                <TextBlock Text="Parar" VerticalAlignment="Center" />
-                            </StackPanel>
+                        <Button x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False" Style="{StaticResource StandardButtonStyle}" ToolTip="Parar reprodução">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource StopIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Parar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </WrapPanel>
-                    <TextBlock x:Name="StatusText" Grid.Column="1" Margin="14,0" VerticalAlignment="Center"
-                               Text="Pronto" TextTrimming="CharacterEllipsis" />
+                    <Border Grid.Column="1" Margin="12,0" Padding="10,7" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
+                        <TextBlock x:Name="StatusText" Text="Pronto" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    </Border>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button x:Name="MuteButton" Click="MuteButton_OnClick"
-                                Style="{StaticResource StandardButtonStyle}" MinWidth="92" ToolTip="Ativar ou desativar o som">
+                        <Button x:Name="MuteButton" Click="MuteButton_OnClick" Style="{StaticResource StandardButtonStyle}" MinWidth="92" ToolTip="Ativar ou desativar o som">
                             <StackPanel Orientation="Horizontal">
                                 <Path x:Name="SpeakerIcon" Data="{StaticResource SpeakerIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
                                 <Path x:Name="SpeakerMuteIcon" Data="{StaticResource SpeakerMuteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Visibility="Collapsed" />
                                 <TextBlock x:Name="MuteButtonText" Text="Mudo" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Slider x:Name="VolumeSlider" Width="120" Minimum="0" Maximum="100" Value="100"
-                                Margin="9,0" ToolTip="Volume do GuiaPlay"
-                                ValueChanged="VolumeSlider_OnValueChanged"
-                                PreviewMouseWheel="VolumeSlider_OnMouseWheel" />
-                        <TextBlock x:Name="VolumeText" Text="100%" Width="44"
-                                   VerticalAlignment="Center" TextAlignment="Right" />
+                        <Slider x:Name="VolumeSlider" Width="110" Minimum="0" Maximum="100" Value="100" Margin="9,0"
+                                ToolTip="Volume do GuiaPlay" ValueChanged="VolumeSlider_OnValueChanged" PreviewMouseWheel="VolumeSlider_OnMouseWheel" />
+                        <TextBlock x:Name="VolumeText" Text="100%" Width="42" VerticalAlignment="Center" TextAlignment="Right" />
                     </StackPanel>
                 </Grid>
-
                 <Grid Grid.Row="2" Margin="0,9,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="Operador:" VerticalAlignment="Center" FontWeight="SemiBold" />
-                    <Border x:Name="OperatorIndicatorBorder" Grid.Column="1" Margin="7,0,12,0" Padding="10,6"
-                            MinWidth="140" MaxWidth="240" CornerRadius="6"
-                            Background="{DynamicResource ControlFillColorDefaultBrush}"
-                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
-                        <TextBlock x:Name="OperatorIndicatorText" Text="Nenhuma tela"
-                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="Operador" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    <Border x:Name="OperatorIndicatorBorder" Grid.Column="1" Margin="8,0,14,0" Padding="10,6" MinWidth="140" MaxWidth="240"
+                            CornerRadius="6" Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
+                            BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}" BorderThickness="1">
+                        <TextBlock x:Name="OperatorIndicatorText" Text="Nenhuma tela" TextTrimming="CharacterEllipsis" />
                     </Border>
                     <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                         <ItemsControl x:Name="OutputsList" VerticalAlignment="Center">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,12,0"
-                                              Content="{Binding ShortLabel}" ToolTip="{Binding Label}" VerticalAlignment="Center" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate><DataTemplate><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,12,0" Content="{Binding ShortLabel}" ToolTip="{Binding Label}" VerticalAlignment="Center" /></DataTemplate></ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <Button x:Name="IdentifyButton" Grid.Column="3" Content="Identificar telas"
-                            Style="{StaticResource StandardButtonStyle}" Click="IdentifyButton_OnClick" />
+                    <Button x:Name="IdentifyButton" Grid.Column="3" Content="Identificar telas" Style="{StaticResource StandardButtonStyle}" Click="IdentifyButton_OnClick" />
                 </Grid>
-
                 <TextBlock x:Name="OperatorStatusText" Visibility="Collapsed" />
                 <TextBlock x:Name="MonitorWarning" Visibility="Collapsed" />
                 <TextBlock x:Name="AudioWarningText" Visibility="Collapsed" />

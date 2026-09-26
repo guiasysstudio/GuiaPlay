@@ -1,10 +1,14 @@
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Security;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using GuiaPlay.App.Models;
+using GuiaPlay.App.Playback;
 using GuiaPlay.App.Services;
 using GuiaPlay.Core;
 
@@ -14,7 +18,9 @@ internal sealed record ScreenConfigurationResult(
     MonitorInfo OperatorMonitor,
     IReadOnlyDictionary<string, string> PersistentNames,
     AppearancePreference Appearance,
+    AccentColorPreference AccentColor,
     AudioOutputPreference AudioOutput,
+    EqualizerConfiguration Equalizer,
     bool CheckUpdatesAutomatically,
     bool InstallUpdatesAutomatically);
 
@@ -26,6 +32,11 @@ public partial class ScreenConfigurationWindow : Window
     private readonly Func<DiagnosticSnapshot> _diagnosticSnapshot;
     private readonly DispatcherTimer _diagnosticTimer;
     private readonly bool _playbackActive;
+    private readonly LibVlcEqualizerCatalog _equalizerCatalog;
+    private readonly EqualizerConfiguration _savedEqualizer;
+    private readonly ObservableCollection<EqualizerBandItem> _equalizerBands = [];
+    private readonly IReadOnlyList<SettingsEqualizerPresetChoice> _equalizerPresets;
+    private bool _loadingEqualizer;
     private CancellationTokenSource? _downloadCancellation;
     private readonly SettingsAppearanceChoice[] _appearanceChoices =
     [
@@ -39,6 +50,7 @@ public partial class ScreenConfigurationWindow : Window
         string? selectedOperatorSessionId,
         AppSettings settings,
         IReadOnlyList<AudioDeviceIdentity> audioDevices,
+        LibVlcEqualizerCatalog equalizerCatalog,
         UpdateManager updateManager,
         WindowsIntegrationService windowsIntegration,
         Func<DiagnosticSnapshot> diagnosticSnapshot,
@@ -50,6 +62,8 @@ public partial class ScreenConfigurationWindow : Window
         _windowsIntegration = windowsIntegration;
         _diagnosticSnapshot = diagnosticSnapshot;
         _playbackActive = playbackActive;
+        _equalizerCatalog = equalizerCatalog;
+        _savedEqualizer = settings.Equalizer;
         _items = monitors.Select(monitor => new ScreenConfigurationItem
         {
             Monitor = monitor,
@@ -59,6 +73,7 @@ public partial class ScreenConfigurationWindow : Window
         ScreensList.ItemsSource = _items;
         AppearanceCombo.ItemsSource = _appearanceChoices;
         AppearanceCombo.SelectedItem = _appearanceChoices.First(choice => choice.Preference == settings.Appearance);
+        SetAppearanceSelection(settings.Appearance, settings.AccentColor);
 
         var audioChoices = new List<SettingsAudioChoice>
         {
@@ -79,9 +94,17 @@ public partial class ScreenConfigurationWindow : Window
 
         AudioOutputCombo.ItemsSource = audioChoices;
         AudioOutputCombo.SelectedItem = audioChoices.First(choice => AudioPreferencesEqual(choice.Preference, settings.AudioOutput));
+        AudioOutputCombo.IsEnabled = !playbackActive;
         AudioHelpText.Text = audioDevices.Count == 0
             ? "O LibVLC não retornou dispositivos. Isso não prova ausência de áudio; o padrão do Windows permanece disponível."
             : "A seleção é aplicada pelo identificador fornecido pelo LibVLC no início de cada reprodução.";
+
+        _equalizerPresets = equalizerCatalog.Presets
+            .Select(preset => new SettingsEqualizerPresetChoice(preset, preset.Name))
+            .Append(new SettingsEqualizerPresetChoice(null, EqualizerConfiguration.CustomPresetName))
+            .ToArray();
+        EqualizerPresetCombo.ItemsSource = _equalizerPresets;
+        InitializeEqualizer(settings.Equalizer);
 
         var connectedIds = monitors.Select(monitor => monitor.PersistenceKey).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
         var disconnectedNames = settings.MonitorNames
@@ -102,7 +125,6 @@ public partial class ScreenConfigurationWindow : Window
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
         SettingsTabs.SelectedItem = openUpdates ? UpdatesTab : playbackActive || monitors.Count == 0 ? DiagnosticsTab : ScreensTab;
         ScreensTab.IsEnabled = !playbackActive;
-        AppearanceAudioTab.IsEnabled = !playbackActive;
         _updateManager.StateChanged += UpdateManager_OnStateChanged;
         _diagnosticTimer = new DispatcherTimer(
             TimeSpan.FromSeconds(2),
@@ -149,13 +171,94 @@ public partial class ScreenConfigurationWindow : Window
             selected[0].Monitor,
             names,
             appearance.Preference,
+            SelectedAccentColor(),
             audio.Preference,
+            ReadEqualizerConfiguration(),
             CheckUpdatesAutomaticallyCheckBox.IsChecked == true,
             InstallUpdatesAutomaticallyCheckBox.IsChecked == true);
         DialogResult = true;
     }
 
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => DialogResult = false;
+
+    private void AppearanceSelection_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (!IsInitialized || AppearancePreviewAccent is null)
+        {
+            return;
+        }
+
+        var palette = AppearancePaletteResolver.Resolve(
+            SelectedAccentColor(),
+            AppearancePaletteResolver.ResolveMode(
+                SelectedAppearance(),
+                App.WindowsUsesDarkMode(),
+                SystemParameters.HighContrast));
+        if (palette.UsesSystemColors)
+        {
+            AppearancePreviewAccent.Background = SystemColors.HighlightBrush;
+            AppearancePreviewAccent.Foreground = SystemColors.HighlightTextBrush;
+            AppearancePreviewCard.BorderBrush = SystemColors.HighlightBrush;
+            AppearancePreviewCard.Background = SystemColors.WindowBrush;
+            return;
+        }
+
+        var accent = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.AccentHex));
+        AppearancePreviewAccent.Background = accent;
+        AppearancePreviewAccent.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.ForegroundHex));
+        AppearancePreviewCard.BorderBrush = accent;
+        AppearancePreviewCard.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.SubtleHex));
+    }
+
+    private void EqualizerEnabledCheckBox_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (EqualizerControlsPanel is not null)
+        {
+            EqualizerControlsPanel.IsEnabled = EqualizerEnabledCheckBox.IsChecked == true && _equalizerCatalog.IsAvailable;
+        }
+    }
+
+    private void EqualizerPresetCombo_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingEqualizer || EqualizerPresetCombo.SelectedItem is not SettingsEqualizerPresetChoice { Preset: { } preset })
+        {
+            return;
+        }
+
+        _loadingEqualizer = true;
+        try
+        {
+            PreampSlider.Value = preset.Preamp;
+            for (var index = 0; index < _equalizerBands.Count; index++)
+            {
+                _equalizerBands[index].Gain = preset.BandGains[index];
+            }
+        }
+        finally
+        {
+            _loadingEqualizer = false;
+        }
+    }
+
+    private void EqualizerValue_OnChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_loadingEqualizer ||
+            EqualizerPresetCombo?.SelectedItem is not SettingsEqualizerPresetChoice { Preset: { } preset })
+        {
+            return;
+        }
+
+        var stillMatchesPreset = Math.Abs(PreampSlider.Value - preset.Preamp) < 0.001 &&
+                                 _equalizerBands.Count == preset.BandGains.Count &&
+                                 _equalizerBands.Select((band, index) =>
+                                     Math.Abs(band.Gain - preset.BandGains[index]) < 0.001f).All(matches => matches);
+        if (stillMatchesPreset)
+        {
+            return;
+        }
+
+        EqualizerPresetCombo.SelectedItem = _equalizerPresets.First(choice => choice.Preset is null);
+    }
 
     private void OpenProjectPageButton_OnClick(object sender, RoutedEventArgs e) =>
         Process.Start(new ProcessStartInfo(ProductInfo.ProjectPageUri.AbsoluteUri)
@@ -401,6 +504,97 @@ public partial class ScreenConfigurationWindow : Window
         return $"{display:0.0} {units[unit]}";
     }
 
+    private void SetAppearanceSelection(
+        AppearancePreference appearance,
+        AccentColorPreference accentColor)
+    {
+        AppearanceCombo.SelectedItem = _appearanceChoices.First(choice => choice.Preference == appearance);
+        BlueAccentRadio.IsChecked = accentColor == AccentColorPreference.GuiaPlayBlue;
+        CyanAccentRadio.IsChecked = accentColor == AccentColorPreference.Cyan;
+        PurpleAccentRadio.IsChecked = accentColor == AccentColorPreference.Purple;
+        GreenAccentRadio.IsChecked = accentColor == AccentColorPreference.Green;
+        OrangeAccentRadio.IsChecked = accentColor == AccentColorPreference.Orange;
+        PinkAccentRadio.IsChecked = accentColor == AccentColorPreference.Pink;
+        AppearanceSelection_OnChanged(this, new RoutedEventArgs());
+    }
+
+    private AppearancePreference SelectedAppearance() =>
+        AppearanceCombo.SelectedItem is SettingsAppearanceChoice choice
+            ? choice.Preference
+            : AppearancePreference.System;
+
+    private AccentColorPreference SelectedAccentColor() =>
+        CyanAccentRadio.IsChecked == true ? AccentColorPreference.Cyan :
+        PurpleAccentRadio.IsChecked == true ? AccentColorPreference.Purple :
+        GreenAccentRadio.IsChecked == true ? AccentColorPreference.Green :
+        OrangeAccentRadio.IsChecked == true ? AccentColorPreference.Orange :
+        PinkAccentRadio.IsChecked == true ? AccentColorPreference.Pink :
+        AccentColorPreference.GuiaPlayBlue;
+
+    private void InitializeEqualizer(EqualizerConfiguration saved)
+    {
+        EqualizerBandsItems.ItemsSource = _equalizerBands;
+        EqualizerEnabledCheckBox.IsChecked = saved.Enabled && _equalizerCatalog.IsAvailable;
+        if (!_equalizerCatalog.IsAvailable)
+        {
+            EqualizerAvailabilityText.Text = $"Equalizador indisponível; reprodução original preservada. {_equalizerCatalog.Error}";
+            EqualizerEnabledCheckBox.IsEnabled = false;
+            EqualizerControlsPanel.IsEnabled = false;
+            return;
+        }
+
+        EqualizerAvailabilityText.Text =
+            $"LibVLC: {_equalizerCatalog.Presets.Count} presets e {_equalizerCatalog.Bands.Count} bandas; alterações salvas são aplicadas em tempo real e nas próximas mídias.";
+        var matchingPreset = _equalizerCatalog.Presets.FirstOrDefault(preset =>
+            string.Equals(preset.Name, saved.PresetName, StringComparison.OrdinalIgnoreCase));
+        var configuration = saved.BandGains.Count == _equalizerCatalog.Bands.Count
+            ? EqualizerConfigurationBehavior.Normalize(saved, _equalizerCatalog.Bands.Count)
+            : matchingPreset is not null
+                ? EqualizerConfigurationBehavior.FromPreset(matchingPreset, saved.Enabled)
+                : EqualizerConfigurationBehavior.Normalize(saved, _equalizerCatalog.Bands.Count);
+
+        _loadingEqualizer = true;
+        try
+        {
+            for (var index = 0; index < _equalizerCatalog.Bands.Count; index++)
+            {
+                _equalizerBands.Add(new EqualizerBandItem(
+                    _equalizerCatalog.Bands[index],
+                    configuration.BandGains[index]));
+            }
+
+            PreampSlider.Value = configuration.Preamp;
+            EqualizerPresetCombo.SelectedItem = _equalizerPresets.FirstOrDefault(choice =>
+                string.Equals(choice.Label, configuration.PresetName, StringComparison.OrdinalIgnoreCase))
+                ?? _equalizerPresets.First(choice => choice.Preset is null);
+        }
+        finally
+        {
+            _loadingEqualizer = false;
+        }
+
+        EqualizerControlsPanel.IsEnabled = EqualizerEnabledCheckBox.IsChecked == true;
+    }
+
+    private EqualizerConfiguration ReadEqualizerConfiguration()
+    {
+        if (!_equalizerCatalog.IsAvailable)
+        {
+            return _savedEqualizer;
+        }
+
+        var preset = EqualizerPresetCombo.SelectedItem is SettingsEqualizerPresetChoice choice
+            ? choice.Label
+            : EqualizerConfiguration.CustomPresetName;
+        return EqualizerConfigurationBehavior.Normalize(
+            new EqualizerConfiguration(
+                EqualizerEnabledCheckBox.IsChecked == true,
+                preset,
+                (float)PreampSlider.Value,
+                _equalizerBands.Select(band => band.Gain).ToArray()),
+            _equalizerCatalog.Bands.Count);
+    }
+
     private static bool AudioPreferencesEqual(AudioOutputPreference left, AudioOutputPreference right) =>
         left.Mode == right.Mode &&
         string.Equals(left.Module, right.Module, StringComparison.OrdinalIgnoreCase) &&
@@ -408,6 +602,37 @@ public partial class ScreenConfigurationWindow : Window
 
     private sealed record SettingsAppearanceChoice(AppearancePreference Preference, string Label);
     private sealed record SettingsAudioChoice(AudioOutputPreference Preference, string Label, bool IsAvailable);
+    private sealed record SettingsEqualizerPresetChoice(EqualizerPresetDefinition? Preset, string Label);
+
+    private sealed class EqualizerBandItem(EqualizerBandDefinition band, float gain) : INotifyPropertyChanged
+    {
+        private float _gain = gain;
+
+        public string FrequencyLabel => band.FrequencyHz >= 1000
+            ? $"{band.FrequencyHz / 1000:0.#} kHz"
+            : $"{band.FrequencyHz:0.##} Hz";
+
+        public float Gain
+        {
+            get => _gain;
+            set
+            {
+                var clamped = EqualizerConfigurationBehavior.Clamp(value);
+                if (Math.Abs(_gain - clamped) < 0.001f)
+                {
+                    return;
+                }
+
+                _gain = clamped;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Gain)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GainLabel)));
+            }
+        }
+
+        public string GainLabel => $"{Gain:+0.0;-0.0;0.0} dB";
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
 
     private sealed class ScreenConfigurationItem : INotifyPropertyChanged
     {

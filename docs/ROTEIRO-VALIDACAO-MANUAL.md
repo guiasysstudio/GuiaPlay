@@ -200,3 +200,44 @@
 1. Na instalação 0.8, confirmar `Current: 0.8.0-prototipo`, `Available: 0.9.0-prototipo`, `Status: UpdateAvailable`.
 2. Baixar, validar SHA-256, aplicar e reiniciar preservando settings, playlist e integração Explorer existente.
 3. Após atualizar, confirmar `Current: 0.9.0-prototipo`, `Available: 0.9.0-prototipo`, `Status: UpToDate`.
+
+## M10 — atualização automática definitiva 0.9 → 0.10
+
+1. Instalar `GuiaPlay-Setup-0.9.0-prototipo.exe` e confirmar previamente que **Verificar atualizações automaticamente** está habilitado.
+2. Fechar todas as instâncias e iniciar o GuiaPlay normalmente, sem abrir Configurações e sem clicar em busca manual.
+3. Aguardar alguns segundos depois de a janela aparecer; confirmar que a interface permanece responsiva.
+4. Confirmar que a seta de atualização para `0.10.0-prototipo` aparece automaticamente ao lado da engrenagem, mesmo se a versão 0.9 tiver um cache recente `UpToDate`.
+5. Clicar apenas na seta e confirmar abertura direta de **Configurações > Atualizações**, com versão disponível 0.10.
+6. Repetir uma abertura sem rede: o programa deve iniciar sem travar; se uma atualização já tinha sido confirmada, seu indicador confiável deve permanecer visível.
+7. Desabilitar a verificação automática, reiniciar e confirmar pelo log que nenhuma consulta de startup ocorreu.
+8. Reabilitar, baixar e instalar; confirmar SHA-256, fechamento controlado, atualização e reabertura.
+9. Confirmar antes do update `Current: 0.9.0-prototipo`, `Available: 0.10.0-prototipo`, `Status: UpdateAvailable`.
+10. Após atualizar, confirmar `Current: 0.10.0-prototipo`, `Available: 0.10.0-prototipo`, `Status: UpToDate`.
+
+## M10 — Interface 2.0 e aparência
+
+1. Em 1366 × 768, conferir os cartões de cabeçalho/mídia, prévia, playlist e transporte sem cortes ou sobreposição.
+2. Redimensionar até o mínimo e testar DPI 100%, 125% e 150%; conferir timeline, volume, telas, Abrir, Reproduzir, Pausar e Parar.
+3. Abrir Configurações e navegar por teclado entre **Telas**, **Aparência**, **Áudio**, **Atualizações**, **Windows**, **Diagnóstico** e **Sobre**.
+4. Testar Sistema, Claro e Escuro com Azul GuiaPlay, Ciano, Roxo, Verde, Laranja e Rosa. Conferir prévia, contraste, foco, estados desabilitados e persistência após reiniciar.
+5. Com Sistema selecionado, mudar o modo de aplicativos do Windows e confirmar a atualização do tema.
+6. Ativar alto contraste e conferir que cores do sistema prevalecem sobre o destaque salvo e que texto/controles continuam legíveis.
+7. Confirmar que Cancelar não persiste mudanças feitas na prévia; Salvar deve restaurá-las na próxima execução.
+
+## M10 — equalizador nativo
+
+1. Confirmar que o equalizador começa desativado e que áudio/vídeo reproduzem como antes.
+2. Ativar o equalizador durante um MP3 e testar Flat, Rock, Classical e outros presets oferecidos pelo LibVLC instalado; confirmar mudança audível sem reiniciar a mídia.
+3. Alterar preamp e bandas individualmente; confirmar que o seletor passa a **Personalizado**.
+4. Testar os limites -20 e +20 dB e conferir ausência de valores inválidos, distorção de UI ou travamento.
+5. Salvar, reiniciar e confirmar restauração de ativação, preset/personalizado, preamp e bandas.
+6. Repetir com vídeo, troca de mídia e troca de dispositivo de áudio; a equalização deve ser reaplicada sem criar outro player.
+7. Se o LibVLC reportar indisponibilidade/falha do recurso, confirmar mensagem amigável e reprodução normal sem equalizador.
+
+## M10 — regressão física preservada
+
+1. Abrir MP4/MP3/MKV pelo Explorer, inclusive com o GuiaPlay já aberto, e confirmar mesma instância, janela à frente e carregamento sem autoplay.
+2. Conferir que ProgIDs, Capabilities, **Abrir com** e o verbo opcional permanecem e que nenhum player padrão foi forçado.
+3. Validar vídeo 1080p em uma e duas saídas, áudio sem saída visual, seek, pausa, stop/fim natural e pelo menos uma sessão prolongada do roteiro M09.
+4. Conferir tema/contraste em hardware real e ouvir presets/equalização em dispositivo conhecido; testes automatizados não substituem essa percepção física.
+5. Confirmar que o Setup 0.10 continua per-user, sem administrador, com tarefas de Explorer e execução final desmarcadas por padrão.

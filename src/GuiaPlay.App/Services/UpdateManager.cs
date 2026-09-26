@@ -28,6 +28,7 @@ internal sealed class UpdateManager
     private readonly App _app;
     private readonly GitHubUpdateService _service;
     private readonly SemaphoreSlim _checkGate = new(1, 1);
+    private readonly StartupUpdateCheckCoordinator _startupCheck = new();
 
     public UpdateManager(App app)
     {
@@ -37,6 +38,10 @@ internal sealed class UpdateManager
             app.Settings,
             ProductVersion.Parse(ProductInfo.Version),
             DateTimeOffset.UtcNow);
+        if (LastResult is { } cached)
+        {
+            FileLogger.Info($"Update startup: cache restored {cached.Release?.Version.ToString() ?? cached.Status.ToString()}");
+        }
     }
 
     public event EventHandler? StateChanged;
@@ -45,6 +50,37 @@ internal sealed class UpdateManager
     public bool IsPreparing { get; private set; }
     public UpdateCheckResult? LastResult { get; private set; }
     public UpdatePreparationProgress PreparationProgress { get; private set; } = new(UpdatePreparationStage.None);
+
+    public async Task<UpdateCheckResult?> CheckOnStartupAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_app.Settings.CheckUpdatesAutomatically)
+        {
+            FileLogger.Info("Update startup: automatic disabled");
+            return LastResult;
+        }
+
+        var task = _startupCheck.Start(
+            automaticEnabled: true,
+            async () =>
+            {
+                FileLogger.Info("Update startup: automatic enabled");
+                FileLogger.Info("Update startup: querying GitHub");
+                var result = await QueryGitHubAsync("startup", CancellationToken.None).ConfigureAwait(false);
+                var detail = result.Release?.Version.ToString();
+                FileLogger.Info(result.Status switch
+                {
+                    UpdateCheckStatus.UpdateAvailable => $"Update startup: result UpdateAvailable {detail}",
+                    UpdateCheckStatus.UpToDate => "Update startup: result UpToDate",
+                    UpdateCheckStatus.Failed => $"Update startup: failed {result.Error ?? "unknown reason"}",
+                    _ => $"Update startup: result {result.Status}"
+                });
+                return result;
+            });
+
+        return task is null
+            ? LastResult
+            : await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
 
     public async Task<UpdateCheckResult?> CheckAsync(bool manual, CancellationToken cancellationToken = default)
     {
@@ -66,20 +102,67 @@ internal sealed class UpdateManager
                 return LastResult;
             }
 
-            IsChecking = true;
-            StateChanged?.Invoke(this, EventArgs.Empty);
             FileLogger.Info($"UpdateChecker: iniciando consulta {(manual ? "manual" : "automática")}.");
-            LastResult = await _service.CheckAsync(currentVersion, ProductInfo.Channel, cancellationToken);
-            _ = _app.UpdateSettings(
-                current => PersistedUpdateCache.Record(current, currentVersion, LastResult, now),
-                out _);
-            FileLogger.Info($"UpdateChecker: resultado {LastResult.Status}; versão encontrada {LastResult.Release?.Version.ToString() ?? "nenhuma"}.");
-            return LastResult;
+            return await QueryGitHubInsideGateAsync(currentVersion, now, manual ? "manual" : "automatic", cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _checkGate.Release();
+        }
+    }
+
+    private async Task<UpdateCheckResult> QueryGitHubAsync(string context, CancellationToken cancellationToken)
+    {
+        await _checkGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await QueryGitHubInsideGateAsync(
+                    ProductVersion.Parse(ProductInfo.Version),
+                    DateTimeOffset.UtcNow,
+                    context,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _checkGate.Release();
+        }
+    }
+
+    private async Task<UpdateCheckResult> QueryGitHubInsideGateAsync(
+        ProductVersion currentVersion,
+        DateTimeOffset now,
+        string context,
+        CancellationToken cancellationToken)
+    {
+        IsChecking = true;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+        try
+        {
+            var result = await _service.CheckAsync(currentVersion, ProductInfo.Channel, cancellationToken).ConfigureAwait(false);
+            var visibleResult = UpdateResultRetention.SelectVisibleResult(LastResult, result);
+            if (!ReferenceEquals(visibleResult, result))
+            {
+                FileLogger.Info($"UpdateChecker: falha em {context}; atualização conhecida mantida no cache.");
+                LastResult = visibleResult;
+                return result;
+            }
+
+            LastResult = visibleResult;
+            if (result.Status != UpdateCheckStatus.Failed)
+            {
+                _ = _app.UpdateSettings(
+                    current => PersistedUpdateCache.Record(current, currentVersion, result, now),
+                    out _);
+            }
+
+            FileLogger.Info($"UpdateChecker: resultado {result.Status}; versão encontrada {result.Release?.Version.ToString() ?? "nenhuma"}.");
+            return result;
         }
         finally
         {
             IsChecking = false;
-            _checkGate.Release();
             StateChanged?.Invoke(this, EventArgs.Empty);
         }
     }

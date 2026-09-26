@@ -66,10 +66,18 @@ Protótipo funcional multitelas, prévia/controles, motor compartilhado por call
 - Concluído: rotação testável de logs, cenários de persistência corrompida/falha de replace, playlist com 1.000 itens, download cancelado e stress de trocas/instância única.
 - Concluído: `scripts/soak-test.ps1`, matriz de formatos e roteiro de 30 minutos/1 hora/2 horas sem inventar resultados físicos.
 
-## Marco futuro — não iniciado
+## M10 — 0.10.0-prototipo
 
-- **M10 — Estabilização final e preparação para 1.0.**
-- O M10 permanece separado desta entrega e não foi iniciado.
+- Concluído: Interface 2.0 em cartões e Configurações com navegação lateral por Telas, Aparência, Áudio, Atualizações, Windows, Diagnóstico e Sobre.
+- Concluído: modos Sistema/Claro/Escuro, seis cores de destaque com variantes e alto contraste prioritário, persistidos no schema 6.
+- Concluído: equalizador nativo do LibVLC, desativado por padrão, com descoberta runtime de presets/bandas, preamp, edição personalizada e aplicação segura em tempo real.
+- Concluído: consulta real ao GitHub uma vez por novo processo quando habilitada, sem o cache/intervalo de 12 horas suprimir a verificação de startup.
+- Preservados: integração Explorer opt-in, instância única, updater, instalador per-user e robustez/diagnóstico M09.
+
+## Próximo marco — não iniciado
+
+- **1.0.0-rc1 — estabilização final.**
+- O release candidate permanece separado desta entrega e não foi criado nem publicado.
 
 ## Não planejado para estes marcos
 

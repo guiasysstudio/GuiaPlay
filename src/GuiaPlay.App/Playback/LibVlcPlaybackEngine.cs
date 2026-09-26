@@ -8,14 +8,21 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
 {
     private readonly LibVLC _libVlc;
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
+    private EqualizerConfiguration _equalizerConfiguration;
     private Session? _current;
     private bool _disposed;
 
-    public LibVlcPlaybackEngine()
+    public LibVlcPlaybackEngine(EqualizerConfiguration equalizerConfiguration)
     {
         LibVLCSharp.Shared.Core.Initialize();
         _libVlc = new LibVLC("--no-video-title-show", "--no-osd", "--quiet");
+        EqualizerCatalog = LibVlcEqualizerCatalog.Discover();
+        _equalizerConfiguration = EqualizerConfigurationBehavior.Normalize(
+            equalizerConfiguration,
+            EqualizerCatalog.Bands.Count);
     }
+
+    public LibVlcEqualizerCatalog EqualizerCatalog { get; }
 
     public event Action<long>? FrameReady;
     public event Action<long>? Playing;
@@ -25,6 +32,7 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
     public event Action<long, long>? TimeChanged;
     public event Action<long, long>? LengthChanged;
     public event Action<long, string>? AudioDeviceChanged;
+    public event Action<string>? EqualizerFailed;
 
     public long Time => Volatile.Read(ref _current)?.Player.Time ?? 0;
     public long Length => Volatile.Read(ref _current)?.Player.Length ?? 0;
@@ -97,6 +105,7 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
                 ? audioOutput
                 : AudioOutputPreference.Default;
             var session = new Session(_libVlc, path, mediaKind, generation, effectiveAudioOutput, this);
+            ApplyEqualizer(session.Player);
             _current = session;
         }
         finally
@@ -122,7 +131,30 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
             var mediaKind = previous.MediaKind;
             var generation = previous.Generation;
             await previous.StopAndDisposeAsync().ConfigureAwait(false);
-            _current = new Session(_libVlc, path, mediaKind, generation, audioOutput, this);
+            var session = new Session(_libVlc, path, mediaKind, generation, audioOutput, this);
+            ApplyEqualizer(session.Player);
+            _current = session;
+        }
+        finally
+        {
+            _lifecycle.Release();
+        }
+    }
+
+    public async Task ApplyEqualizerAsync(EqualizerConfiguration configuration)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        await _lifecycle.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _equalizerConfiguration = EqualizerConfigurationBehavior.Normalize(
+                configuration,
+                EqualizerCatalog.Bands.Count);
+            if (Volatile.Read(ref _current) is { } session)
+            {
+                ApplyEqualizer(session.Player);
+            }
         }
         finally
         {
@@ -191,6 +223,14 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         if (IsCurrent(session))
         {
             publish();
+        }
+    }
+
+    private void ApplyEqualizer(MediaPlayer player)
+    {
+        if (!EqualizerCatalog.TryApply(player, _equalizerConfiguration, out var error) && error is not null)
+        {
+            EqualizerFailed?.Invoke(error);
         }
     }
 

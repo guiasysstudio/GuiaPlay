@@ -22,10 +22,12 @@ public sealed record AudioOutputPreference(
 
 public sealed record AppSettings(
     AppearancePreference Appearance,
+    AccentColorPreference AccentColor,
     string? OperatorMonitorId,
     IReadOnlyDictionary<string, string> MonitorNames,
     IReadOnlySet<string> SelectedOutputIds,
     AudioOutputPreference AudioOutput,
+    EqualizerConfiguration Equalizer,
     int Volume,
     bool Muted,
     bool CheckUpdatesAutomatically,
@@ -36,14 +38,16 @@ public sealed record AppSettings(
     DateTimeOffset? LastKnownUpdatePublishedAt,
     UpdateCheckStatus? LastKnownUpdateStatus)
 {
-    public const int CurrentSchemaVersion = 5;
+    public const int CurrentSchemaVersion = 6;
 
     public static AppSettings Default { get; } = new(
         AppearancePreference.System,
+        AccentColorPreference.GuiaPlayBlue,
         null,
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
         new HashSet<string>(StringComparer.OrdinalIgnoreCase),
         AudioOutputPreference.Default,
+        EqualizerConfiguration.Default,
         100,
         false,
         true,
@@ -164,6 +168,7 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
     private static AppSettings Parse(JsonObject root)
     {
         var appearance = ParseEnum(root["appearance"], AppearancePreference.System);
+        var accentColor = ParseEnum(root["accentColor"], AccentColorPreference.GuiaPlayBlue);
         var screens = root["screens"] as JsonObject;
         var operatorId = ReadString(screens?["operatorId"]);
 
@@ -207,6 +212,24 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
 
         var volume = ReadInt(audio?["volume"], 100);
         var muted = ReadBool(audio?["muted"], false);
+        var equalizerNode = audio?["equalizer"] as JsonObject;
+        var equalizerEnabled = ReadBool(equalizerNode?["enabled"], false);
+        var equalizerPreset = ReadString(equalizerNode?["preset"]) ?? EqualizerConfiguration.Default.PresetName;
+        var equalizerPreamp = ReadFloat(equalizerNode?["preamp"], 0f);
+        var equalizerBands = new List<float>();
+        if (equalizerNode?["bandGains"] is JsonArray bandArray)
+        {
+            foreach (var node in bandArray)
+            {
+                equalizerBands.Add(ReadFloat(node, 0f));
+            }
+        }
+
+        var equalizer = new EqualizerConfiguration(
+            equalizerEnabled,
+            equalizerPreset,
+            EqualizerConfigurationBehavior.Clamp(equalizerPreamp),
+            equalizerBands.Select(EqualizerConfigurationBehavior.Clamp).ToArray());
         var updates = root["updates"] as JsonObject;
         var checkAutomatically = ReadBool(updates?["checkAutomatically"], true);
         var installAutomatically = ReadBool(updates?["installAutomatically"], false);
@@ -217,10 +240,12 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
         var lastKnownStatus = ReadNullableEnum<UpdateCheckStatus>(updates?["lastKnownStatus"]);
         return new AppSettings(
             appearance,
+            accentColor,
             operatorId,
             names,
             outputs,
             new AudioOutputPreference(mode, module, deviceId, displayName),
+            equalizer,
             Math.Clamp(volume, 0, 100),
             muted,
             checkAutomatically,
@@ -236,6 +261,7 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
     {
         _root["schemaVersion"] = AppSettings.CurrentSchemaVersion;
         _root["appearance"] = settings.Appearance.ToString();
+        _root["accentColor"] = settings.AccentColor.ToString();
 
         var screens = _root["screens"] as JsonObject ?? new JsonObject();
         _root["screens"] = screens;
@@ -266,6 +292,20 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
         audio["displayName"] = settings.AudioOutput.DisplayName;
         audio["volume"] = Math.Clamp(settings.Volume, 0, 100);
         audio["muted"] = settings.Muted;
+        var equalizer = audio["equalizer"] as JsonObject ?? new JsonObject();
+        audio["equalizer"] = equalizer;
+        equalizer["enabled"] = settings.Equalizer.Enabled;
+        equalizer["preset"] = string.IsNullOrWhiteSpace(settings.Equalizer.PresetName)
+            ? EqualizerConfiguration.Default.PresetName
+            : settings.Equalizer.PresetName.Trim();
+        equalizer["preamp"] = EqualizerConfigurationBehavior.Clamp(settings.Equalizer.Preamp);
+        var bandGains = new JsonArray();
+        foreach (var gain in settings.Equalizer.BandGains)
+        {
+            bandGains.Add(EqualizerConfigurationBehavior.Clamp(gain));
+        }
+
+        equalizer["bandGains"] = bandGains;
 
         var updates = _root["updates"] as JsonObject ?? new JsonObject();
         _root["updates"] = updates;
@@ -312,6 +352,9 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
 
     private static int ReadInt(JsonNode? node, int fallback) =>
         node is JsonValue value && value.TryGetValue<int>(out var result) ? result : fallback;
+
+    private static float ReadFloat(JsonNode? node, float fallback) =>
+        node is JsonValue value && value.TryGetValue<float>(out var result) && float.IsFinite(result) ? result : fallback;
 
     private static bool ReadBool(JsonNode? node, bool fallback) =>
         node is JsonValue value && value.TryGetValue<bool>(out var result) ? result : fallback;

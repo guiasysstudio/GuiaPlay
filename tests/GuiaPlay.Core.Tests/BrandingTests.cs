@@ -124,6 +124,57 @@ public sealed class BrandingTests
         Assert.DoesNotContain("GpuPercent", soak, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void M10UsesProfessionalCardsAndKeepsPrimaryOperationsVisible()
+    {
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+
+        Assert.Contains("CardStyle", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"UpdateAvailableButton\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PlayButton\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PauseButton\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"StopButton\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"VolumeSlider\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PlaylistTree\"", main, StringComparison.Ordinal);
+        Assert.Contains("MinWidth=\"840\"", main, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M10SettingsHaveSidebarSeparatedPagesAppearanceAndNativeEqualizer()
+    {
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+
+        Assert.Contains("TabStripPlacement=\"Left\"", settings, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"AppearanceTab\" Header=\"Aparência\"", settings, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"AudioTab\" Header=\"Áudio\"", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("Aparência e áudio", settings, StringComparison.Ordinal);
+        Assert.Contains("Ativar equalizador", settings, StringComparison.Ordinal);
+        Assert.Contains("EqualizerBandsItems", settings, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlay Azul", settings, StringComparison.Ordinal);
+        Assert.Contains("Ciano", settings, StringComparison.Ordinal);
+        Assert.Contains("Roxo", settings, StringComparison.Ordinal);
+        Assert.Contains("Verde", settings, StringComparison.Ordinal);
+        Assert.Contains("Laranja", settings, StringComparison.Ordinal);
+        Assert.Contains("Rosa", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://", settings, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void M10StartupUpdateAndEqualizerAreConnectedToProductRuntime()
+    {
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+        var updateManager = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Services/UpdateManager.cs"));
+        var engine = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Playback/LibVlcPlaybackEngine.cs"));
+        var adapter = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Playback/LibVlcEqualizerAdapter.cs"));
+
+        Assert.Contains("manager.CheckOnStartupAsync()", main, StringComparison.Ordinal);
+        Assert.Contains("UpdateManager_OnStateChanged", main, StringComparison.Ordinal);
+        Assert.Contains("Update startup: querying GitHub", updateManager, StringComparison.Ordinal);
+        Assert.Contains("ApplyEqualizer(session.Player)", engine, StringComparison.Ordinal);
+        Assert.Contains("SetEqualizer", adapter, StringComparison.Ordinal);
+        Assert.Contains("UnsetEqualizer", adapter, StringComparison.Ordinal);
+    }
+
     private static string PathInRepository(string relativePath) =>
         Path.Combine(RepositoryRoot, Normalize(relativePath));
 

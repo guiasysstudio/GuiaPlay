@@ -1,8 +1,8 @@
 # GuiaPlay
 
-Protótipo funcional M09 para operar vídeos e áudios locais por períodos prolongados, organizar/reordenar um cronograma em grupos virtuais, distribuir atualizações verificadas e integrar opcionalmente o GuiaPlay ao Windows Explorer.
+Protótipo funcional M10 com Interface 2.0, aparência avançada, equalizador nativo do LibVLC, operação prolongada de vídeos/áudios locais, cronograma em grupos virtuais, atualizações verificadas e integração opcional ao Windows Explorer.
 
-Versão: **0.9.0-prototipo**
+Versão: **0.10.0-prototipo**
 
 Plataforma: **Windows x64**
 
@@ -48,7 +48,7 @@ O executável Debug fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\
 
 ## Uso rápido
 
-1. Abra a engrenagem **Configurações**, dê nomes curtos às telas, escolha exatamente um monitor do operador, aparência e dispositivo de áudio. Salvar aplica o conjunto; Cancelar não altera nada.
+1. Abra a engrenagem **Configurações**. A navegação lateral separa Telas, Aparência, Áudio, Atualizações, Windows, Diagnóstico e Sobre. Salvar aplica o conjunto; Cancelar não altera nada.
 2. Use **Identificar telas** e confira os números exibidos por três segundos.
 3. Marque uma ou mais saídas públicas. O monitor do operador não pode ser marcado e uma tela reconectada exige nova marcação na sessão.
 4. Crie grupos virtuais na **Playlist**, selecione um grupo e adicione referências de mídia. Os arquivos originais não são copiados nem movidos.
@@ -58,6 +58,7 @@ O executável Debug fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\
 7. Controle pausa/continuação, busca, volume, mudo e parada no painel. A roda do mouse ajusta volume em passos de 5 pontos e avança/retrocede a timeline em 5 segundos; um clique direto na barra faz seek proporcional.
 8. Em **Configurações > Integração com Windows**, escolha separadamente se o GuiaPlay deve aparecer em **Abrir com** e se o Explorer deve mostrar **Abrir com GuiaPlay**. Nenhuma opção o torna player padrão automaticamente.
 9. Em **Configurações > Diagnóstico**, acompanhe uptime, CPU aproximada, memória, estado, saídas e frames. **Copiar diagnóstico** gera um resumo sem caminho completo da mídia, tokens ou dados pessoais.
+10. Em **Aparência**, escolha Sistema, Claro ou Escuro e uma das seis cores de destaque. Em **Áudio**, o equalizador nativo é opcional e começa desativado; presets, preamp e bandas vêm do LibVLC em execução.
 
 Com um único monitor, áudio continua disponível. Vídeo permanece carregado, mas **Reproduzir** fica desabilitado até existir uma saída pública selecionada.
 
@@ -76,21 +77,23 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Relatório do M07](docs/RELATORIO-M07.md)
 - [Relatório do M08](docs/RELATORIO-M08.md)
 - [Relatório do M09](docs/RELATORIO-M09.md)
+- [Relatório do M10](docs/RELATORIO-M10.md)
 - [Validação de performance e soak test](docs/VALIDACAO-PERFORMANCE.md)
 - [Notas da versão 0.5.0-prototipo](docs/releases/0.5.0-prototipo.md)
 - [Notas da versão 0.6.0-prototipo](docs/releases/0.6.0-prototipo.md)
 - [Notas da versão 0.7.0-prototipo](docs/releases/0.7.0-prototipo.md)
 - [Notas da versão 0.8.0-prototipo](docs/releases/0.8.0-prototipo.md)
 - [Notas da versão 0.9.0-prototipo](docs/releases/0.9.0-prototipo.md)
+- [Notas da versão 0.10.0-prototipo](docs/releases/0.10.0-prototipo.md)
 - [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
 Os logs locais ficam em `%LocalAppData%\GuiaSys\GuiaPlay\GuiaPlay.log`, com rotação a 5 MiB e retenção máxima de cinco arquivos.
-As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: aparência, identidade/nome das telas, operador, pré-seleção pública, saída de áudio, volume, mudo, política de atualização e o cache leve da última consulta. O esquema 5 migra os anteriores, preserva chaves desconhecidas e mantém gravação atômica. A playlist fica separada em `playlist.json` e contém somente metadados leves e caminhos absolutos; nunca contém bytes de mídia. Esses dados ficam fora de `%LocalAppData%\Programs\GuiaPlay` e não são substituídos pelo updater.
+As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: tema, cor de destaque, identidade/nome das telas, operador, pré-seleção pública, saída/equalizador de áudio, volume, mudo, política de atualização e o cache leve da última consulta. O esquema 6 migra os anteriores, normaliza ganhos, preserva chaves desconhecidas e mantém gravação atômica. A playlist fica separada em `playlist.json` e contém somente metadados leves e caminhos absolutos; nunca contém bytes de mídia. Esses dados ficam fora de `%LocalAppData%\Programs\GuiaPlay` e não são substituídos pelo updater.
 
 ## Atualizações e distribuição
 
-O canal interno `Prototype` consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, incluindo prereleases compatíveis e ignorando drafts/tags inválidas. A checagem automática é ativada por padrão e limitada a uma tentativa a cada 12 horas. O resultado leve da última consulta é persistido, a seta pode ser restaurada imediatamente em um novo processo e a consulta é forçada quando a versão instalada mudou ou o cache está inválido. A instalação automática começa desativada e nunca interrompe mídia ativa.
+O canal interno `Prototype` consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, incluindo prereleases compatíveis e ignorando drafts/tags inválidas. A checagem automática é ativada por padrão. Em cada novo processo, o cache restaura imediatamente o último indicador confiável e, 1,5 segundo depois de a janela carregar, ocorre exatamente uma consulta real ao GitHub mesmo que o cache seja recente. A janela de 12 horas limita apenas tentativas automáticas adicionais no mesmo processo. Falha de rede não bloqueia a abertura nem apaga uma atualização já confirmada. A instalação automática começa desativada e nunca interrompe mídia ativa.
 
 Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. O download mostra bytes e percentual reais quando `Content-Length` existe, usa estado indeterminado sem tamanho conhecido e distingue download, SHA-256, preparação e início do updater. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
 
@@ -105,6 +108,14 @@ O GuiaPlay registra `GuiaPlay.Video` e `GuiaPlay.Audio`, `OpenWithProgids` somen
 Nenhum valor padrão de extensão ou `UserChoice` é alterado. Para escolher o player padrão, use o botão que abre as Configurações oficiais do Windows. A desinstalação remove somente ProgIDs, valores, capacidades e verbos pertencentes ao GuiaPlay. Entradas de outros players são preservadas.
 
 O comando registrado é `"GuiaPlay.exe" "%1"`. O arquivo passa pelo classificador antes de ser carregado; scripts e executáveis nunca são executados como mídia. A integração M08 usa um arquivo por invocação. Quando o GuiaPlay já está aberto, o mecanismo existente de Mutex + Named Pipe encaminha o caminho à mesma janela, traz a aplicação para frente e carrega sem autoplay.
+
+## Interface, aparência e equalizador
+
+A Interface 2.0 organiza cabeçalho, mídia, prévia, playlist e transporte em cartões, mantendo Abrir, Reproduzir, Pausar e Parar diretamente visíveis. Configurações usa uma barra lateral compacta. O layout mínimo é 840 × 560 DIPs e a validação física cobre 1366 × 768 e escalas 100%, 125% e 150%.
+
+Sistema acompanha o modo de aplicativos do Windows; Claro e Escuro permanecem explícitos. Alto contraste sempre usa as cores oficiais do sistema. Azul GuiaPlay, Ciano, Roxo, Verde, Laranja e Rosa têm variantes próprias para superfícies claras/escuras e uma prévia antes de salvar.
+
+O equalizador usa somente a API nativa do LibVLC e começa desativado. A aplicação descobre presets e bandas em runtime, permite preamp/ganhos entre -20 e +20 dB, muda para **Personalizado** após edição manual, aplica alterações à sessão atual e reaplica a novas mídias. Se o recurso nativo falhar, a mídia continua sem equalização e o erro fica disponível no estado/log.
 
 ## Robustez, diagnóstico e performance
 

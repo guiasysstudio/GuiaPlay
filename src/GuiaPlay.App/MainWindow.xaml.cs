@@ -87,7 +87,7 @@ public partial class MainWindow : Window
         MuteButton.Tag = settings.Muted;
         UpdateMuteVisual(settings.Muted);
         VolumeText.Text = settings.Muted ? "mudo" : $"{settings.Volume}%";
-        _engine = new LibVlcPlaybackEngine();
+        _engine = new LibVlcPlaybackEngine(settings.Equalizer);
         _engine.FrameReady += Engine_OnFrameReady;
         _engine.Playing += generation => Dispatch(() => Engine_OnPlaying(generation));
         _engine.Paused += generation => Dispatch(() => Engine_OnPaused(generation));
@@ -96,6 +96,7 @@ public partial class MainWindow : Window
         _engine.TimeChanged += (generation, time) => Dispatch(() => UpdateTime(generation, time));
         _engine.LengthChanged += (generation, length) => Dispatch(() => UpdateLength(generation, length));
         _engine.AudioDeviceChanged += (generation, deviceId) => Dispatch(() => Engine_OnAudioDeviceChanged(generation, deviceId));
+        _engine.EqualizerFailed += message => FileLogger.Error($"Falha ao aplicar equalizador; reprodução original preservada: {message}");
 
         _monitorTimer = new DispatcherTimer(TimeSpan.FromSeconds(2), DispatcherPriority.Background, (_, _) => RefreshConnectedDevices(false), Dispatcher);
         _settingsSaveTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(650), DispatcherPriority.Background, (_, _) => FlushDeferredSettings(), Dispatcher)
@@ -784,6 +785,7 @@ public partial class MainWindow : Window
             _operatorMonitor?.Id,
             currentSettings,
             _audioDevices,
+            _engine.EqualizerCatalog,
             updateManager,
             windowsIntegration,
             CaptureDiagnostics,
@@ -800,11 +802,16 @@ public partial class MainWindow : Window
         {
             _ = app.UpdateSettings(current => current with
             {
+                Appearance = result.Appearance,
+                AccentColor = result.AccentColor,
+                Equalizer = result.Equalizer,
                 CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
                 InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
             }, out var activeSaveError);
             ShowSettingsSaveFailure(activeSaveError);
-            StatusText.Text = "Preferências de atualização salvas; reprodução preservada.";
+            app.ApplyAppearance(result.Appearance, result.AccentColor, persist: false);
+            await _engine.ApplyEqualizerAsync(result.Equalizer);
+            StatusText.Text = "Aparência, equalizador e atualizações salvos; reprodução preservada.";
             return;
         }
 
@@ -839,13 +846,17 @@ public partial class MainWindow : Window
                 MonitorNames = mergedNames,
                 SelectedOutputIds = new HashSet<string>(_explicitOutputIds, StringComparer.OrdinalIgnoreCase),
                 Appearance = result.Appearance,
+                AccentColor = result.AccentColor,
                 AudioOutput = result.AudioOutput,
+                Equalizer = result.Equalizer,
                 CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
                 InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
             }, out var error);
             ShowSettingsSaveFailure(error);
-            app.ApplyAppearance(result.Appearance, persist: false);
+            app.ApplyAppearance(result.Appearance, result.AccentColor, persist: false);
         }
+
+        await _engine.ApplyEqualizerAsync(result.Equalizer);
 
         _audioPreferenceAvailable = true;
         _audioReconfigurationRequired = false;
@@ -887,7 +898,8 @@ public partial class MainWindow : Window
     private async Task CheckForUpdatesOnStartupAsync()
     {
         if (Application.Current is not App { UpdateManager: { } manager } app) return;
-        await manager.CheckAsync(manual: false);
+        await Task.Delay(TimeSpan.FromSeconds(1.5));
+        await manager.CheckOnStartupAsync();
         RefreshUpdateIndicator();
         if (UpdateInstallationPolicy.CanAutoInstall(
                 app.Settings.InstallUpdatesAutomatically,

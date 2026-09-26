@@ -155,6 +155,8 @@ public static class UpdateSchedule
     public static bool ShouldCheck(bool manual, bool enabled, DateTimeOffset? lastCheckUtc, DateTimeOffset nowUtc) =>
         manual || enabled && (lastCheckUtc is null || nowUtc - lastCheckUtc.Value >= AutomaticInterval);
 
+    public static bool ShouldCheckAtStartup(bool enabled) => enabled;
+
     public static bool ShouldCheck(
         bool manual,
         bool enabled,
@@ -175,6 +177,41 @@ public static class UpdateSchedule
         return !PersistedUpdateCache.IsValid(settings, currentVersion, nowUtc) ||
                nowUtc - settings.LastUpdateCheckUtc!.Value >= AutomaticInterval;
     }
+}
+
+public sealed class StartupUpdateCheckCoordinator
+{
+    private readonly object _gate = new();
+    private Task<UpdateCheckResult>? _startupCheck;
+
+    public Task<UpdateCheckResult>? Start(
+        bool automaticEnabled,
+        Func<Task<UpdateCheckResult>> query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        if (!UpdateSchedule.ShouldCheckAtStartup(automaticEnabled))
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            return _startupCheck ??= InvokeQuery(query);
+        }
+    }
+
+    private static async Task<UpdateCheckResult> InvokeQuery(Func<Task<UpdateCheckResult>> query) =>
+        await query().ConfigureAwait(false);
+}
+
+public static class UpdateResultRetention
+{
+    public static UpdateCheckResult SelectVisibleResult(
+        UpdateCheckResult? previous,
+        UpdateCheckResult networkResult) =>
+        networkResult.Status == UpdateCheckStatus.Failed && previous?.Status == UpdateCheckStatus.UpdateAvailable
+            ? previous
+            : networkResult;
 }
 
 public static class PersistedUpdateCache

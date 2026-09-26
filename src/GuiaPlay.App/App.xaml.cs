@@ -1,7 +1,9 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using GuiaPlay.App.Services;
 using GuiaPlay.Core;
+using Microsoft.Win32;
 
 namespace GuiaPlay.App;
 
@@ -16,6 +18,7 @@ public partial class App : Application
     internal UpdateManager? UpdateManager { get; private set; }
     internal WindowsIntegrationService? WindowsIntegration { get; private set; }
     public AppearancePreference Appearance => Settings.Appearance;
+    public AccentColorPreference AccentColor => Settings.AccentColor;
     public string? StartupSettingsWarning { get; private set; }
     public string? StartupPlaylistWarning { get; private set; }
 
@@ -106,7 +109,8 @@ public partial class App : Application
         UpdateManager = new UpdateManager(this);
         WindowsIntegration = CreateWindowsIntegrationService();
 
-        ApplyAppearance(Settings.Appearance, persist: false);
+        ApplyAppearance(Settings.Appearance, Settings.AccentColor, persist: false);
+        SystemEvents.UserPreferenceChanged += SystemEvents_OnUserPreferenceChanged;
         DispatcherUnhandledException += (_, args) =>
         {
             FileLogger.Error("Falha não tratada na interface.", args.Exception);
@@ -143,19 +147,24 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SystemEvents.UserPreferenceChanged -= SystemEvents_OnUserPreferenceChanged;
         _singleInstance?.Dispose();
         base.OnExit(e);
     }
 
-    public void ApplyAppearance(AppearancePreference preference, bool persist = true)
+    public void ApplyAppearance(
+        AppearancePreference preference,
+        AccentColorPreference accentColor,
+        bool persist = true)
     {
-        Settings = Settings with { Appearance = preference };
+        Settings = Settings with { Appearance = preference, AccentColor = accentColor };
         ThemeMode = preference switch
         {
             AppearancePreference.Light => ThemeMode.Light,
             AppearancePreference.Dark => ThemeMode.Dark,
             _ => ThemeMode.System
         };
+        ApplyAccentPalette(preference, accentColor);
 
         if (!persist)
         {
@@ -163,8 +172,46 @@ public partial class App : Application
         }
 
         _ = SaveSettings(out _);
-        FileLogger.Info($"Aparência alterada para {preference}.");
+        FileLogger.Info($"Aparência alterada para {preference}; destaque {accentColor}.");
     }
+
+    internal static bool WindowsUsesDarkMode()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") is int value && value == 0;
+        }
+        catch (Exception exception) when (exception is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            return false;
+        }
+    }
+
+    private void ApplyAccentPalette(AppearancePreference preference, AccentColorPreference accentColor)
+    {
+        var mode = AppearancePaletteResolver.ResolveMode(
+            preference,
+            WindowsUsesDarkMode(),
+            SystemParameters.HighContrast);
+        var palette = AppearancePaletteResolver.Resolve(accentColor, mode);
+        if (palette.UsesSystemColors)
+        {
+            Resources["GuiaPlayAccentBrush"] = SystemColors.HighlightBrush;
+            Resources["GuiaPlayAccentForegroundBrush"] = SystemColors.HighlightTextBrush;
+            Resources["GuiaPlayAccentSubtleBrush"] = SystemColors.WindowBrush;
+            Resources["GuiaPlayAccentBorderBrush"] = SystemColors.HighlightBrush;
+            return;
+        }
+
+        Resources["GuiaPlayAccentBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.AccentHex));
+        Resources["GuiaPlayAccentForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.ForegroundHex));
+        Resources["GuiaPlayAccentSubtleBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.SubtleHex));
+        Resources["GuiaPlayAccentBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString(palette.AccentHex)) { Opacity = 0.55 };
+    }
+
+    private void SystemEvents_OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(() => ApplyAppearance(Settings.Appearance, Settings.AccentColor, persist: false));
 
     public bool UpdateSettings(Func<AppSettings, AppSettings> update, out string? error)
     {

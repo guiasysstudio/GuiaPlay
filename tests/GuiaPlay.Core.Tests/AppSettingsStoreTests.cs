@@ -25,7 +25,9 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.Contains("public", loaded.SelectedOutputIds);
         Assert.Equal(42, loaded.Volume);
         Assert.True(loaded.Muted);
-        Assert.Equal(5, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(AppSettings.CurrentSchemaVersion, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(AccentColorPreference.GuiaPlayBlue, loaded.AccentColor);
+        Assert.False(loaded.Equalizer.Enabled);
         Assert.True(loaded.CheckUpdatesAutomatically);
         Assert.False(loaded.InstallUpdatesAutomatically);
         Assert.Null(loaded.LastUpdateCheckUtc);
@@ -57,10 +59,12 @@ public sealed class AppSettingsStoreTests : IDisposable
         File.WriteAllText(SettingsPath, """{"screens":{"futureScreenKey":7},"audio":{"futureAudioKey":"ok"}}""");
         var settings = new AppSettings(
             AppearancePreference.Light,
+            AccentColorPreference.Purple,
             "monitor-path-a",
             new Dictionary<string, string> { ["monitor-path-a"] = "Operador", ["monitor-path-b"] = "Público" },
             new HashSet<string> { "monitor-path-b" },
             new AudioOutputPreference(AudioOutputMode.Explicit, "mmdevice", "endpoint-1", "Mesa USB"),
+            new EqualizerConfiguration(true, EqualizerConfiguration.CustomPresetName, 2f, [1f, -1f]),
             64,
             true,
             false,
@@ -78,10 +82,14 @@ public sealed class AppSettingsStoreTests : IDisposable
         var json = JsonNode.Parse(File.ReadAllText(SettingsPath))!.AsObject();
 
         Assert.Equal(settings.Appearance, reloaded.Appearance);
+        Assert.Equal(settings.AccentColor, reloaded.AccentColor);
         Assert.Equal(settings.OperatorMonitorId, reloaded.OperatorMonitorId);
         Assert.Equal("Público", reloaded.MonitorNames["monitor-path-b"]);
         Assert.Contains("monitor-path-b", reloaded.SelectedOutputIds);
         Assert.Equal(settings.AudioOutput, reloaded.AudioOutput);
+        Assert.True(reloaded.Equalizer.Enabled);
+        Assert.Equal(EqualizerConfiguration.CustomPresetName, reloaded.Equalizer.PresetName);
+        Assert.Equal([1f, -1f], reloaded.Equalizer.BandGains);
         Assert.Equal(64, reloaded.Volume);
         Assert.True(reloaded.Muted);
         Assert.False(reloaded.CheckUpdatesAutomatically);

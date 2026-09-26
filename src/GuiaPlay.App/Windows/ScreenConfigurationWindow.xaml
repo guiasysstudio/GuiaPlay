@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Configurações — GuiaPlay"
         Icon="/GuiaPlay;component/Assets/Branding/Icons/GuiaPlay.ico"
-        Width="780" Height="590" MinWidth="660" MinHeight="480"
+        Width="960" Height="650" MinWidth="780" MinHeight="520"
+        Background="{DynamicResource ApplicationPageBackgroundThemeBrush}"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -27,7 +28,17 @@
             </StackPanel>
         </Grid>
 
-        <TabControl x:Name="SettingsTabs" Grid.Row="1">
+        <TabControl x:Name="SettingsTabs" Grid.Row="1" TabStripPlacement="Left"
+                    Background="Transparent" BorderThickness="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                    <Setter Property="MinWidth" Value="168" />
+                    <Setter Property="MinHeight" Value="44" />
+                    <Setter Property="Padding" Value="14,10" />
+                    <Setter Property="HorizontalContentAlignment" Value="Left" />
+                    <Setter Property="Margin" Value="0,0,12,4" />
+                </Style>
+            </TabControl.Resources>
             <TabItem x:Name="ScreensTab" Header="Telas">
                 <Grid Margin="14">
                     <Grid.RowDefinitions>
@@ -42,7 +53,8 @@
                         <ItemsControl x:Name="ScreensList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="0,5">
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,8" Padding="12">
+                                    <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="210" />
@@ -59,6 +71,7 @@
                                                        Style="{StaticResource SecondaryTextStyle}" FontSize="11" />
                                         </StackPanel>
                                     </Grid>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -68,19 +81,126 @@
                 </Grid>
             </TabItem>
 
-            <TabItem x:Name="AppearanceAudioTab" Header="Aparência e áudio">
-                <StackPanel Margin="18" MaxWidth="600" HorizontalAlignment="Left">
-                    <TextBlock Text="Aparência" Style="{StaticResource SectionTitleStyle}" />
-                    <ComboBox x:Name="AppearanceCombo" Width="260" MinHeight="38"
-                              HorizontalAlignment="Left" DisplayMemberPath="Label" />
-                    <TextBlock Margin="0,6,0,24" Style="{StaticResource SecondaryTextStyle}"
-                               Text="Sistema acompanha o modo dos aplicativos do Windows. Alto contraste sempre é respeitado." />
+            <TabItem x:Name="AppearanceTab" Header="Aparência">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20" MaxWidth="650" HorizontalAlignment="Left">
+                        <TextBlock Text="Aparência" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Margin="0,6,0,18" Style="{StaticResource SecondaryTextStyle}"
+                                   Text="Escolha o modo base e uma cor de destaque profissional. Alto contraste do Windows sempre tem prioridade." />
 
-                    <TextBlock Text="Dispositivo de áudio" Style="{StaticResource SectionTitleStyle}" />
-                    <ComboBox x:Name="AudioOutputCombo" MinHeight="38" DisplayMemberPath="Label" />
-                    <TextBlock x:Name="AudioHelpText" Margin="0,6,0,0" TextWrapping="Wrap"
-                               Style="{StaticResource SecondaryTextStyle}" />
-                </StackPanel>
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="Modo" Style="{StaticResource SectionTitleStyle}" />
+                                <ComboBox x:Name="AppearanceCombo" Width="280" MinHeight="38"
+                                          HorizontalAlignment="Left" DisplayMemberPath="Label"
+                                          SelectionChanged="AppearanceSelection_OnChanged" />
+                                <TextBlock Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}"
+                                           Text="Sistema acompanha Claro/Escuro do Windows durante a execução." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="Cor de destaque" Style="{StaticResource SectionTitleStyle}" />
+                                <WrapPanel>
+                                    <RadioButton x:Name="BlueAccentRadio" GroupName="Accent" Margin="0,4,18,8" Checked="AppearanceSelection_OnChanged"><StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#FF1674C5" Margin="0,0,7,0" /><TextBlock Text="GuiaPlay Azul" /></StackPanel></RadioButton>
+                                    <RadioButton x:Name="CyanAccentRadio" GroupName="Accent" Margin="0,4,18,8" Checked="AppearanceSelection_OnChanged"><StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#FF008A94" Margin="0,0,7,0" /><TextBlock Text="Ciano" /></StackPanel></RadioButton>
+                                    <RadioButton x:Name="PurpleAccentRadio" GroupName="Accent" Margin="0,4,18,8" Checked="AppearanceSelection_OnChanged"><StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#FF7A52C7" Margin="0,0,7,0" /><TextBlock Text="Roxo" /></StackPanel></RadioButton>
+                                    <RadioButton x:Name="GreenAccentRadio" GroupName="Accent" Margin="0,4,18,8" Checked="AppearanceSelection_OnChanged"><StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#FF15936E" Margin="0,0,7,0" /><TextBlock Text="Verde" /></StackPanel></RadioButton>
+                                    <RadioButton x:Name="OrangeAccentRadio" GroupName="Accent" Margin="0,4,18,8" Checked="AppearanceSelection_OnChanged"><StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#FFC06010" Margin="0,0,7,0" /><TextBlock Text="Laranja" /></StackPanel></RadioButton>
+                                    <RadioButton x:Name="PinkAccentRadio" GroupName="Accent" Margin="0,4,18,8" Checked="AppearanceSelection_OnChanged"><StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#FFC13D78" Margin="0,0,7,0" /><TextBlock Text="Rosa" /></StackPanel></RadioButton>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="AppearancePreviewCard" Padding="16" CornerRadius="10" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Prévia" FontWeight="SemiBold" FontSize="16" />
+                                <TextBlock Margin="0,5,0,12" Text="A cor afeta ações principais e destaques; a base continua Fluent clara ou escura."
+                                           Style="{StaticResource SecondaryTextStyle}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="AppearancePreviewAccent" Content="Ação principal" Padding="16,8" Margin="0,0,10,0" />
+                                    <RadioButton IsChecked="True" Content="Controle selecionado" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem x:Name="AudioTab" Header="Áudio">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20" MaxWidth="680" HorizontalAlignment="Left">
+                        <TextBlock Text="Áudio" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Margin="0,6,0,18" Style="{StaticResource SecondaryTextStyle}"
+                                   Text="Saída e equalização nativa do LibVLC. O volume operacional permanece na tela principal." />
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="Dispositivo de áudio" Style="{StaticResource SectionTitleStyle}" />
+                                <ComboBox x:Name="AudioOutputCombo" MinHeight="38" DisplayMemberPath="Label" />
+                                <TextBlock x:Name="AudioHelpText" Margin="0,7,0,0" TextWrapping="Wrap"
+                                           Style="{StaticResource SecondaryTextStyle}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Equalizador" FontSize="18" FontWeight="SemiBold" />
+                                <CheckBox x:Name="EqualizerEnabledCheckBox" Margin="0,12,0,6"
+                                          Content="Ativar equalizador" Checked="EqualizerEnabledCheckBox_OnChanged"
+                                          Unchecked="EqualizerEnabledCheckBox_OnChanged" />
+                                <TextBlock x:Name="EqualizerAvailabilityText" Margin="0,0,0,14"
+                                           Style="{StaticResource SecondaryTextStyle}" />
+                                <StackPanel x:Name="EqualizerControlsPanel">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Preset" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                        <ComboBox x:Name="EqualizerPresetCombo" Grid.Column="1" MinHeight="36"
+                                                  DisplayMemberPath="Label"
+                                                  SelectionChanged="EqualizerPresetCombo_OnSelectionChanged" />
+                                    </Grid>
+                                    <Grid Margin="0,14,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="74" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Pré-amplificação" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                        <Slider x:Name="PreampSlider" Grid.Column="1" Minimum="-20" Maximum="20"
+                                                TickFrequency="1" ValueChanged="EqualizerValue_OnChanged" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=PreampSlider, StringFormat={}{0:+0.0;-0.0;0.0} dB}"
+                                                   TextAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <TextBlock Text="Bandas" Margin="0,10,0,6" FontWeight="SemiBold" />
+                                    <ItemsControl x:Name="EqualizerBandsItems">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,3">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="92" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="74" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding FrequencyLabel}" VerticalAlignment="Center" />
+                                                    <Slider Grid.Column="1" Minimum="-20" Maximum="20" TickFrequency="1"
+                                                            Value="{Binding Gain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                            ValueChanged="EqualizerValue_OnChanged" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding GainLabel}" TextAlignment="Right" VerticalAlignment="Center" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Margin="0,10,0,0" Style="{StaticResource SecondaryTextStyle}"
+                                               Text="Faixa nativa: -20 dB a +20 dB. Alterar preamp ou banda seleciona Personalizado." />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem x:Name="UpdatesTab" Header="Atualizações">
