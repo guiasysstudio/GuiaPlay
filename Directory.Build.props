@@ -6,12 +6,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <VersionPrefix>0.5.0</VersionPrefix>
+    <VersionPrefix>0.6.0</VersionPrefix>
     <VersionSuffix>prototipo</VersionSuffix>
     <Version>$(VersionPrefix)-$(VersionSuffix)</Version>
     <InformationalVersion>$(Version)</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <ProductReleaseDate>2026-09-25</ProductReleaseDate>
+    <ProductReleaseDate>2026-09-26</ProductReleaseDate>
     <UpdateChannel>Prototype</UpdateChannel>
   </PropertyGroup>
   <ItemGroup>

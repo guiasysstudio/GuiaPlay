@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Branding\Icons\GuiaPlay.ico</ApplicationIcon>
     <AssemblyName>GuiaPlay</AssemblyName>
     <RootNamespace>GuiaPlay.App</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -14,8 +15,12 @@
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
   </ItemGroup>
   <ItemGroup>
+    <None Remove="Assets\Branding\GuiaPlay-Wordmark-UI.png" />
+    <None Remove="Assets\Branding\Icons\GuiaPlay.ico" />
     <None Remove="Assets\Icons\*.svg" />
     <None Remove="Assets\Icons\LICENSE-Fluent-System-Icons.txt" />
+    <Resource Include="Assets\Branding\GuiaPlay-Wordmark-UI.png" />
+    <Resource Include="Assets\Branding\Icons\GuiaPlay.ico" />
     <Resource Include="Assets\Icons\*.svg" />
     <Content Include="Assets\Icons\LICENSE-Fluent-System-Icons.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

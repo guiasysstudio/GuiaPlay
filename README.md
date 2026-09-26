@@ -1,8 +1,8 @@
 # GuiaPlay
 
-Protótipo funcional M05 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais e distribuir atualizações verificadas por GitHub Releases.
+Protótipo funcional M06 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais e distribuir atualizações verificadas por GitHub Releases, agora com identidade visual oficial e instalador personalizado.
 
-Versão: **0.5.0-prototipo**
+Versão: **0.6.0-prototipo**
 
 Plataforma: **Windows x64**
 
@@ -70,7 +70,10 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Relatório do M03](docs/RELATORIO-M03.md)
 - [Relatório do M04](docs/RELATORIO-M04.md)
 - [Relatório do M05](docs/RELATORIO-M05.md)
+- [Relatório do M06](docs/RELATORIO-M06.md)
 - [Notas da versão 0.5.0-prototipo](docs/releases/0.5.0-prototipo.md)
+- [Notas da versão 0.6.0-prototipo](docs/releases/0.6.0-prototipo.md)
+- [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
 Os logs locais ficam em `%LocalAppData%\GuiaSys\GuiaPlay\GuiaPlay.log`, com rotação a 5 MiB e retenção máxima de cinco arquivos.
@@ -101,7 +104,7 @@ A distribuição é self-contained para Windows x64, sem trimming e sem single-f
 - A lista explícita de áudio contém somente pares módulo/dispositivo que o LibVLC informou aceitar. Lista vazia não prova ausência de áudio no Windows; **Padrão do Windows** continua disponível.
 - A aplicação pode detectar uma perda de dispositivo depois de um redirecionamento transitório feito pelo backend/Windows. Ela pausa e não faz fallback nem retoma deliberadamente, mas ausência absoluta de transiente requer validação física.
 - A classificação inicial de mídia usa extensões comuns; a decodificação efetiva continua sendo responsabilidade do LibVLC e depende do conteúdo/codecs do arquivo.
-- O primeiro upgrade público entre versões distintas só poderá ser observado quando existir uma versão posterior (por exemplo, `0.6.0-prototipo`). O mecanismo de aplicação e rollback é exercitado no M05 em instalação temporária simulada.
+- O upgrade público de `0.5.0-prototipo` para `0.6.0-prototipo` usa o mesmo fluxo de GitHub Releases, manifesto e SHA-256 exercitado em diretórios temporários antes da publicação.
 - Não há assinatura Authenticode nesta etapa; integridade do pacote de atualização é protegida pelo manifesto e SHA-256 publicado.
 
 ## Argumento de linha de comando e instância única
@@ -114,4 +117,4 @@ Um arquivo compatível pode ser carregado sem reprodução automática:
 
 Se o GuiaPlay já estiver aberto, a nova execução encaminha o caminho por Named Pipe para a janela existente e termina. O M04 não registra associações de arquivos nem altera o player padrão do Windows.
 
-Os ícones incorporados são os SVGs 24 Regular do projeto oficial [Microsoft Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), usados sob licença MIT. A licença está em `src/GuiaPlay.App/Assets/Icons/LICENSE-Fluent-System-Icons.txt`.
+O símbolo e o wordmark oficiais ficam em `src/GuiaPlay.App/Assets/Branding/`. Os ícones funcionais da interface são SVGs 24 Regular do projeto oficial [Microsoft Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), usados sob licença MIT; a licença está em `src/GuiaPlay.App/Assets/Icons/LICENSE-Fluent-System-Icons.txt`.

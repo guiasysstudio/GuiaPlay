@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:GuiaPlay.App.Models"
         Title="GuiaPlay"
+        Icon="/GuiaPlay;component/Assets/Branding/Icons/GuiaPlay.ico"
         Width="1040" Height="560" MinWidth="800" MinHeight="450"
         WindowStartupLocation="CenterScreen"
         PreviewKeyDown="MainWindow_OnPreviewKeyDown">
@@ -41,13 +42,22 @@
 
         <Grid Grid.Row="0" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock x:Name="FileNameText" Text="Nenhuma mídia carregada"
+            <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
+                   Width="132" Height="40" Stretch="Uniform"
+                   HorizontalAlignment="Left" VerticalAlignment="Center"
+                   ToolTip="GuiaPlay" />
+            <Border Grid.Column="1" Width="1" Height="28" Margin="14,0"
+                    Background="{DynamicResource CardStrokeColorDefaultBrush}"
+                    VerticalAlignment="Center" />
+            <TextBlock x:Name="FileNameText" Grid.Column="2" Text="Nenhuma mídia carregada"
                        FontSize="22" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                        VerticalAlignment="Center" />
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
+            <StackPanel Grid.Column="3" Orientation="Horizontal">
                 <Button x:Name="UpdateAvailableButton" Visibility="Collapsed"
                         Width="44" Height="40" Padding="10" MinWidth="44" Margin="0,0,6,0"
                         Style="{StaticResource StandardButtonStyle}"

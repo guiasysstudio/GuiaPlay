@@ -5,6 +5,22 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$requiredBrandingAssets = @(
+    'src\GuiaPlay.App\Assets\Branding\Icons\GuiaPlay.ico',
+    'src\GuiaPlay.App\Assets\Branding\GuiaPlay-Wordmark-UI.png',
+    'src\GuiaPlay.App\Assets\Branding\Wordmarks\GuiaPlay-Wordmark-1024.png',
+    'installer\Assets\GuiaPlay-Setup.ico',
+    'installer\Assets\WizardImageFile.bmp',
+    'installer\Assets\WizardSmallImageFile.bmp',
+    'installer\Assets\GuiaPlay-Banner-700x200.png'
+)
+foreach ($relativePath in $requiredBrandingAssets) {
+    $assetPath = Join-Path $repoRoot $relativePath
+    if (-not (Test-Path -LiteralPath $assetPath) -or (Get-Item -LiteralPath $assetPath).Length -eq 0) {
+        throw "Asset obrigatório de branding ausente ou vazio: $relativePath"
+    }
+}
+
 $artifactsRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot 'artifacts'))
 if (-not $artifactsRoot.StartsWith($repoRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw 'Caminho de artifacts fora do repositório.'

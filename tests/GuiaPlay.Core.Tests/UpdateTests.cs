@@ -11,8 +11,8 @@ public sealed class ProductVersionTests
     [Fact]
     public void ProductMetadataUsesCentralVersionAndReleaseDate()
     {
-        Assert.Equal("0.5.0-prototipo", ProductInfo.Version);
-        Assert.Equal(new DateOnly(2026, 9, 25), ProductInfo.ReleaseDate);
+        Assert.Equal("0.6.0-prototipo", ProductInfo.Version);
+        Assert.Equal(new DateOnly(2026, 9, 26), ProductInfo.ReleaseDate);
         Assert.Equal(UpdateChannel.Prototype, ProductInfo.Channel);
     }
 
@@ -87,12 +87,14 @@ public sealed class GitHubUpdateServiceTests
         Assert.Equal("0.6.0-prototipo", result.Manifest!.Version);
     }
 
-    [Fact]
-    public async Task DoesNotOfferDowngradeOrEqualVersion()
+    [Theory]
+    [InlineData("0.6.0-prototipo", "v0.6.0-prototipo")]
+    [InlineData("0.6.0-prototipo", "v0.5.0-prototipo")]
+    public async Task ReportsUpToDateForEqualOrOlderPublishedVersion(string currentVersion, string publishedTag)
     {
-        using var client = Client(_ => Json(Releases("v0.5.0-prototipo", "package.zip")));
+        using var client = Client(_ => Json(Releases(publishedTag, "package.zip")));
         var result = await new GitHubUpdateService(client, "o", "r")
-            .CheckAsync(ProductVersion.Parse("0.6.0-prototipo"), UpdateChannel.Prototype);
+            .CheckAsync(ProductVersion.Parse(currentVersion), UpdateChannel.Prototype);
         Assert.Equal(UpdateCheckStatus.UpToDate, result.Status);
     }
 

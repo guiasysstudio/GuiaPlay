@@ -1,4 +1,4 @@
-# Roteiro manual — M04 fluxo operacional e integração com Windows
+# Roteiro manual — GuiaPlay M06
 
 ## Preparação
 
@@ -95,3 +95,16 @@
 8. Com áudio e vídeo em reprodução/pausa, habilitar instalação automática e confirmar que nada é fechado/interrompido; o update deve permanecer pendente até o término/parada.
 9. Conferir `%LocalAppData%\GuiaSys\GuiaPlay\GuiaPlay.log` e `updater.log` sem tokens ou dados sensíveis.
 10. Desinstalar e confirmar remoção dos binários/atalhos, preservando deliberadamente os dados locais do usuário.
+
+## M06 — branding, instalador e atualização real 0.5 → 0.6
+
+1. Abrir o GuiaPlay em 1366 × 768 e 1920 × 1080, com DPI 100%, 125% e 150%; conferir wordmark discreto à esquerda, nome da mídia legível e botões de update/configuração alinhados.
+2. Conferir o ícone oficial no arquivo `GuiaPlay.exe`, janela, Alt+Tab e barra de tarefas.
+3. Abrir Configurações nos temas Claro, Escuro, Sistema e alto contraste; conferir wordmark, guia **Sobre**, versão `0.6.0-prototipo`, data `26/09/2026` e ausência de cortes.
+4. Confirmar que a página do projeto só abre após clique explícito em **Abrir página do projeto**.
+5. Executar `GuiaPlay-Setup-0.6.0-prototipo.exe`; conferir ícone do arquivo, imagem lateral da tela inicial, imagem pequena nos cabeçalhos e textos em português do Brasil.
+6. Instalar em ambiente controlado com atalho da Área de Trabalho marcado; conferir ícones do Menu Iniciar e da Área de Trabalho, inicialização e instância única.
+7. Desinstalar o ambiente controlado; conferir nome/publicador/ícone e confirmar que `%LocalAppData%\GuiaSys\GuiaPlay` não foi removido.
+8. Na instalação real `0.5.0-prototipo`, procurar atualização e confirmar `0.6.0-prototipo`, seta de download à esquerda da engrenagem e clique abrindo **Configurações > Atualizações** sem instalar imediatamente.
+9. Iniciar download/instalação e confirmar fechamento, aplicação pelo updater, reabertura em `0.6.0-prototipo` e preservação de `settings.json`, `playlist.json`, nomes de telas, áudio, volume, mudo e aparência.
+10. Repetir com áudio ou vídeo ativo e confirmar que o update não interrompe a mídia nem é aplicado automaticamente.

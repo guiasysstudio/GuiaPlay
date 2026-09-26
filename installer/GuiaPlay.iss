@@ -24,6 +24,7 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppComments=GuiaPlay é uma solução de reprodução de mídia para múltiplas telas, desenvolvida para operação rápida e organizada.
 DefaultDirName={localappdata}\Programs\GuiaPlay
 DefaultGroupName=GuiaPlay
 DisableProgramGroupPage=yes
@@ -35,10 +36,18 @@ OutputBaseFilename=GuiaPlay-Setup-{#MyAppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=Assets\GuiaPlay-Setup.ico
+WizardImageFile=Assets\WizardImageFile.bmp
+WizardSmallImageFile=Assets\WizardSmallImageFile.bmp
+WizardImageStretch=no
 SetupLogging=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayName={#MyAppName}
 VersionInfoVersion={#NumericVersion}
 VersionInfoDescription=GuiaPlay Setup
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#NumericVersion}
 CloseApplications=yes
 RestartApplications=no
 
@@ -53,8 +62,8 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 Source: "{#MarkerPath}"; DestDir: "{app}"; DestName: "install.json"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\GuiaPlay"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
-Name: "{autodesktop}\GuiaPlay"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\GuiaPlay"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\GuiaPlay"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Executar GuiaPlay"; Flags: nowait postinstall skipifsilent

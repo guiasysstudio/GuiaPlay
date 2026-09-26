@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using GuiaPlay.App.Models;
 using GuiaPlay.App.Services;
@@ -84,6 +85,8 @@ public partial class ScreenConfigurationWindow : Window
 
         CurrentVersionText.Text = ProductInfo.Version;
         CurrentReleaseDateText.Text = ProductInfo.ReleaseDate.ToString("dd/MM/yyyy");
+        AboutVersionText.Text = $"Versão {ProductInfo.Version}";
+        AboutReleaseDateText.Text = $"Data da versão: {ProductInfo.ReleaseDate:dd/MM/yyyy}";
         CheckUpdatesAutomaticallyCheckBox.IsChecked = settings.CheckUpdatesAutomatically;
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
         SettingsTabs.SelectedItem = openUpdates ? UpdatesTab : ScreensTab;
@@ -129,6 +132,12 @@ public partial class ScreenConfigurationWindow : Window
     }
 
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => DialogResult = false;
+
+    private void OpenProjectPageButton_OnClick(object sender, RoutedEventArgs e) =>
+        Process.Start(new ProcessStartInfo($"https://github.com/{ProductInfo.RepositoryOwner}/{ProductInfo.RepositoryName}")
+        {
+            UseShellExecute = true
+        });
 
     private async void CheckUpdatesButton_OnClick(object sender, RoutedEventArgs e)
     {

@@ -1,0 +1,31 @@
+{
+  "package": "GuiaPlay brand assets",
+  "version": 1,
+  "recommended_extract_root": "E:\\Projetos\\GuiaSys\\GuiaPlay\\GuiaPlay",
+  "main_assets": [
+    {
+      "path": "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay.ico",
+      "use": "Ícone principal do app, janela, atalho e taskbar"
+    },
+    {
+      "path": "src/GuiaPlay.App/Assets/Branding/Wordmarks/GuiaPlay-Wordmark-1024.png",
+      "use": "Escrita GuiaPlay para UI"
+    },
+    {
+      "path": "installer/Assets/GuiaPlay-Setup.ico",
+      "use": "Ícone do instalador / setup"
+    },
+    {
+      "path": "installer/Assets/WizardImageFile.bmp",
+      "use": "Imagem lateral do assistente do Inno Setup"
+    },
+    {
+      "path": "installer/Assets/WizardSmallImageFile.bmp",
+      "use": "Imagem pequena do cabeçalho do Inno Setup"
+    },
+    {
+      "path": "installer/Assets/GuiaPlay-Banner-700x200.png",
+      "use": "Banner extra opcional para tela de boas-vindas/documentação"
+    }
+  ]
+}
