@@ -11,7 +11,7 @@ public sealed class ProductVersionTests
     [Fact]
     public void ProductMetadataUsesCentralVersionAndReleaseDate()
     {
-        Assert.Equal("0.6.0-prototipo", ProductInfo.Version);
+        Assert.Equal("0.7.0-prototipo", ProductInfo.Version);
         Assert.Equal(new DateOnly(2026, 9, 26), ProductInfo.ReleaseDate);
         Assert.Equal(UpdateChannel.Prototype, ProductInfo.Channel);
     }
@@ -196,6 +196,79 @@ public sealed class UpdatePolicyTests
     public void ManualCheckIgnoresDisabledSettingAndInterval() =>
         Assert.True(UpdateSchedule.ShouldCheck(true, false, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
 
+    [Fact]
+    public void StartupWithoutPreviousCheckQueries()
+    {
+        var now = DateTimeOffset.UtcNow;
+        Assert.True(UpdateSchedule.ShouldCheck(
+            false,
+            true,
+            AppSettings.Default,
+            ProductVersion.Parse("0.6.0-prototipo"),
+            now));
+    }
+
+    [Fact]
+    public void RecentValidAvailableCacheRestoresIndicatorWithoutQuery()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var settings = CachedSettings(now, "0.6.0-prototipo", UpdateCheckStatus.UpdateAvailable, "0.7.0-prototipo");
+
+        var restored = PersistedUpdateCache.Restore(settings, ProductVersion.Parse("0.6.0-prototipo"), now);
+
+        Assert.Equal(UpdateCheckStatus.UpdateAvailable, restored?.Status);
+        Assert.True(UpdateIndicatorState.IsVisible(restored!.Status));
+        Assert.False(UpdateSchedule.ShouldCheck(false, true, settings, ProductVersion.Parse("0.6.0-prototipo"), now));
+    }
+
+    [Fact]
+    public void RecentUpToDateCacheDoesNotShowIndicator()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var settings = CachedSettings(now, "0.6.0-prototipo", UpdateCheckStatus.UpToDate, "0.6.0-prototipo");
+
+        var restored = PersistedUpdateCache.Restore(settings, ProductVersion.Parse("0.6.0-prototipo"), now);
+
+        Assert.Equal(UpdateCheckStatus.UpToDate, restored?.Status);
+        Assert.False(UpdateIndicatorState.IsVisible(restored!.Status));
+    }
+
+    [Fact]
+    public void RecentTimestampWithoutValidStateForcesQuery()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var settings = AppSettings.Default with { LastUpdateCheckUtc = now };
+
+        Assert.True(UpdateSchedule.ShouldCheck(false, true, settings, ProductVersion.Parse("0.6.0-prototipo"), now));
+    }
+
+    [Fact]
+    public void CheckMadeByNewerProductForcesQueryInOlderProduct()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var settings = CachedSettings(now, "0.6.0-prototipo", UpdateCheckStatus.UpToDate, "0.6.0-prototipo");
+
+        Assert.True(UpdateSchedule.ShouldCheck(false, true, settings, ProductVersion.Parse("0.5.0-prototipo"), now));
+    }
+
+    [Fact]
+    public void CheckMadeBySameProductRespectsInterval()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var settings = CachedSettings(now.AddHours(-11), "0.6.0-prototipo", UpdateCheckStatus.UpToDate, "0.6.0-prototipo");
+
+        Assert.False(UpdateSchedule.ShouldCheck(false, true, settings, ProductVersion.Parse("0.6.0-prototipo"), now));
+    }
+
+    [Fact]
+    public void ManualCheckAlwaysQueriesWithValidRecentCache()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var settings = CachedSettings(now, "0.6.0-prototipo", UpdateCheckStatus.UpToDate, "0.6.0-prototipo");
+
+        Assert.True(UpdateSchedule.ShouldCheck(true, false, settings, ProductVersion.Parse("0.6.0-prototipo"), now));
+    }
+
     [Theory]
     [InlineData(UpdateCheckStatus.UpdateAvailable, true)]
     [InlineData(UpdateCheckStatus.UpToDate, false)]
@@ -209,6 +282,20 @@ public sealed class UpdatePolicyTests
         Assert.False(UpdateInstallationPolicy.CanAutoInstall(true, true, true, true));
         Assert.True(UpdateInstallationPolicy.CanAutoInstall(true, true, false, true));
     }
+
+    private static AppSettings CachedSettings(
+        DateTimeOffset checkedAt,
+        string checkedProductVersion,
+        UpdateCheckStatus status,
+        string? knownVersion) =>
+        AppSettings.Default with
+        {
+            LastUpdateCheckUtc = checkedAt,
+            LastUpdateCheckProductVersion = checkedProductVersion,
+            LastKnownUpdateVersion = knownVersion,
+            LastKnownUpdatePublishedAt = knownVersion is null ? null : checkedAt,
+            LastKnownUpdateStatus = status
+        };
 }
 
 public sealed class PackageSecurityTests : IDisposable
@@ -240,6 +327,44 @@ public sealed class PackageSecurityTests : IDisposable
             new string('0', 64)));
 
         Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public async Task DownloaderReportsRealByteProgressFromContentLength()
+    {
+        Directory.CreateDirectory(_root);
+        var bytes = new byte[200_000];
+        var reports = new List<UpdateDownloadProgress>();
+        using var client = new HttpClient(new BytesHandler(bytes));
+
+        await new UpdatePackageDownloader(client).DownloadAsync(
+            new Uri("https://example.test/package.zip"),
+            Path.Combine(_root, "progress.zip"),
+            new CollectingProgress<UpdateDownloadProgress>(reports));
+
+        var final = Assert.IsType<UpdateDownloadProgress>(reports.Last());
+        Assert.Equal(bytes.Length, final.BytesReceived);
+        Assert.Equal(bytes.Length, final.TotalBytes);
+        Assert.Equal(100, final.Percentage);
+    }
+
+    [Fact]
+    public async Task DownloaderReportsBytesWithoutInventingPercentageWhenLengthIsUnknown()
+    {
+        Directory.CreateDirectory(_root);
+        var bytes = new byte[12_345];
+        var reports = new List<UpdateDownloadProgress>();
+        using var client = new HttpClient(new UnknownLengthHandler(bytes));
+
+        await new UpdatePackageDownloader(client).DownloadAsync(
+            new Uri("https://example.test/package.zip"),
+            Path.Combine(_root, "unknown-length.zip"),
+            new CollectingProgress<UpdateDownloadProgress>(reports));
+
+        var final = reports.Last();
+        Assert.Equal(bytes.Length, final.BytesReceived);
+        Assert.Null(final.TotalBytes);
+        Assert.Null(final.Percentage);
     }
 
     [Fact]
@@ -325,5 +450,28 @@ public sealed class PackageSecurityTests : IDisposable
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) });
+    }
+
+    private sealed class UnknownLengthHandler(byte[] bytes) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new UnknownLengthContent(bytes) });
+    }
+
+    private sealed class UnknownLengthContent(byte[] bytes) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            stream.WriteAsync(bytes, 0, bytes.Length);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
+
+    private sealed class CollectingProgress<T>(ICollection<T> values) : IProgress<T>
+    {
+        public void Report(T value) => values.Add(value);
     }
 }

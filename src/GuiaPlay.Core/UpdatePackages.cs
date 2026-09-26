@@ -1,8 +1,16 @@
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace GuiaPlay.Core;
+
+public sealed record UpdateDownloadProgress(long BytesReceived, long? TotalBytes)
+{
+    public int? Percentage => TotalBytes is > 0
+        ? (int)Math.Clamp(BytesReceived * 100L / TotalBytes.Value, 0, 100)
+        : null;
+}
 
 public static class PackageIntegrity
 {
@@ -21,10 +29,10 @@ public sealed class UpdatePackageDownloader(HttpClient httpClient)
 {
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
-    public async Task<string> DownloadAndVerifyAsync(
+    public async Task<string> DownloadAsync(
         Uri source,
         string destinationPath,
-        string expectedSha256,
+        IProgress<UpdateDownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(destinationPath))!);
@@ -32,11 +40,58 @@ public sealed class UpdatePackageDownloader(HttpClient httpClient)
         {
             using var response = await _httpClient.GetAsync(source, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
-            await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-            await using (var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan))
+            var totalBytes = response.Content.Headers.ContentLength;
+            progress?.Report(new UpdateDownloadProgress(0, totalBytes));
+            await using var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            await using var output = new FileStream(
+                destinationPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                81920,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
+            var buffer = new byte[81920];
+            long received = 0;
+            var lastReport = Stopwatch.GetTimestamp();
+            while (true)
             {
-                await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+                var read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                received += read;
+                var now = Stopwatch.GetTimestamp();
+                if (Stopwatch.GetElapsedTime(lastReport, now) >= TimeSpan.FromMilliseconds(100))
+                {
+                    progress?.Report(new UpdateDownloadProgress(received, totalBytes));
+                    lastReport = now;
+                }
             }
+
+            await output.FlushAsync(cancellationToken).ConfigureAwait(false);
+            progress?.Report(new UpdateDownloadProgress(received, totalBytes));
+            return destinationPath;
+        }
+        catch
+        {
+            TryDelete(destinationPath);
+            throw;
+        }
+    }
+
+    public async Task<string> DownloadAndVerifyAsync(
+        Uri source,
+        string destinationPath,
+        string expectedSha256,
+        CancellationToken cancellationToken = default,
+        IProgress<UpdateDownloadProgress>? progress = null)
+    {
+        try
+        {
+            await DownloadAsync(source, destinationPath, progress, cancellationToken).ConfigureAwait(false);
 
             if (!await PackageIntegrity.VerifySha256Async(destinationPath, expectedSha256, cancellationToken).ConfigureAwait(false))
             {

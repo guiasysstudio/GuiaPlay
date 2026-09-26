@@ -30,9 +30,13 @@ public sealed record AppSettings(
     bool Muted,
     bool CheckUpdatesAutomatically,
     bool InstallUpdatesAutomatically,
-    DateTimeOffset? LastUpdateCheckUtc)
+    DateTimeOffset? LastUpdateCheckUtc,
+    string? LastUpdateCheckProductVersion,
+    string? LastKnownUpdateVersion,
+    DateTimeOffset? LastKnownUpdatePublishedAt,
+    UpdateCheckStatus? LastKnownUpdateStatus)
 {
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 
     public static AppSettings Default { get; } = new(
         AppearancePreference.System,
@@ -44,6 +48,10 @@ public sealed record AppSettings(
         false,
         true,
         false,
+        null,
+        null,
+        null,
+        null,
         null);
 }
 
@@ -203,6 +211,10 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
         var checkAutomatically = ReadBool(updates?["checkAutomatically"], true);
         var installAutomatically = ReadBool(updates?["installAutomatically"], false);
         var lastCheckUtc = ReadDateTimeOffset(updates?["lastCheckUtc"]);
+        var lastCheckProductVersion = ReadString(updates?["lastCheckProductVersion"]);
+        var lastKnownVersion = ReadString(updates?["lastKnownVersion"]);
+        var lastKnownPublishedAt = ReadDateTimeOffset(updates?["lastKnownPublishedAt"]);
+        var lastKnownStatus = ReadNullableEnum<UpdateCheckStatus>(updates?["lastKnownStatus"]);
         return new AppSettings(
             appearance,
             operatorId,
@@ -213,7 +225,11 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
             muted,
             checkAutomatically,
             installAutomatically,
-            lastCheckUtc);
+            lastCheckUtc,
+            lastCheckProductVersion,
+            lastKnownVersion,
+            lastKnownPublishedAt,
+            lastKnownStatus);
     }
 
     private void UpdateRoot(AppSettings settings)
@@ -256,6 +272,10 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
         updates["checkAutomatically"] = settings.CheckUpdatesAutomatically;
         updates["installAutomatically"] = settings.InstallUpdatesAutomatically;
         updates["lastCheckUtc"] = settings.LastUpdateCheckUtc?.ToUniversalTime().ToString("O");
+        updates["lastCheckProductVersion"] = settings.LastUpdateCheckProductVersion;
+        updates["lastKnownVersion"] = settings.LastKnownUpdateVersion;
+        updates["lastKnownPublishedAt"] = settings.LastKnownUpdatePublishedAt?.ToUniversalTime().ToString("O");
+        updates["lastKnownStatus"] = settings.LastKnownUpdateStatus?.ToString();
     }
 
     private bool TryBackupInvalidFile()
@@ -314,4 +334,7 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
 
     private static T ParseEnum<T>(JsonNode? node, T fallback) where T : struct, Enum =>
         Enum.TryParse(ReadString(node), ignoreCase: true, out T parsed) ? parsed : fallback;
+
+    private static T? ReadNullableEnum<T>(JsonNode? node) where T : struct, Enum =>
+        Enum.TryParse(ReadString(node), ignoreCase: true, out T parsed) ? parsed : null;
 }

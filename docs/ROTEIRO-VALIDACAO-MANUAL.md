@@ -1,4 +1,4 @@
-# Roteiro manual — GuiaPlay M06
+# Roteiro manual — GuiaPlay M07
 
 ## Preparação
 
@@ -108,3 +108,34 @@
 8. Na instalação real `0.5.0-prototipo`, procurar atualização e confirmar `0.6.0-prototipo`, seta de download à esquerda da engrenagem e clique abrindo **Configurações > Atualizações** sem instalar imediatamente.
 9. Iniciar download/instalação e confirmar fechamento, aplicação pelo updater, reabertura em `0.6.0-prototipo` e preservação de `settings.json`, `playlist.json`, nomes de telas, áudio, volume, mudo e aparência.
 10. Repetir com áudio ou vídeo ativo e confirmar que o update não interrompe a mídia nem é aplicado automaticamente.
+
+## M07 — bug físico de update automático 0.6 → 0.7
+
+1. Instalar `GuiaPlay-Setup-0.6.0-prototipo.exe` e confirmar que **Verificar atualizações automaticamente** está habilitado.
+2. Não abrir Configurações.
+3. Iniciar o GuiaPlay normalmente e aguardar a consulta em background, sem popup e sem bloqueio da janela.
+4. Confirmar que a seta de atualização para `0.7.0-prototipo` aparece automaticamente ao lado da engrenagem.
+5. Fechar e abrir novamente antes de 12 horas.
+6. Confirmar que a seta reaparece imediatamente pelo estado persistido, sem busca manual.
+7. Abrir **Configurações > Atualizações** somente agora e confirmar o mesmo resultado.
+8. Clicar **Procurar atualizações** e confirmar que a busca manual consulta novamente mesmo dentro das 12 horas.
+9. Após instalar 0.7, reiniciar e confirmar `Current: 0.7.0-prototipo`, `Available: 0.7.0-prototipo`, `Status: UpToDate`.
+
+## M07 — download e controles
+
+1. Iniciar o download de uma atualização e confirmar bytes recebidos, total e percentual reais; a barra não deve saltar por animação artificial.
+2. Confirmar os estágios **Baixando atualização**, **Verificando integridade**, **Preparando arquivos** e **Iniciando atualizador**. Após o download, a barra deve ficar indeterminada.
+3. Cancelar durante o download e confirmar remoção segura do pacote parcial. Confirmar que cancelamento deixa de ser oferecido nas etapas posteriores.
+4. Com áudio e vídeo, girar a roda sobre o volume: cada evento aumenta/diminui 5 pontos, respeita 0..100 e preserva o estado de mudo.
+5. Girar a roda sobre a timeline: avançar/retroceder aproximadamente 5 segundos, sem ultrapassar início/fim e com labels imediatos.
+6. Clicar em 0%, 50% e 100% da timeline e confirmar seek correspondente; arrastar o thumb deve continuar funcionando sem seek duplicado.
+7. Repetir volume e timeline com DPI 100%, 125% e 150% e confirmar que a página/controles pais não recebem scroll indevido.
+
+## M07 — instalador
+
+1. Executar `GuiaPlay-Setup-0.7.0-prototipo.exe` e chegar à última página.
+2. Confirmar que **Executar GuiaPlay** existe e começa desmarcado; finalizar sem marcar e verificar que o aplicativo não abre.
+3. Repetir, marcar **Executar GuiaPlay** e confirmar abertura após **Finalizar**.
+4. Confirmar que **Criar atalho na Área de Trabalho** continua opcional e desmarcado por padrão.
+5. Quando marcado, validar que o atalho aponta para `GuiaPlay.exe`, usa o ícone oficial e é removido na desinstalação.
+6. Confirmar preservação de `%LocalAppData%\GuiaSys\GuiaPlay`, incluindo settings, playlist, preferências e histórico local existente.

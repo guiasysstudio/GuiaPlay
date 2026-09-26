@@ -1,8 +1,8 @@
 # GuiaPlay
 
-Protótipo funcional M06 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais e distribuir atualizações verificadas por GitHub Releases, agora com identidade visual oficial e instalador personalizado.
+Protótipo funcional M07 para operar vídeos e áudios locais, organizar/reordenar um cronograma em grupos virtuais e distribuir atualizações verificadas por GitHub Releases, com cache persistente de update, progresso real de download e controles de mídia refinados.
 
-Versão: **0.6.0-prototipo**
+Versão: **0.7.0-prototipo**
 
 Plataforma: **Windows x64**
 
@@ -55,7 +55,7 @@ O executável Debug fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\
    Também é possível arrastar vários arquivos do Explorer para um grupo ou para a área da playlist.
 5. Use **Abrir mídia…** ou dê duplo clique em um item da playlist. Arquivos ausentes continuam listados e aparecem como não encontrados.
 6. Vídeo exige ao menos uma saída marcada; então **Reproduzir** inicia imediatamente, sem confirmação intermediária. Áudio pode tocar sem saída marcada e nunca abre nem altera janelas de vídeo.
-7. Controle pausa/continuação, busca, volume, mudo e parada no painel. Volume, mudo, telas e identificação permanecem na faixa operacional inferior.
+7. Controle pausa/continuação, busca, volume, mudo e parada no painel. A roda do mouse ajusta volume em passos de 5 pontos e avança/retrocede a timeline em 5 segundos; um clique direto na barra faz seek proporcional.
 
 Com um único monitor, áudio continua disponível. Vídeo permanece carregado, mas **Reproduzir** fica desabilitado até existir uma saída pública selecionada.
 
@@ -71,19 +71,21 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Relatório do M04](docs/RELATORIO-M04.md)
 - [Relatório do M05](docs/RELATORIO-M05.md)
 - [Relatório do M06](docs/RELATORIO-M06.md)
+- [Relatório do M07](docs/RELATORIO-M07.md)
 - [Notas da versão 0.5.0-prototipo](docs/releases/0.5.0-prototipo.md)
 - [Notas da versão 0.6.0-prototipo](docs/releases/0.6.0-prototipo.md)
+- [Notas da versão 0.7.0-prototipo](docs/releases/0.7.0-prototipo.md)
 - [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
 Os logs locais ficam em `%LocalAppData%\GuiaSys\GuiaPlay\GuiaPlay.log`, com rotação a 5 MiB e retenção máxima de cinco arquivos.
-As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: aparência, identidade/nome das telas, operador, pré-seleção pública, saída de áudio, volume, mudo e política de atualização. O esquema 4 migra os anteriores, preserva chaves desconhecidas e mantém gravação atômica. A playlist fica separada em `playlist.json` e contém somente metadados leves e caminhos absolutos; nunca contém bytes de mídia. Esses dados ficam fora de `%LocalAppData%\Programs\GuiaPlay` e não são substituídos pelo updater.
+As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: aparência, identidade/nome das telas, operador, pré-seleção pública, saída de áudio, volume, mudo, política de atualização e o cache leve da última consulta. O esquema 5 migra os anteriores, preserva chaves desconhecidas e mantém gravação atômica. A playlist fica separada em `playlist.json` e contém somente metadados leves e caminhos absolutos; nunca contém bytes de mídia. Esses dados ficam fora de `%LocalAppData%\Programs\GuiaPlay` e não são substituídos pelo updater.
 
 ## Atualizações e distribuição
 
-O canal interno `Prototype` consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, incluindo prereleases compatíveis e ignorando drafts/tags inválidas. A checagem automática é ativada por padrão e limitada a uma tentativa a cada 12 horas; a instalação automática começa desativada e nunca interrompe mídia ativa.
+O canal interno `Prototype` consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, incluindo prereleases compatíveis e ignorando drafts/tags inválidas. A checagem automática é ativada por padrão e limitada a uma tentativa a cada 12 horas. O resultado leve da última consulta é persistido, a seta pode ser restaurada imediatamente em um novo processo e a consulta é forçada quando a versão instalada mudou ou o cache está inválido. A instalação automática começa desativada e nunca interrompe mídia ativa.
 
-Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
+Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. O download mostra bytes e percentual reais quando `Content-Length` existe, usa estado indeterminado sem tamanho conhecido e distingue download, SHA-256, preparação e início do updater. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
 
 A distribuição é self-contained para Windows x64, sem trimming e sem single-file no aplicativo principal, preservando as dependências nativas do LibVLC. O updater é um executável separado e temporário: espera o GuiaPlay encerrar, faz backup, aplica o staging, tenta rollback em falha e reinicia a aplicação. O log dele fica em `%LocalAppData%\GuiaSys\GuiaPlay\updater.log`.
 
@@ -104,7 +106,7 @@ A distribuição é self-contained para Windows x64, sem trimming e sem single-f
 - A lista explícita de áudio contém somente pares módulo/dispositivo que o LibVLC informou aceitar. Lista vazia não prova ausência de áudio no Windows; **Padrão do Windows** continua disponível.
 - A aplicação pode detectar uma perda de dispositivo depois de um redirecionamento transitório feito pelo backend/Windows. Ela pausa e não faz fallback nem retoma deliberadamente, mas ausência absoluta de transiente requer validação física.
 - A classificação inicial de mídia usa extensões comuns; a decodificação efetiva continua sendo responsabilidade do LibVLC e depende do conteúdo/codecs do arquivo.
-- O upgrade público de `0.5.0-prototipo` para `0.6.0-prototipo` usa o mesmo fluxo de GitHub Releases, manifesto e SHA-256 exercitado em diretórios temporários antes da publicação.
+- O upgrade público de `0.6.0-prototipo` para `0.7.0-prototipo` usa o mesmo fluxo de GitHub Releases, manifesto e SHA-256 exercitado em diretórios temporários antes da publicação.
 - Não há assinatura Authenticode nesta etapa; integridade do pacote de atualização é protegida pelo manifesto e SHA-256 publicado.
 
 ## Argumento de linha de comando e instância única

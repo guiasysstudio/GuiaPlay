@@ -37,11 +37,25 @@ Protótipo funcional multitelas, prévia/controles, motor compartilhado por call
 - Arrastar referências do Explorer e reordenar grupos/itens, inclusive entre grupos.
 - Argumento de linha de comando e instância única com Mutex + Named Pipe.
 
-## Próximos marcos — distribuição
+## M05 — 0.5.0-prototipo
+
+- Concluído: GitHub Releases, consulta automática/manual, indicador de update, updater com SHA-256, staging seguro, backup/rollback, publish self-contained, ZIP, Inno Setup e pipeline de release.
+
+## M06 — 0.6.0-prototipo
+
+- Concluído: identidade visual oficial, ícone/wordmark, página Sobre, personalização do instalador e primeira atualização pública real.
+
+## M07 — 0.7.0-prototipo
+
+- Concluído: cache persistente e versionado de update, correção da seta no startup, progresso real de download e estágios de preparação.
+- Concluído: scroll de volume/timeline, click-to-seek, opção **Executar GuiaPlay** desmarcada por padrão e preservação integral do instalador M06.
+- Cobertura automatizada ampliada para cache, agenda, persistência, download, controles de mídia e script do instalador.
+
+## Marcos futuros — não iniciados
 
 - Abrir pelo Explorer após associação opt-in feita pelo usuário.
-- Publicação/empacotamento x64 e política de atualização.
 - Validação integrada prolongada no computador da igreja, incluindo recuperação de falhas e matriz de formatos.
+- Itens de M08 e posteriores permanecem separados desta entrega e não foram implementados.
 
 ## Não planejado para estes marcos
 

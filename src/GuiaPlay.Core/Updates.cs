@@ -154,6 +154,96 @@ public static class UpdateSchedule
 
     public static bool ShouldCheck(bool manual, bool enabled, DateTimeOffset? lastCheckUtc, DateTimeOffset nowUtc) =>
         manual || enabled && (lastCheckUtc is null || nowUtc - lastCheckUtc.Value >= AutomaticInterval);
+
+    public static bool ShouldCheck(
+        bool manual,
+        bool enabled,
+        AppSettings settings,
+        ProductVersion currentVersion,
+        DateTimeOffset nowUtc)
+    {
+        if (manual)
+        {
+            return true;
+        }
+
+        if (!enabled)
+        {
+            return false;
+        }
+
+        return !PersistedUpdateCache.IsValid(settings, currentVersion, nowUtc) ||
+               nowUtc - settings.LastUpdateCheckUtc!.Value >= AutomaticInterval;
+    }
+}
+
+public static class PersistedUpdateCache
+{
+    private static readonly TimeSpan MaximumClockSkew = TimeSpan.FromMinutes(5);
+
+    public static bool IsValid(AppSettings settings, ProductVersion currentVersion, DateTimeOffset nowUtc)
+    {
+        if (settings.LastUpdateCheckUtc is not { } checkedAt ||
+            checkedAt > nowUtc + MaximumClockSkew ||
+            !ProductVersion.TryParse(settings.LastUpdateCheckProductVersion, out var checkedVersion) ||
+            checkedVersion != currentVersion ||
+            settings.LastKnownUpdateStatus is not { } status)
+        {
+            return false;
+        }
+
+        return status switch
+        {
+            UpdateCheckStatus.UpdateAvailable =>
+                ProductVersion.TryParse(settings.LastKnownUpdateVersion, out var availableVersion) &&
+                availableVersion > currentVersion &&
+                settings.LastKnownUpdatePublishedAt is not null,
+            UpdateCheckStatus.UpToDate =>
+                ProductVersion.TryParse(settings.LastKnownUpdateVersion, out var publishedVersion) &&
+                publishedVersion <= currentVersion,
+            UpdateCheckStatus.NoPublishedVersion => string.IsNullOrWhiteSpace(settings.LastKnownUpdateVersion),
+            _ => false
+        };
+    }
+
+    public static UpdateCheckResult? Restore(AppSettings settings, ProductVersion currentVersion, DateTimeOffset nowUtc)
+    {
+        if (!IsValid(settings, currentVersion, nowUtc) || settings.LastKnownUpdateStatus is not { } status)
+        {
+            return null;
+        }
+
+        PublishedRelease? release = null;
+        if (ProductVersion.TryParse(settings.LastKnownUpdateVersion, out var knownVersion))
+        {
+            release = new PublishedRelease(
+                knownVersion,
+                $"v{knownVersion}",
+                settings.LastKnownUpdatePublishedAt ?? settings.LastUpdateCheckUtc!.Value,
+                null,
+                knownVersion.Prerelease is not null,
+                []);
+        }
+
+        return new UpdateCheckResult(status, release);
+    }
+
+    public static AppSettings Record(
+        AppSettings settings,
+        ProductVersion currentVersion,
+        UpdateCheckResult result,
+        DateTimeOffset checkedAt)
+    {
+        var successful = result.Status != UpdateCheckStatus.Failed;
+        return settings with
+        {
+            LastUpdateCheckUtc = checkedAt,
+            LastUpdateCheckProductVersion = currentVersion.ToString(),
+            LastKnownUpdateVersion = successful ? result.Release?.Version.ToString() : null,
+            LastKnownUpdatePublishedAt = successful ? result.Release?.PublishedAt : null,
+            LastKnownUpdateStatus = result.Status
+        };
+    }
 }
 
 public static class UpdateInstallationPolicy

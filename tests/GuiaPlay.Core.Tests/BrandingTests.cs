@@ -70,6 +70,9 @@ public sealed class BrandingTests
         Assert.Contains("WizardSmallImageFile=Assets\\WizardSmallImageFile.bmp", installer, StringComparison.Ordinal);
         Assert.Contains("UninstallDisplayIcon={app}\\{#MyAppExeName}", installer, StringComparison.Ordinal);
         Assert.Equal(2, installer.Split("IconFilename: \"{app}\\{#MyAppExeName}\"", StringSplitOptions.None).Length - 1);
+        Assert.Contains("Tasks: desktopicon", installer, StringComparison.Ordinal);
+        Assert.Contains("Flags: unchecked", installer, StringComparison.Ordinal);
+        Assert.Contains("Flags: nowait postinstall skipifsilent unchecked", installer, StringComparison.Ordinal);
     }
 
     [Fact]

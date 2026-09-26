@@ -182,7 +182,8 @@
                     <Slider x:Name="ProgressSlider" Grid.Column="1" Margin="8,0"
                             Minimum="0" Maximum="1" Value="0" ToolTip="Posição da mídia"
                             PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
-                            PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted" />
+                            PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted"
+                            PreviewMouseWheel="ProgressSlider_OnMouseWheel" />
                     <TextBlock x:Name="RemainingText" Grid.Column="2" Text="-00:00 / 00:00"
                                VerticalAlignment="Center" TextAlignment="Right" />
                 </Grid>
@@ -231,7 +232,8 @@
                         </Button>
                         <Slider x:Name="VolumeSlider" Width="120" Minimum="0" Maximum="100" Value="100"
                                 Margin="9,0" ToolTip="Volume do GuiaPlay"
-                                ValueChanged="VolumeSlider_OnValueChanged" />
+                                ValueChanged="VolumeSlider_OnValueChanged"
+                                PreviewMouseWheel="VolumeSlider_OnMouseWheel" />
                         <TextBlock x:Name="VolumeText" Text="100%" Width="44"
                                    VerticalAlignment="Center" TextAlignment="Right" />
                     </StackPanel>

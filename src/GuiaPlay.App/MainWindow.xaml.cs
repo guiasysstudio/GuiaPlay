@@ -4,6 +4,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -125,6 +126,7 @@ public partial class MainWindow : Window
             }
 
             FileLogger.Info("Painel do operador carregado.");
+            RefreshUpdateIndicator();
             _ = CheckForUpdatesOnStartupAsync();
         };
         SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessageHook);
@@ -936,7 +938,35 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ProgressSlider_OnDragStarted(object sender, MouseButtonEventArgs e) => _isDraggingProgress = true;
+    private void VolumeSlider_OnMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        var adjustment = MediaControlBehavior.AdjustVolume(
+            (int)VolumeSlider.Value,
+            MuteButton.Tag as bool? ?? false,
+            e.Delta);
+        VolumeSlider.Value = adjustment.Volume;
+        e.Handled = true;
+    }
+
+    private void ProgressSlider_OnDragStarted(object sender, MouseButtonEventArgs e)
+    {
+        if (IsWithinThumb(e.OriginalSource as DependencyObject))
+        {
+            _isDraggingProgress = true;
+            return;
+        }
+
+        if (!TrySeek(MediaControlBehavior.PositionFromPoint(
+                e.GetPosition(ProgressSlider).X,
+                ProgressSlider.ActualWidth,
+                _engine.Length)))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        e.Handled = true;
+    }
 
     private void ProgressSlider_OnDragCompleted(object sender, MouseButtonEventArgs e)
     {
@@ -946,8 +976,46 @@ public partial class MainWindow : Window
         }
 
         _isDraggingProgress = false;
-        _engine.Seek((long)ProgressSlider.Value);
-        UpdateTimeLabels((long)ProgressSlider.Value, _engine.Length);
+        _ = TrySeek((long)ProgressSlider.Value);
+    }
+
+    private void ProgressSlider_OnMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (TrySeek(MediaControlBehavior.AdjustPosition(_engine.Time, _engine.Length, e.Delta)))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private bool TrySeek(long targetMilliseconds)
+    {
+        var duration = _engine.Length;
+        if (_coordinator.MediaPath is null || duration <= 0)
+        {
+            return false;
+        }
+
+        var target = Math.Clamp(targetMilliseconds, 0, duration);
+        ProgressSlider.Maximum = Math.Max(1, duration);
+        ProgressSlider.Value = target;
+        _engine.Seek(target);
+        UpdateTimeLabels(target, duration);
+        return true;
+    }
+
+    private static bool IsWithinThumb(DependencyObject? source)
+    {
+        for (var current = source; current is not null; current = current is Visual
+                 ? VisualTreeHelper.GetParent(current)
+                 : LogicalTreeHelper.GetParent(current))
+        {
+            if (current is Thumb)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void Engine_OnFrameReady(long generation)

@@ -18,6 +18,7 @@ public static class ProductInfo
     public static UpdateChannel Channel { get; } = Enum.Parse<UpdateChannel>(Metadata("UpdateChannel") ?? "Prototype");
     public static string RepositoryOwner { get; } = Metadata("RepositoryOwner") ?? "guiasysstudio";
     public static string RepositoryName { get; } = Metadata("RepositoryName") ?? "GuiaPlay";
+    public static Uri ProjectPageUri { get; } = new($"https://github.com/{RepositoryOwner}/{RepositoryName}");
 
     private static string? Metadata(string key) => Assembly
         .GetCustomAttributes<AssemblyMetadataAttribute>()

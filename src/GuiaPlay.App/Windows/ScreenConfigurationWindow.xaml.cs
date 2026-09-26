@@ -20,6 +20,7 @@ public partial class ScreenConfigurationWindow : Window
     private readonly IReadOnlyList<ScreenConfigurationItem> _items;
     private readonly UpdateManager _updateManager;
     private readonly bool _playbackActive;
+    private CancellationTokenSource? _downloadCancellation;
     private readonly SettingsAppearanceChoice[] _appearanceChoices =
     [
         new(AppearancePreference.System, "Sistema"),
@@ -93,6 +94,7 @@ public partial class ScreenConfigurationWindow : Window
         ScreensTab.IsEnabled = !playbackActive;
         AppearanceAudioTab.IsEnabled = !playbackActive;
         _updateManager.StateChanged += UpdateManager_OnStateChanged;
+        Closing += ScreenConfigurationWindow_OnClosing;
         Closed += (_, _) => _updateManager.StateChanged -= UpdateManager_OnStateChanged;
         RefreshUpdateUi();
     }
@@ -134,7 +136,7 @@ public partial class ScreenConfigurationWindow : Window
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => DialogResult = false;
 
     private void OpenProjectPageButton_OnClick(object sender, RoutedEventArgs e) =>
-        Process.Start(new ProcessStartInfo($"https://github.com/{ProductInfo.RepositoryOwner}/{ProductInfo.RepositoryName}")
+        Process.Start(new ProcessStartInfo(ProductInfo.ProjectPageUri.AbsoluteUri)
         {
             UseShellExecute = true
         });
@@ -156,15 +158,45 @@ public partial class ScreenConfigurationWindow : Window
 
         CheckUpdatesButton.IsEnabled = false;
         InstallUpdateButton.IsEnabled = false;
-        UpdateStatusText.Text = "Baixando e preparando a atualização...";
-        var result = await _updateManager.PrepareAndLaunchInstallerAsync();
-        UpdateStatusText.Text = result.Message;
-        CheckUpdatesButton.IsEnabled = true;
-        InstallUpdateButton.IsEnabled = true;
-        if (result.Launched)
+        _downloadCancellation = new CancellationTokenSource();
+        try
         {
-            Application.Current.Shutdown();
+            var result = await _updateManager.PrepareAndLaunchInstallerAsync(_downloadCancellation.Token);
+            UpdateStatusText.Text = result.Message;
+            if (result.Launched)
+            {
+                Application.Current.Shutdown();
+            }
         }
+        finally
+        {
+            _downloadCancellation.Dispose();
+            _downloadCancellation = null;
+            CheckUpdatesButton.IsEnabled = true;
+            InstallUpdateButton.IsEnabled = true;
+        }
+    }
+
+    private void CancelDownloadButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        CancelDownloadButton.IsEnabled = false;
+        _downloadCancellation?.Cancel();
+    }
+
+    private void ScreenConfigurationWindow_OnClosing(object? sender, CancelEventArgs e)
+    {
+        if (!_updateManager.IsPreparing)
+        {
+            return;
+        }
+
+        if (_updateManager.PreparationProgress.Stage == UpdatePreparationStage.Downloading)
+        {
+            _downloadCancellation?.Cancel();
+            UpdateStatusText.Text = "Cancelando download...";
+        }
+
+        e.Cancel = true;
     }
 
     private void UpdateManager_OnStateChanged(object? sender, EventArgs e) =>
@@ -173,6 +205,16 @@ public partial class ScreenConfigurationWindow : Window
     private void RefreshUpdateUi()
     {
         CheckUpdatesButton.IsEnabled = !_updateManager.IsChecking;
+        if (_updateManager.IsPreparing)
+        {
+            RefreshPreparationUi(_updateManager.PreparationProgress);
+            return;
+        }
+
+        UpdateProgressPanel.Visibility = Visibility.Collapsed;
+        CancelDownloadButton.Visibility = Visibility.Collapsed;
+        CloseSettingsButton.IsEnabled = true;
+        SaveSettingsButton.IsEnabled = true;
         if (_updateManager.IsChecking)
         {
             UpdateStatusText.Text = "Verificando...";
@@ -204,6 +246,55 @@ public partial class ScreenConfigurationWindow : Window
                 ? "Pare a reprodução para instalar com segurança."
                 : "Baixar, validar e instalar a atualização";
         }
+    }
+
+    private void RefreshPreparationUi(UpdatePreparationProgress progress)
+    {
+        CheckUpdatesButton.IsEnabled = false;
+        CloseSettingsButton.IsEnabled = false;
+        SaveSettingsButton.IsEnabled = false;
+        InstallUpdateButton.Visibility = Visibility.Collapsed;
+        UpdateProgressPanel.Visibility = Visibility.Visible;
+        CancelDownloadButton.Visibility = progress.Stage == UpdatePreparationStage.Downloading
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        CancelDownloadButton.IsEnabled = true;
+
+        UpdateStatusText.Text = progress.Stage switch
+        {
+            UpdatePreparationStage.Downloading => "Baixando atualização...",
+            UpdatePreparationStage.VerifyingIntegrity => "Verificando integridade...",
+            UpdatePreparationStage.PreparingFiles => "Preparando arquivos...",
+            UpdatePreparationStage.StartingUpdater => "Iniciando atualizador...",
+            _ => "Preparando atualização..."
+        };
+
+        var downloading = progress.Stage == UpdatePreparationStage.Downloading;
+        UpdateProgressBar.IsIndeterminate = !downloading || progress.TotalBytes is null;
+        UpdateProgressBar.Value = downloading ? progress.Percentage ?? 0 : 0;
+        UpdateProgressText.Text = progress.Stage switch
+        {
+            UpdatePreparationStage.Downloading when progress.TotalBytes is { } total =>
+                $"{FormatBytes(progress.BytesReceived)} / {FormatBytes(total)}" +
+                (progress.Percentage is { } percentage ? $" — {percentage}%" : string.Empty),
+            UpdatePreparationStage.Downloading => $"{FormatBytes(progress.BytesReceived)} baixados",
+            _ => "Esta etapa não possui percentual estimado."
+        };
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB"];
+        var value = Math.Max(0, bytes);
+        var unit = 0;
+        var display = (double)value;
+        while (display >= 1024 && unit < units.Length - 1)
+        {
+            display /= 1024;
+            unit++;
+        }
+
+        return $"{display:0.0} {units[unit]}";
     }
 
     private static bool AudioPreferencesEqual(AudioOutputPreference left, AudioOutputPreference right) =>

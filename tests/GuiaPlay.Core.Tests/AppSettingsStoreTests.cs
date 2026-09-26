@@ -25,7 +25,7 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.Contains("public", loaded.SelectedOutputIds);
         Assert.Equal(42, loaded.Volume);
         Assert.True(loaded.Muted);
-        Assert.Equal(4, json["schemaVersion"]!.GetValue<int>());
+        Assert.Equal(5, json["schemaVersion"]!.GetValue<int>());
         Assert.True(loaded.CheckUpdatesAutomatically);
         Assert.False(loaded.InstallUpdatesAutomatically);
         Assert.Null(loaded.LastUpdateCheckUtc);
@@ -65,7 +65,11 @@ public sealed class AppSettingsStoreTests : IDisposable
             true,
             false,
             true,
-            new DateTimeOffset(2026, 9, 25, 12, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2026, 9, 25, 12, 0, 0, TimeSpan.Zero),
+            "0.6.0-prototipo",
+            "0.7.0-prototipo",
+            new DateTimeOffset(2026, 9, 26, 12, 0, 0, TimeSpan.Zero),
+            UpdateCheckStatus.UpdateAvailable);
         var store = new AppSettingsStore(SettingsPath);
         _ = store.Load();
 
@@ -83,6 +87,10 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.False(reloaded.CheckUpdatesAutomatically);
         Assert.True(reloaded.InstallUpdatesAutomatically);
         Assert.Equal(settings.LastUpdateCheckUtc, reloaded.LastUpdateCheckUtc);
+        Assert.Equal(settings.LastUpdateCheckProductVersion, reloaded.LastUpdateCheckProductVersion);
+        Assert.Equal(settings.LastKnownUpdateVersion, reloaded.LastKnownUpdateVersion);
+        Assert.Equal(settings.LastKnownUpdatePublishedAt, reloaded.LastKnownUpdatePublishedAt);
+        Assert.Equal(settings.LastKnownUpdateStatus, reloaded.LastKnownUpdateStatus);
         Assert.Equal(7, json["screens"]!["futureScreenKey"]!.GetValue<int>());
         Assert.Equal("ok", json["audio"]!["futureAudioKey"]!.GetValue<string>());
     }
@@ -128,6 +136,26 @@ public sealed class AppSettingsStoreTests : IDisposable
 
         Assert.False(result.Succeeded);
         Assert.False(string.IsNullOrWhiteSpace(result.Error));
+    }
+
+    [Fact]
+    public void PersistedUpdateResultSurvivesSimulatedRestart()
+    {
+        var now = new DateTimeOffset(2026, 9, 26, 12, 0, 0, TimeSpan.Zero);
+        var currentVersion = ProductVersion.Parse("0.6.0-prototipo");
+        var availableVersion = ProductVersion.Parse("0.7.0-prototipo");
+        var result = new UpdateCheckResult(
+            UpdateCheckStatus.UpdateAvailable,
+            new PublishedRelease(availableVersion, "v0.7.0-prototipo", now, null, true, []));
+        var store = new AppSettingsStore(SettingsPath);
+        _ = store.Load();
+        Assert.True(store.Save(PersistedUpdateCache.Record(AppSettings.Default, currentVersion, result, now)).Succeeded);
+
+        var reloaded = new AppSettingsStore(SettingsPath).Load().Settings;
+        var restored = PersistedUpdateCache.Restore(reloaded, currentVersion, now.AddMinutes(1));
+
+        Assert.Equal(UpdateCheckStatus.UpdateAvailable, restored?.Status);
+        Assert.Equal(availableVersion, restored?.Release?.Version);
     }
 
     public void Dispose()

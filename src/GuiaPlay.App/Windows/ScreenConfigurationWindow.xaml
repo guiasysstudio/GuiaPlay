@@ -111,6 +111,11 @@
                                            Style="{StaticResource SecondaryTextStyle}" Visibility="Collapsed" />
                                 <TextBlock x:Name="ReleaseNotesText" Margin="0,8,0,0" MaxHeight="90" TextWrapping="Wrap"
                                            TextTrimming="CharacterEllipsis" Style="{StaticResource SecondaryTextStyle}" Visibility="Collapsed" />
+                                <StackPanel x:Name="UpdateProgressPanel" Margin="0,12,0,0" Visibility="Collapsed">
+                                    <ProgressBar x:Name="UpdateProgressBar" Height="8" Minimum="0" Maximum="100" />
+                                    <TextBlock x:Name="UpdateProgressText" Margin="0,7,0,0"
+                                               Style="{StaticResource SecondaryTextStyle}" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
@@ -126,6 +131,9 @@
                                     Click="CheckUpdatesButton_OnClick" Style="{StaticResource StandardButtonStyle}" Margin="0,0,8,0" />
                             <Button x:Name="InstallUpdateButton" Content="Baixar e instalar"
                                     Click="InstallUpdateButton_OnClick" Style="{StaticResource PrimaryButtonStyle}" Visibility="Collapsed" />
+                            <Button x:Name="CancelDownloadButton" Content="Cancelar download"
+                                    Click="CancelDownloadButton_OnClick" Style="{StaticResource StandardButtonStyle}"
+                                    Margin="8,0,0,0" Visibility="Collapsed" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -141,9 +149,6 @@
                         <TextBlock x:Name="AboutVersionText" Margin="0,6,0,0" />
                         <TextBlock Text="GuiaSys Studio" Margin="0,6,0,0" />
                         <TextBlock x:Name="AboutReleaseDateText" Margin="0,6,0,18" />
-                        <TextBlock Text="Repositório" FontWeight="SemiBold" />
-                        <TextBlock Margin="0,5,0,12" Text="https://github.com/guiasysstudio/GuiaPlay"
-                                   TextWrapping="Wrap" Style="{StaticResource SecondaryTextStyle}" />
                         <Button Content="Abrir página do projeto" HorizontalAlignment="Left"
                                 Style="{StaticResource StandardButtonStyle}"
                                 Click="OpenProjectPageButton_OnClick" />
@@ -160,9 +165,9 @@
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="ValidationText" VerticalAlignment="Center" TextWrapping="Wrap"
                        Foreground="{DynamicResource SystemFillColorCautionBrush}" />
-            <Button Grid.Column="1" Content="Cancelar" Click="CancelButton_OnClick"
+            <Button x:Name="CloseSettingsButton" Grid.Column="1" Content="Cancelar" Click="CancelButton_OnClick"
                     Style="{StaticResource StandardButtonStyle}" Margin="12,0,8,0" />
-            <Button Grid.Column="2" Content="Salvar" Click="SaveButton_OnClick"
+            <Button x:Name="SaveSettingsButton" Grid.Column="2" Content="Salvar" Click="SaveButton_OnClick"
                     Style="{StaticResource PrimaryButtonStyle}" />
         </Grid>
     </Grid>
