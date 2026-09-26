@@ -33,8 +33,12 @@ try {
     if ($sync[0] -ne '0' -or $sync[1] -ne '0') { throw 'main local e origin/main não estão sincronizadas.' }
     if (git tag --list $tag) { throw "A tag local $tag já existe." }
     if (git ls-remote --exit-code --tags origin "refs/tags/$tag" 2>$null) { throw "A tag remota $tag já existe." }
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
     gh release view $tag *> $null
-    if ($LASTEXITCODE -eq 0) { throw "A Release $tag já existe." }
+    $releaseViewExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorAction
+    if ($releaseViewExitCode -eq 0) { throw "A Release $tag já existe." }
     if (-not (Test-Path -LiteralPath $notesPath)) { throw 'Arquivo de release notes ausente.' }
     foreach ($asset in $assets) {
         if (-not (Test-Path -LiteralPath $asset) -or (Get-Item -LiteralPath $asset).Length -eq 0) { throw "Asset ausente ou vazio: $asset" }
