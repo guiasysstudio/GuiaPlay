@@ -10,10 +10,63 @@
         WindowStartupLocation="CenterScreen"
         PreviewKeyDown="MainWindow_OnPreviewKeyDown">
     <Window.Resources>
+        <Style x:Key="CompactTransportButtonStyle" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="10,6" />
+        </Style>
+        <Style x:Key="CompactPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="12,6" />
+        </Style>
+        <Style x:Key="PlaylistCommandButtonStyle" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="Padding" Value="8,5" />
+        </Style>
+        <Style x:Key="OutputChipStyle" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource GuiaPlayControlSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GuiaPlayDividerBrush}" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="ChipSurface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="12" Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="CheckGlyph" Text="✓" Margin="0,0,5,0" FontWeight="SemiBold" Visibility="Collapsed" />
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ChipSurface" Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ChipSurface" Property="Background" Value="{DynamicResource GuiaPlaySelectionBrush}" />
+                                <Setter TargetName="ChipSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBorderBrush}" />
+                                <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible" />
+                                <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ChipSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
             <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="3" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
@@ -26,16 +79,28 @@
             </Style.Triggers>
         </Style>
         <HierarchicalDataTemplate DataType="{x:Type models:PlaylistGroupNode}" ItemsSource="{Binding Items}">
-            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="2,3" />
+            <Grid Margin="2,2">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <Border Grid.Column="1" Margin="10,0,2,0" Padding="7,2" CornerRadius="9"
+                        Background="{DynamicResource GuiaPlayAccentSubtleBrush}">
+                    <TextBlock Text="{Binding Items.Count}" FontSize="11" />
+                </Border>
+            </Grid>
         </HierarchicalDataTemplate>
         <DataTemplate DataType="{x:Type models:PlaylistItemNode}">
             <Grid Margin="0,4">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock x:Name="ItemName" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding AvailabilityLabel}"
+                <Grid.ColumnDefinitions><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <Path x:Name="ItemKindIcon" Data="{StaticResource VideoIconGeometry}" Width="14" Height="14"
+                      Stretch="Uniform" Fill="{DynamicResource GuiaPlayTextSecondaryBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="ItemName" Grid.Column="1" Margin="6,0,0,0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="2" Margin="10,0,0,0" Text="{Binding AvailabilityLabel}"
                            FontSize="11" Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
             </Grid>
             <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding KindLabel}" Value="Áudio">
+                    <Setter TargetName="ItemKindIcon" Property="Path.Data" Value="{StaticResource MusicIconGeometry}" />
+                </DataTrigger>
                 <DataTrigger Binding="{Binding IsAvailable}" Value="False">
                     <Setter TargetName="ItemName" Property="TextBlock.TextDecorations" Value="Strikethrough" />
                     <Setter TargetName="ItemName" Property="TextBlock.Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
@@ -44,19 +109,19 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid Margin="18">
+    <Grid Margin="16">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfaceElevatedBrush}"
-                Padding="14,10" Margin="0,0,0,12">
+                Padding="12,8" Margin="0,0,0,10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
-                       Width="128" Height="38" Stretch="Uniform" VerticalAlignment="Center" ToolTip="GuiaPlay" />
-                <Border Grid.Column="1" Width="1" Height="34" Margin="15,0"
+                       Width="118" Height="34" Stretch="Uniform" VerticalAlignment="Center" ToolTip="GuiaPlay" />
+                <Border Grid.Column="1" Width="1" Height="30" Margin="13,0"
                         Background="{DynamicResource GuiaPlayDividerBrush}" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
                     <TextBlock x:Name="FileNameText" Text="Nenhuma mídia carregada"
@@ -65,14 +130,14 @@
                                Text="{Binding Text, ElementName=StatusText}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="UpdateAvailableButton" Visibility="Collapsed" Width="44" Height="40" Padding="10"
-                            MinWidth="44" Margin="0,0,8,0" Background="{DynamicResource GuiaPlayAccentBrush}"
+                    <Button x:Name="UpdateAvailableButton" Visibility="Collapsed" Width="40" Height="36" Padding="9"
+                            MinWidth="40" Margin="0,0,7,0" Background="{DynamicResource GuiaPlayAccentBrush}"
                             Foreground="{DynamicResource GuiaPlayAccentForegroundBrush}"
                             BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}"
                             ToolTip="Atualização disponível" Click="UpdateAvailableButton_OnClick">
                         <Path Data="{StaticResource ArrowDownloadIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
                     </Button>
-                    <Button x:Name="ConfigureScreensButton" Width="44" Height="40" Padding="10" MinWidth="44"
+                    <Button x:Name="ConfigureScreensButton" Width="40" Height="36" Padding="9" MinWidth="40"
                             Style="{StaticResource StandardButtonStyle}" ToolTip="Configurações do programa"
                             Click="ConfigureScreensButton_OnClick">
                         <Path Data="{StaticResource SettingsIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
@@ -105,9 +170,17 @@
                     <Border Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True" MinHeight="180">
                         <Grid>
                             <Image x:Name="PreviewImage" Stretch="Uniform" />
-                            <TextBlock x:Name="PreviewPlaceholder" Text="Prévia de vídeo" Foreground="#FFB5BBC5"
-                                       FontSize="15" Margin="28" TextWrapping="Wrap" HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" TextAlignment="Center" />
+                            <StackPanel x:Name="PreviewEmptyState" Margin="28" HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" MaxWidth="330">
+                                <Path Data="{StaticResource VideoIconGeometry}" Width="34" Height="34" Stretch="Uniform"
+                                      Fill="#FF8F98A6" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                                <TextBlock x:Name="PreviewPlaceholder" Text="Nenhuma mídia carregada" Foreground="#FFE2E5EA"
+                                           FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"
+                                           HorizontalAlignment="Center" TextAlignment="Center" />
+                                <TextBlock x:Name="PreviewEmptyHint" Text="Abra uma mídia ou escolha um item da playlist" Foreground="#FF9FA7B3"
+                                           FontSize="12" Margin="0,5,0,0" TextWrapping="Wrap"
+                                           HorizontalAlignment="Center" TextAlignment="Center" />
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </Grid>
@@ -116,44 +189,56 @@
             <Border Grid.Column="2" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" /><RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <StackPanel>
-                        <TextBlock Text="Playlist" FontSize="18" FontWeight="SemiBold" />
-                        <TextBlock Text="Organize e execute mídias sem copiar os arquivos"
-                                   Style="{StaticResource SecondaryTextStyle}" Margin="0,3,0,0" />
-                    </StackPanel>
-                    <WrapPanel Grid.Row="1" Margin="0,10,0,7">
-                        <Button Click="NewGroupButton_OnClick" ToolTip="Criar grupo virtual"
-                                Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,6,6" Padding="12,7" MinWidth="90">
-                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource FolderAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Grupo" VerticalAlignment="Center" /></StackPanel>
-                        </Button>
-                        <Button Click="RenameGroupButton_OnClick" ToolTip="Renomear grupo selecionado"
-                                Style="{StaticResource StandardButtonStyle}" Margin="0,0,6,6" Padding="11,7" MinWidth="90">
-                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource EditIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Renomear" VerticalAlignment="Center" /></StackPanel>
-                        </Button>
-                        <Button Click="DeleteGroupButton_OnClick" ToolTip="Excluir grupo virtual"
-                                Style="{StaticResource StandardButtonStyle}" Margin="0,0,0,6" Padding="11,7" MinWidth="82">
-                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Excluir" VerticalAlignment="Center" /></StackPanel>
-                        </Button>
-                    </WrapPanel>
-                    <Border Grid.Row="2" CornerRadius="7" Padding="5" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                    <Grid Margin="0,0,0,9">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Playlist" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="Organize e execute mídias sem copiar os arquivos"
+                                       Style="{StaticResource SecondaryTextStyle}" Margin="0,3,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Click="NewGroupButton_OnClick" ToolTip="Criar grupo virtual"
+                                    AutomationProperties.Name="Criar grupo" Style="{StaticResource CompactPrimaryButtonStyle}" Margin="0,0,5,0">
+                                <StackPanel Orientation="Horizontal"><Path Data="{StaticResource FolderAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Grupo" VerticalAlignment="Center" /></StackPanel>
+                            </Button>
+                            <Button Click="RenameGroupButton_OnClick" ToolTip="Renomear grupo selecionado"
+                                    AutomationProperties.Name="Renomear grupo" Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,5,0">
+                                <Path Data="{StaticResource EditIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                            </Button>
+                            <Button Click="DeleteGroupButton_OnClick" ToolTip="Excluir grupo virtual"
+                                    AutomationProperties.Name="Excluir grupo" Style="{StaticResource PlaylistCommandButtonStyle}">
+                                <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                    <Border Grid.Row="1" CornerRadius="8" Padding="5" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
                             BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
-                        <TreeView x:Name="PlaylistTree" MouseDoubleClick="PlaylistTree_OnMouseDoubleClick" AllowDrop="True"
-                                  PreviewMouseLeftButtonDown="PlaylistTree_OnPreviewMouseLeftButtonDown"
-                                  PreviewMouseMove="PlaylistTree_OnPreviewMouseMove" PreviewDragOver="PlaylistTree_OnPreviewDragOver"
-                                  Drop="PlaylistTree_OnDrop" BorderThickness="0" Background="Transparent"
-                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                        <Grid>
+                            <TreeView x:Name="PlaylistTree" MouseDoubleClick="PlaylistTree_OnMouseDoubleClick" AllowDrop="True"
+                                      PreviewMouseLeftButtonDown="PlaylistTree_OnPreviewMouseLeftButtonDown"
+                                      PreviewMouseMove="PlaylistTree_OnPreviewMouseMove" PreviewDragOver="PlaylistTree_OnPreviewDragOver"
+                                      Drop="PlaylistTree_OnDrop" BorderThickness="0" Background="Transparent"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                            <StackPanel x:Name="PlaylistEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        MaxWidth="240" IsHitTestVisible="False">
+                                <Path Data="{StaticResource FolderAddIconGeometry}" Width="30" Height="30" Stretch="Uniform"
+                                      Fill="{DynamicResource GuiaPlayTextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,9" />
+                                <TextBlock Text="Playlist vazia" FontWeight="SemiBold" TextAlignment="Center" />
+                                <TextBlock Text="Crie um grupo e adicione mídias do computador ou do Explorer"
+                                           Style="{StaticResource SecondaryTextStyle}" TextAlignment="Center" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
-                    <Grid Grid.Row="3" Margin="0,9,0,0">
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <Button Click="AddPlaylistItemButton_OnClick" ToolTip="Adicionar referências de mídia ao grupo"
-                                Style="{StaticResource StandardButtonStyle}" HorizontalAlignment="Left" Padding="11,7">
+                                Style="{StaticResource CompactTransportButtonStyle}" HorizontalAlignment="Left">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DocumentAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Adicionar mídia…" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                         <Button Grid.Column="1" Click="RemovePlaylistItemButton_OnClick" ToolTip="Remover referência sem apagar o arquivo"
-                                Style="{StaticResource StandardButtonStyle}" Padding="11,7">
+                                Style="{StaticResource CompactTransportButtonStyle}">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Remover" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </Grid>
@@ -161,68 +246,68 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="2" Margin="0,12,0,0" Style="{StaticResource CardStyle}"
-                Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="14,12">
+        <Border x:Name="OperationalControlPanel" Grid.Row="2" Margin="0,10,0,0" Style="{StaticResource CardStyle}"
+                Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="10,8">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="52" /><ColumnDefinition Width="*" /><ColumnDefinition Width="112" /></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="48" /><ColumnDefinition Width="*" /><ColumnDefinition Width="104" /></Grid.ColumnDefinitions>
                     <TextBlock x:Name="ElapsedText" Text="00:00" VerticalAlignment="Center" />
-                    <Slider x:Name="ProgressSlider" Grid.Column="1" Margin="9,0" Minimum="0" Maximum="1" Value="0"
+                    <Slider x:Name="ProgressSlider" Grid.Column="1" Margin="7,0" Minimum="0" Maximum="1" Value="0"
                             Foreground="{DynamicResource GuiaPlayAccentBrush}"
                             ToolTip="Posição da mídia" PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
                             PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted" PreviewMouseWheel="ProgressSlider_OnMouseWheel" />
                     <TextBlock x:Name="RemainingText" Grid.Column="2" Text="-00:00 / 00:00" VerticalAlignment="Center"
                                TextAlignment="Right" />
                 </Grid>
-                <Grid Grid.Row="1" Margin="0,9,0,0">
+                <Grid Grid.Row="1" Margin="0,6,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <WrapPanel VerticalAlignment="Center">
-                        <Button x:Name="OpenButton" Content="Abrir mídia…" Click="OpenButton_OnClick" Style="{StaticResource StandardButtonStyle}" Margin="0,0,7,0" />
-                        <Button x:Name="PlayButton" Click="PlayButton_OnClick" IsEnabled="False" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,7,0" ToolTip="Reproduzir mídia">
+                        <Button x:Name="OpenButton" Content="Abrir mídia…" Click="OpenButton_OnClick" Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,6,0" />
+                        <Button x:Name="PlayButton" Click="PlayButton_OnClick" IsEnabled="False" Style="{StaticResource CompactPrimaryButtonStyle}" Margin="0,0,6,0" ToolTip="Reproduzir mídia">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource PlayIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock x:Name="PlayButtonText" Text="Reproduzir" VerticalAlignment="Center" /></StackPanel>
                         </Button>
-                        <Button x:Name="PauseButton" Click="PauseButton_OnClick" IsEnabled="False" Style="{StaticResource StandardButtonStyle}" Margin="0,0,7,0" ToolTip="Pausar reprodução">
+                        <Button x:Name="PauseButton" Click="PauseButton_OnClick" IsEnabled="False" Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,6,0" ToolTip="Pausar reprodução">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource PauseIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Pausar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
-                        <Button x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False" Style="{StaticResource StandardButtonStyle}" ToolTip="Parar reprodução">
+                        <Button x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False" Style="{StaticResource CompactTransportButtonStyle}" ToolTip="Parar reprodução">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource StopIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Parar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </WrapPanel>
-                    <Border Grid.Column="1" Margin="12,0" Padding="10,7" CornerRadius="6"
+                    <Border Grid.Column="1" Margin="10,0" Padding="9,5" CornerRadius="12"
                             Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
                             BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
                         <TextBlock x:Name="StatusText" Text="Pronto" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button x:Name="MuteButton" Click="MuteButton_OnClick" Style="{StaticResource StandardButtonStyle}" MinWidth="92" ToolTip="Ativar ou desativar o som">
+                        <Button x:Name="MuteButton" Click="MuteButton_OnClick" Style="{StaticResource CompactTransportButtonStyle}" MinWidth="78" ToolTip="Ativar ou desativar o som">
                             <StackPanel Orientation="Horizontal">
                                 <Path x:Name="SpeakerIcon" Data="{StaticResource SpeakerIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
                                 <Path x:Name="SpeakerMuteIcon" Data="{StaticResource SpeakerMuteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Visibility="Collapsed" />
                                 <TextBlock x:Name="MuteButtonText" Text="Mudo" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Slider x:Name="VolumeSlider" Width="110" Minimum="0" Maximum="100" Value="100" Margin="9,0"
+                        <Slider x:Name="VolumeSlider" Width="100" Minimum="0" Maximum="100" Value="100" Margin="7,0"
                                 Foreground="{DynamicResource GuiaPlayAccentBrush}"
                                 ToolTip="Volume do GuiaPlay" ValueChanged="VolumeSlider_OnValueChanged" PreviewMouseWheel="VolumeSlider_OnMouseWheel" />
                         <TextBlock x:Name="VolumeText" Text="100%" Width="42" VerticalAlignment="Center" TextAlignment="Right" />
                     </StackPanel>
                 </Grid>
-                <Grid Grid.Row="2" Margin="0,9,0,0">
+                <Grid Grid.Row="2" Margin="0,6,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="Operador" VerticalAlignment="Center" FontWeight="SemiBold" />
-                    <Border x:Name="OperatorIndicatorBorder" Grid.Column="1" Margin="8,0,14,0" Padding="10,6" MinWidth="140" MaxWidth="240"
-                            CornerRadius="6" Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
+                    <TextBlock Text="Operador" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" />
+                    <Border x:Name="OperatorIndicatorBorder" Grid.Column="1" Margin="7,0,12,0" Padding="8,4" MinWidth="120" MaxWidth="220"
+                            CornerRadius="12" Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
                             BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}" BorderThickness="1">
                         <TextBlock x:Name="OperatorIndicatorText" Text="Nenhuma tela" TextTrimming="CharacterEllipsis" />
                     </Border>
                     <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                         <ItemsControl x:Name="OutputsList" VerticalAlignment="Center">
                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate><DataTemplate><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,12,0" Content="{Binding ShortLabel}" ToolTip="{Binding Label}" VerticalAlignment="Center" /></DataTemplate></ItemsControl.ItemTemplate>
+                            <ItemsControl.ItemTemplate><DataTemplate><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Content="{Binding ShortLabel}" ToolTip="{Binding Label}" Style="{StaticResource OutputChipStyle}" VerticalAlignment="Center" /></DataTemplate></ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <Button x:Name="IdentifyButton" Grid.Column="3" Content="Identificar telas" Style="{StaticResource StandardButtonStyle}" Click="IdentifyButton_OnClick" />
+                    <Button x:Name="IdentifyButton" Grid.Column="3" Content="Identificar telas" Style="{StaticResource CompactTransportButtonStyle}" Click="IdentifyButton_OnClick" />
                 </Grid>
                 <TextBlock x:Name="OperatorStatusText" Visibility="Collapsed" />
                 <TextBlock x:Name="MonitorWarning" Visibility="Collapsed" />

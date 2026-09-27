@@ -265,3 +265,29 @@
 7. Conferir no log as mensagens de agendamento, automático habilitado, consulta iniciada/concluída e `UpdateAvailable 0.10.1-prototipo`.
 8. Baixar/aplicar o update e confirmar preservação de aparência/accent, equalizador, playlist e integração Explorer.
 9. Reiniciar em 0.10.1 e confirmar `Current: 0.10.1-prototipo`, `Available: 0.10.1-prototipo`, `Status: UpToDate`.
+
+## M10.2 — sidebar, operação compacta e playlist
+
+1. Em 1366 × 768 e DPI 100%, abrir Configurações e selecionar **Aparência**.
+2. Sem clicar, mover o mouse sucessivamente sobre **Áudio**, **Atualizações**, **Windows**, **Diagnóstico** e **Sobre**. Confirmar que nenhum pixel de hover atravessa a borda ou o gap à direita da sidebar.
+3. Repetir usando Tab, Shift+Tab, setas, Espaço e Enter. Confirmar foco visível, contido e página selecionada correta.
+4. Repetir os passos 1–3 em DPI 125% e 150%, nos temas Claro, Escuro, Sistema e Alto Contraste.
+5. Na janela principal em 1366 × 768, comparar a área central com a 0.10.1: Prévia e Playlist devem estar aproximadamente 26–30 DIPs mais altas, sem aumentar a janela.
+6. Conferir Abrir, Reproduzir, Pausar, Parar, status, Mudo, slider de volume, percentual, operador, saídas e Identificar telas sem cortes ou sobreposição.
+7. Confirmar que botões de transporte têm alvo confortável, timeline/volume respondem a mouse e teclado, e rolagem M07 permanece em passos corretos.
+8. Criar grupos vazios e com mídias; conferir contador, expansão, ícones de áudio/vídeo, seleção, hover e sinalização crítica de arquivo ausente.
+9. Com playlist totalmente vazia, conferir o estado orientativo. Sem mídia carregada, conferir o estado vazio da Prévia e que sua área continua preta.
+10. Em 1920 × 1080, maximizar e confirmar que cards aproveitam o espaço sem controles gigantes ou espaçamento excessivo.
+11. Revalidar uma reprodução de vídeo em uma e duas saídas e áudio sem saída visual. Confirmar que o redesign não alterou comportamento operacional.
+
+## M10.2 — atualização automática física 0.10.1 → 0.10.2
+
+1. Manter `0.10.1-prototipo` instalado com **Verificar atualizações automaticamente** habilitado.
+2. Não abrir Configurações e não clicar em **Procurar atualizações**.
+3. Fechar todas as instâncias e abrir normalmente o GuiaPlay 0.10.1.
+4. Aguardar a consulta real iniciada aproximadamente 1,5 segundo após o carregamento.
+5. Confirmar que a seta de download aparece automaticamente ao lado de Configurações.
+6. Clicar na seta somente depois que ela aparecer e confirmar `Current: 0.10.1-prototipo`, `Available: 0.10.2-prototipo`, `Status: UpdateAvailable`.
+7. Conferir no log: agendamento, automático habilitado, consulta iniciada/concluída e `UpdateAvailable 0.10.2-prototipo`.
+8. Baixar/aplicar e confirmar preservação de paleta, equalizador, playlist e integração Explorer.
+9. Reiniciar em 0.10.2 e confirmar `Current: 0.10.2-prototipo`, `Available: 0.10.2-prototipo`, `Status: UpToDate`.

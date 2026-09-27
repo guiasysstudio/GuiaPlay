@@ -235,7 +235,10 @@ public partial class MainWindow : Window
             _bitmap = null;
             PreviewImage.Source = null;
             PreviewPlaceholder.Text = kind == MediaKind.Audio ? "Áudio carregado" : "Prévia de vídeo";
-            PreviewPlaceholder.Visibility = Visibility.Visible;
+            PreviewEmptyHint.Text = kind == MediaKind.Audio
+                ? "A reprodução de áudio não exibe imagem na prévia"
+                : "Aguardando o primeiro quadro da mídia";
+            PreviewEmptyState.Visibility = Visibility.Visible;
             FileNameText.Text = Path.GetFileName(path);
             FileNameText.ToolTip = Path.GetFileName(path);
             ProgressSlider.Value = 0;
@@ -534,6 +537,8 @@ public partial class MainWindow : Window
         {
             _playlistGroups.Add(new PlaylistGroupNode(group));
         }
+
+        PlaylistEmptyState.Visibility = _playlistGroups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         _ = RefreshLocalPlaylistAvailabilityAsync(_playlistAvailabilityCancellation.Token);
     }
@@ -1113,7 +1118,7 @@ public partial class MainWindow : Window
                     window.SetSource(_bitmap);
                 }
 
-                PreviewPlaceholder.Visibility = Visibility.Collapsed;
+                PreviewEmptyState.Visibility = Visibility.Collapsed;
             }
 
             var copyStart = Stopwatch.GetTimestamp();

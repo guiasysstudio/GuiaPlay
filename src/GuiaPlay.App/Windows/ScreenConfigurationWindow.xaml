@@ -7,6 +7,69 @@
         Background="{DynamicResource GuiaPlayWindowBackgroundBrush}"
         Foreground="{DynamicResource GuiaPlayTextPrimaryBrush}"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Window.Resources>
+        <Style x:Key="SettingsNavigationButtonStyle" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="NavigationSurface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="SelectionIndicator" Width="3" CornerRadius="2"
+                                        Background="Transparent" />
+                                <ContentPresenter Grid.Column="2" VerticalAlignment="Center"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavigationSurface" Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="NavigationSurface" Property="Background" Value="{DynamicResource GuiaPlaySelectionBrush}" />
+                                <Setter TargetName="SelectionIndicator" Property="Background" Value="{DynamicResource GuiaPlayAccentBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="NavigationSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBorderBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="NavigationSurface" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SettingsNavigationIconStyle" TargetType="Path">
+            <Setter Property="Width" Value="17" />
+            <Setter Property="Height" Value="17" />
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="SettingsPageTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </Window.Resources>
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -23,51 +86,84 @@
                    Width="116" Height="38" Margin="0,0,16,0" Stretch="Uniform"
                    HorizontalAlignment="Left" VerticalAlignment="Center" />
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock Text="Configurações" FontSize="24" FontWeight="SemiBold" />
+                <TextBlock Text="Configurações" FontSize="22" FontWeight="SemiBold" />
                 <TextBlock Margin="0,4,0,0" Style="{StaticResource SecondaryTextStyle}"
                            Text="Preferências permanentes; ações explícitas de integração são aplicadas imediatamente." />
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="1">
-            <Border Width="180" HorizontalAlignment="Left" Background="{DynamicResource GuiaPlaySidebarBrush}"
-                    BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1" CornerRadius="9" />
-            <Border Margin="180,0,0,0" Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}"
-                    BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1" CornerRadius="9" />
-            <TabControl x:Name="SettingsTabs" TabStripPlacement="Left"
-                        Background="Transparent" BorderThickness="0">
-            <TabControl.Resources>
-                <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
-                    <Setter Property="MinWidth" Value="168" />
-                    <Setter Property="MinHeight" Value="44" />
-                    <Setter Property="Padding" Value="14,10" />
-                    <Setter Property="HorizontalContentAlignment" Value="Left" />
-                    <Setter Property="Margin" Value="0,0,12,4" />
-                    <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
-                    <Setter Property="Background" Value="Transparent" />
-                    <Style.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
-                            <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
-                        </Trigger>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="{DynamicResource GuiaPlaySelectionBrush}" />
-                            <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </TabControl.Resources>
+        <Grid Grid.Row="1" x:Name="SettingsWorkspace">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="192" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border x:Name="SettingsSidebar" Grid.Column="0" Background="{DynamicResource GuiaPlaySidebarBrush}"
+                    BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1" CornerRadius="10"
+                    Padding="8" ClipToBounds="True">
+                <StackPanel>
+                    <RadioButton x:Name="ScreensNavigationButton" GroupName="SettingsNavigation" Content="Telas"
+                                 AutomationProperties.Name="Telas" Style="{StaticResource SettingsNavigationButtonStyle}"
+                                 Click="SettingsNavigationButton_OnClick">
+                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource DisplayIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
+                    </RadioButton>
+                    <RadioButton x:Name="AppearanceNavigationButton" GroupName="SettingsNavigation" Content="Aparência"
+                                 AutomationProperties.Name="Aparência" Style="{StaticResource SettingsNavigationButtonStyle}"
+                                 Click="SettingsNavigationButton_OnClick">
+                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource ColorIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
+                    </RadioButton>
+                    <RadioButton x:Name="AudioNavigationButton" GroupName="SettingsNavigation" Content="Áudio"
+                                 AutomationProperties.Name="Áudio" Style="{StaticResource SettingsNavigationButtonStyle}"
+                                 Click="SettingsNavigationButton_OnClick">
+                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource MusicIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
+                    </RadioButton>
+                    <RadioButton x:Name="UpdatesNavigationButton" GroupName="SettingsNavigation" Content="Atualizações"
+                                 AutomationProperties.Name="Atualizações" Style="{StaticResource SettingsNavigationButtonStyle}"
+                                 Click="SettingsNavigationButton_OnClick">
+                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource UpdateIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
+                    </RadioButton>
+                    <RadioButton x:Name="WindowsNavigationButton" GroupName="SettingsNavigation" Content="Windows"
+                                 AutomationProperties.Name="Windows" Style="{StaticResource SettingsNavigationButtonStyle}"
+                                 Click="SettingsNavigationButton_OnClick">
+                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource WindowIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
+                    </RadioButton>
+                    <RadioButton x:Name="DiagnosticsNavigationButton" GroupName="SettingsNavigation" Content="Diagnóstico"
+                                 AutomationProperties.Name="Diagnóstico" Style="{StaticResource SettingsNavigationButtonStyle}"
+                                 Click="SettingsNavigationButton_OnClick">
+                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource PulseIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
+                    </RadioButton>
+                    <RadioButton x:Name="AboutNavigationButton" GroupName="SettingsNavigation" Content="Sobre"
+                                 AutomationProperties.Name="Sobre" Style="{StaticResource SettingsNavigationButtonStyle}"
+                                 Click="SettingsNavigationButton_OnClick">
+                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource InfoIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
+                    </RadioButton>
+                </StackPanel>
+            </Border>
+            <Border x:Name="SettingsContentSurface" Grid.Column="2" Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}"
+                    BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1" CornerRadius="10"
+                    ClipToBounds="True">
+            <TabControl x:Name="SettingsTabs" Background="Transparent" BorderThickness="0"
+                        SelectionChanged="SettingsTabs_OnSelectionChanged">
+                <TabControl.Template>
+                    <ControlTemplate TargetType="TabControl">
+                        <ContentPresenter Content="{TemplateBinding SelectedContent}"
+                                          ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                          ContentStringFormat="{TemplateBinding SelectedContentStringFormat}" />
+                    </ControlTemplate>
+                </TabControl.Template>
             <TabItem x:Name="ScreensTab" Header="Telas">
                 <Grid Margin="14">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,12"
+                    <TextBlock Text="Telas" Style="{StaticResource SettingsPageTitleStyle}" />
+                    <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="0,6,0,12"
                                Style="{StaticResource SecondaryTextStyle}"
                                Text="Escolha uma única tela para o operador e dê nomes curtos às telas. O operador nunca será uma saída pública." />
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="ScreensList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -94,7 +190,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <TextBlock x:Name="DisconnectedText" Grid.Row="2" Margin="2,12,2,2" TextWrapping="Wrap"
+                    <TextBlock x:Name="DisconnectedText" Grid.Row="3" Margin="2,12,2,2" TextWrapping="Wrap"
                                Style="{StaticResource SecondaryTextStyle}" />
                 </Grid>
             </TabItem>
@@ -102,7 +198,7 @@
             <TabItem x:Name="AppearanceTab" Header="Aparência">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20" MaxWidth="650" HorizontalAlignment="Left">
-                        <TextBlock Text="Aparência" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Aparência" Style="{StaticResource SettingsPageTitleStyle}" />
                         <TextBlock Margin="0,6,0,18" Style="{StaticResource SecondaryTextStyle}"
                                    Text="Escolha o modo base e uma cor de destaque profissional. Alto contraste do Windows sempre tem prioridade." />
 
@@ -174,7 +270,7 @@
             <TabItem x:Name="AudioTab" Header="Áudio">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20" MaxWidth="680" HorizontalAlignment="Left">
-                        <TextBlock Text="Áudio" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock Text="Áudio" Style="{StaticResource SettingsPageTitleStyle}" />
                         <TextBlock Margin="0,6,0,18" Style="{StaticResource SecondaryTextStyle}"
                                    Text="Saída e equalização nativa do LibVLC. O volume operacional permanece na tela principal." />
 
@@ -249,7 +345,7 @@
             <TabItem x:Name="UpdatesTab" Header="Atualizações">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="18" MaxWidth="620" HorizontalAlignment="Left">
-                        <TextBlock Text="Atualizações do GuiaPlay" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="Atualizações do GuiaPlay" Style="{StaticResource SettingsPageTitleStyle}" />
                         <Grid Margin="0,16,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="180" />
@@ -305,7 +401,7 @@
             <TabItem x:Name="WindowsIntegrationTab" Header="Integração com Windows">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="18" MaxWidth="620" HorizontalAlignment="Left">
-                        <TextBlock Text="Integração com Windows e Explorer" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="Integração com Windows e Explorer" Style="{StaticResource SettingsPageTitleStyle}" />
                         <TextBlock Margin="0,7,0,16" TextWrapping="Wrap"
                                    Style="{StaticResource SecondaryTextStyle}"
                                    Text="O GuiaPlay pode se registrar como opção compatível sem assumir formatos nem alterar o player padrão." />
@@ -354,7 +450,7 @@
             <TabItem x:Name="DiagnosticsTab" Header="Diagnóstico">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="18" MaxWidth="620" HorizontalAlignment="Left">
-                        <TextBlock Text="Diagnóstico da sessão" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Text="Diagnóstico da sessão" Style="{StaticResource SettingsPageTitleStyle}" />
                         <TextBlock Margin="0,7,0,14" TextWrapping="Wrap"
                                    Style="{StaticResource SecondaryTextStyle}"
                                    Text="Snapshot leve para suporte e testes. Atualizado a cada dois segundos; não inclui caminhos completos, conteúdo de mídia, tokens ou métrica estimada de GPU." />
@@ -389,6 +485,7 @@
                 </ScrollViewer>
             </TabItem>
             </TabControl>
+            </Border>
         </Grid>
 
         <Grid Grid.Row="2" Margin="0,16,0,0">

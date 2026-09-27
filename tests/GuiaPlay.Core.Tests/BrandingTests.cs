@@ -144,7 +144,8 @@ public sealed class BrandingTests
     {
         var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
 
-        Assert.Contains("TabStripPlacement=\"Left\"", settings, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SettingsSidebar\"", settings, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SettingsContentSurface\"", settings, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"AppearanceTab\" Header=\"Aparência\"", settings, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"AudioTab\" Header=\"Áudio\"", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("Aparência e áudio", settings, StringComparison.Ordinal);
@@ -226,6 +227,46 @@ public sealed class BrandingTests
         Assert.Contains("SystemColors.HighlightTextBrush", appCode, StringComparison.Ordinal);
         Assert.Contains("SystemColors.WindowTextBrush", appCode, StringComparison.Ordinal);
         Assert.Contains("SystemColors.GrayTextBrush", appCode, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M102SettingsUseARealClippedSidebarAndHiddenTabHeaders()
+    {
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+        var settingsCode = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
+
+        Assert.Contains("x:Name=\"SettingsWorkspace\"", settings, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"192\" />", settings, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"12\" />", settings, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SettingsSidebar\" Grid.Column=\"0\"", settings, StringComparison.Ordinal);
+        Assert.Contains("Padding=\"8\" ClipToBounds=\"True\"", settings, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SettingsContentSurface\" Grid.Column=\"2\"", settings, StringComparison.Ordinal);
+        Assert.Contains("<TabControl.Template>", settings, StringComparison.Ordinal);
+        Assert.Contains("Content=\"{TemplateBinding SelectedContent}\"", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("TabStripPlacement=", settings, StringComparison.Ordinal);
+        Assert.Contains("SelectionIndicator", settings, StringComparison.Ordinal);
+        Assert.Contains("IsKeyboardFocused", settings, StringComparison.Ordinal);
+        Assert.Equal(7, settings.Split("GroupName=\"SettingsNavigation\"", StringSplitOptions.None).Length - 1);
+        Assert.Contains("SynchronizeNavigationSelection", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("ScreensNavigationButton.IsEnabled = !playbackActive", settingsCode, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M102CompactsOperationsAndGivesPlaylistMoreUsefulSpace()
+    {
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+
+        Assert.Contains("x:Name=\"OperationalControlPanel\"", main, StringComparison.Ordinal);
+        Assert.Contains("Background=\"{DynamicResource GuiaPlaySurfaceSecondaryBrush}\" Padding=\"10,8\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"CompactTransportButtonStyle\"", main, StringComparison.Ordinal);
+        Assert.Contains("<Setter Property=\"MinHeight\" Value=\"34\" />", main, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"OutputChipStyle\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PlaylistEmptyState\"", main, StringComparison.Ordinal);
+        Assert.Contains("Text=\"{Binding Items.Count}\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PreviewEmptyState\"", main, StringComparison.Ordinal);
+        Assert.Contains("Background=\"Black\"", main, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlaySurfacePrimaryBrush", main, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlaySelectionBrush", main, StringComparison.Ordinal);
     }
 
     private static string PathInRepository(string relativePath) =>

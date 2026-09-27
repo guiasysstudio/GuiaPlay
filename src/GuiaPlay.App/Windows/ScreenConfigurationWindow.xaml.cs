@@ -126,6 +126,8 @@ public partial class ScreenConfigurationWindow : Window
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
         SettingsTabs.SelectedItem = openUpdates ? UpdatesTab : playbackActive || monitors.Count == 0 ? DiagnosticsTab : ScreensTab;
         ScreensTab.IsEnabled = !playbackActive;
+        ScreensNavigationButton.IsEnabled = !playbackActive;
+        SynchronizeNavigationSelection();
         _updateManager.StateChanged += UpdateManager_OnStateChanged;
         _diagnosticTimer = new DispatcherTimer(
             TimeSpan.FromSeconds(2),
@@ -145,6 +147,40 @@ public partial class ScreenConfigurationWindow : Window
     }
 
     internal ScreenConfigurationResult? Result { get; private set; }
+
+    private void SettingsNavigationButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        SettingsTabs.SelectedItem = sender switch
+        {
+            _ when ReferenceEquals(sender, ScreensNavigationButton) => ScreensTab,
+            _ when ReferenceEquals(sender, AppearanceNavigationButton) => AppearanceTab,
+            _ when ReferenceEquals(sender, AudioNavigationButton) => AudioTab,
+            _ when ReferenceEquals(sender, UpdatesNavigationButton) => UpdatesTab,
+            _ when ReferenceEquals(sender, WindowsNavigationButton) => WindowsIntegrationTab,
+            _ when ReferenceEquals(sender, DiagnosticsNavigationButton) => DiagnosticsTab,
+            _ when ReferenceEquals(sender, AboutNavigationButton) => AboutTab,
+            _ => SettingsTabs.SelectedItem
+        };
+    }
+
+    private void SettingsTabs_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        SynchronizeNavigationSelection();
+
+    private void SynchronizeNavigationSelection()
+    {
+        if (ScreensNavigationButton is null)
+        {
+            return;
+        }
+
+        ScreensNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, ScreensTab);
+        AppearanceNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, AppearanceTab);
+        AudioNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, AudioTab);
+        UpdatesNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, UpdatesTab);
+        WindowsNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, WindowsIntegrationTab);
+        DiagnosticsNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, DiagnosticsTab);
+        AboutNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, AboutTab);
+    }
 
     private void SaveButton_OnClick(object sender, RoutedEventArgs e)
     {

@@ -81,6 +81,14 @@ Protótipo funcional multitelas, prévia/controles, motor compartilhado por call
 - Concluído: alto contraste continua resolvendo todas as superfícies para `SystemColors`; Sistema recalcula tema e paleta quando a preferência do Windows muda.
 - Preservados sem mudança de schema: equalizador M10, integração Windows M08 e consulta real de update em cada novo processo.
 
+## M10.2 — 0.10.2-prototipo
+
+- Concluído: sidebar verdadeira em coluna própria, separada do conteúdo por gap real, com clipping, foco interno, ícones Fluent e indicador vertical de accent.
+- Concluído: headers nativos do `TabControl` não são renderizados; sete botões acessíveis controlam somente o conteúdo selecionado.
+- Concluído: barra operacional aproximadamente 20–22% mais baixa, mantendo botões com 34 DIPs, timeline utilizável e chips distintos para operador e saídas públicas.
+- Concluído: toolbar da playlist integrada ao cabeçalho, grupos com contador, itens com ícone de tipo e estados vazios de Prévia/Playlist mais informativos.
+- Preservados sem mudança funcional ou de schema: playback, equalizador, integração Windows, instância única e consulta real de update após o startup.
+
 ## Próximo marco — não iniciado
 
 - **1.0.0-rc1 — estabilização final.**
