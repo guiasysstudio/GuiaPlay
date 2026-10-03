@@ -1,10 +1,10 @@
 # GuiaPlay
 
-Protótipo funcional M10 com Interface 2.0, aparência avançada, equalizador nativo do LibVLC, operação prolongada de vídeos/áudios locais, cronograma em grupos virtuais, atualizações verificadas e integração opcional ao Windows Explorer.
+Protótipo funcional M10.3 com Interface 2.0, presets de playlist, aparência avançada, equalizador nativo do LibVLC, operação endurecida de vídeos/áudios locais, atualizações por arquitetura e integração opcional ao Windows Explorer.
 
-Versão: **0.10.2-prototipo**
+Versão: **0.10.3-prototipo**
 
-Plataforma: **Windows x64**
+Plataforma: **Windows x64 e x86**
 
 Interface: **C# + WPF, .NET 10**
 
@@ -14,15 +14,18 @@ O pacote `VideoLAN.LibVLC.Windows` leva o motor e os codecs junto com a aplicaç
 
 ## Pré-requisitos
 
-- Windows 10 ou 11 x64;
+- Windows 10 Enterprise LTSC 2019 (versão 1809, build 17763) ou posterior que permaneça na matriz do .NET 10, ou Windows 11 em versão/edição suportada pelo .NET 10;
+- arquitetura x64 ou x86 correspondente ao pacote. No Windows 11 x64, a edição x86 depende de WOW64/emulação e continua sujeita ao gate físico;
 - .NET SDK 10.0.300 ou patch compatível da linha 10.0 para compilar;
-- para executar uma compilação dependente de framework, .NET Desktop Runtime 10 x64;
+- para executar uma compilação dependente de framework, .NET Desktop Runtime 10 da mesma arquitetura;
 - monitores configurados no Windows em **Estender estes monitores** para o teste multitelas.
 - Inno Setup 6 (`JRSoftware.InnoSetup`) para gerar o instalador.
 
+Windows 10 Home/Pro 22H2, Windows 7, 8 e 8.1 não fazem parte da matriz oficial atual. Consulte [Compatibilidade Windows](docs/COMPATIBILIDADE-WINDOWS.md) antes de declarar suporte a uma máquina alvo.
+
 ## Compilar e executar
 
-Execute na pasta que contém este README (`E:\Projetos\GuiaSys\GuiaPlay\GuiaPlay`):
+Execute na raiz do repositório, a pasta que contém este README:
 
 ```powershell
 dotnet restore .\GuiaPlay.slnx
@@ -38,13 +41,13 @@ dotnet build .\GuiaPlay.slnx -c Release
 dotnet test .\GuiaPlay.slnx -c Release --no-build
 ```
 
-Para montar o publish self-contained win-x64, ZIP, manifesto, checksums e Setup:
+Para montar os publishes self-contained win-x64/win-x86, ZIPs, manifesto multi-arquitetura, checksums e Setups:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-release.ps1
 ```
 
-O executável Debug fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\GuiaPlay.exe`.
+O executável Debug padrão fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\GuiaPlay.exe`. O script de release publica cada RID em diretório próprio e valida que apenas o LibVLC nativo correspondente seja incluído.
 
 ## Uso rápido
 
@@ -53,12 +56,13 @@ O executável Debug fica em `src\GuiaPlay.App\bin\Debug\net10.0-windows\win-x64\
 3. Marque uma ou mais saídas públicas. O monitor do operador não pode ser marcado e uma tela reconectada exige nova marcação na sessão.
 4. Crie grupos virtuais na **Playlist**, selecione um grupo e adicione referências de mídia. Os arquivos originais não são copiados nem movidos.
    Também é possível arrastar vários arquivos do Explorer para um grupo ou para a área da playlist.
-5. Use **Abrir mídia…** ou dê duplo clique em um item da playlist. Arquivos ausentes continuam listados e aparecem como não encontrados.
-6. Vídeo exige ao menos uma saída marcada; então **Reproduzir** inicia imediatamente, sem confirmação intermediária. Áudio pode tocar sem saída marcada e nunca abre nem altera janelas de vídeo.
-7. Controle pausa/continuação, busca, volume, mudo e parada no painel. A roda do mouse ajusta volume em passos de 5 pontos e avança/retrocede a timeline em 5 segundos; um clique direto na barra faz seek proporcional.
-8. Em **Configurações > Integração com Windows**, escolha separadamente se o GuiaPlay deve aparecer em **Abrir com** e se o Explorer deve mostrar **Abrir com GuiaPlay**. Nenhuma opção o torna player padrão automaticamente.
-9. Em **Configurações > Diagnóstico**, acompanhe uptime, CPU aproximada, memória, estado, saídas e frames. **Copiar diagnóstico** gera um resumo sem caminho completo da mídia, tokens ou dados pessoais.
-10. Em **Aparência**, escolha Sistema, Claro ou Escuro e uma das seis cores de destaque. Em **Áudio**, o equalizador nativo é opcional e começa desativado; presets, preamp e bandas vêm do LibVLC em execução.
+5. Use os botões de preset para **Salvar**, **Carregar**, sobrescrever ou excluir estruturas reutilizáveis. Os presets guardam somente grupos, itens e referências; nunca copiam nem apagam as mídias originais.
+6. Use **Abrir mídia…** ou dê duplo clique em um item da playlist. Arquivos ausentes continuam listados e aparecem como não encontrados.
+7. Vídeo exige ao menos uma saída marcada; então **Reproduzir** inicia imediatamente, sem confirmação intermediária. Áudio pode tocar sem saída marcada e nunca abre nem altera janelas de vídeo.
+8. Controle pausa/continuação, busca, volume, mudo e parada no painel. A roda do mouse ajusta volume em passos de 5 pontos e avança/retrocede a timeline em 5 segundos; um clique direto na barra faz seek proporcional.
+9. Em **Configurações > Integração com Windows**, escolha separadamente se o GuiaPlay deve aparecer em **Abrir com** e se o Explorer deve mostrar **Abrir com GuiaPlay**. Nenhuma opção o torna player padrão automaticamente.
+10. Em **Configurações > Diagnóstico**, acompanhe uptime, CPU aproximada, memória, estado, saídas e frames. **Copiar diagnóstico** gera um resumo sem caminho completo da mídia, tokens ou dados pessoais.
+11. Em **Aparência**, escolha Sistema, Claro ou Escuro e uma das seis cores de destaque. Em **Áudio**, o equalizador nativo é opcional e começa desativado; presets, preamp e bandas vêm do LibVLC em execução.
 
 Com um único monitor, áudio continua disponível. Vídeo permanece carregado, mas **Reproduzir** fica desabilitado até existir uma saída pública selecionada.
 
@@ -67,6 +71,9 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Requisitos completos e escopo](docs/REQUISITOS.md)
 - [Decisão do motor e arquitetura](docs/DECISAO-MOTOR.md)
 - [Roteiro de validação manual](docs/ROTEIRO-VALIDACAO-MANUAL.md)
+- [Matriz de compatibilidade Windows](docs/COMPATIBILIDADE-WINDOWS.md)
+- [Playlist e presets locais](docs/PLAYLIST-PRESETS.md)
+- [Gate manual para a Release Candidate](docs/RELEASE-GATE-1.0.md)
 - [Relatório do M01](docs/RELATORIO-M01.md)
 - [Relatório do M01.1](docs/RELATORIO-M01.1.md)
 - [Relatório do M02](docs/RELATORIO-M02.md)
@@ -80,6 +87,7 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Relatório do M10](docs/RELATORIO-M10.md)
 - [Relatório da correção M10.1](docs/RELATORIO-M10.1.md)
 - [Relatório do polimento M10.2](docs/RELATORIO-M10.2.md)
+- [Relatório técnico M10.3](docs/RELATORIO-M10.3.md)
 - [Validação de performance e soak test](docs/VALIDACAO-PERFORMANCE.md)
 - [Notas da versão 0.5.0-prototipo](docs/releases/0.5.0-prototipo.md)
 - [Notas da versão 0.6.0-prototipo](docs/releases/0.6.0-prototipo.md)
@@ -89,19 +97,20 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Notas da versão 0.10.0-prototipo](docs/releases/0.10.0-prototipo.md)
 - [Notas da versão 0.10.1-prototipo](docs/releases/0.10.1-prototipo.md)
 - [Notas da versão 0.10.2-prototipo](docs/releases/0.10.2-prototipo.md)
+- [Notas da versão 0.10.3-prototipo](docs/releases/0.10.3-prototipo.md)
 - [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
 Os logs locais ficam em `%LocalAppData%\GuiaSys\GuiaPlay\GuiaPlay.log`, com rotação a 5 MiB e retenção máxima de cinco arquivos.
-As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: tema, cor de destaque, identidade/nome das telas, operador, pré-seleção pública, saída/equalizador de áudio, volume, mudo, política de atualização e o cache leve da última consulta. O esquema 6 migra os anteriores, normaliza ganhos, preserva chaves desconhecidas e mantém gravação atômica. A playlist fica separada em `playlist.json` e contém somente metadados leves e caminhos absolutos; nunca contém bytes de mídia. Esses dados ficam fora de `%LocalAppData%\Programs\GuiaPlay` e não são substituídos pelo updater.
+As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: tema, cor de destaque, identidade/nome das telas, operador, pré-seleção pública, saída/equalizador de áudio, volume, mudo, política de atualização e o cache leve da última consulta. O esquema 6 migra os anteriores, normaliza ganhos, preserva chaves desconhecidas e mantém gravação atômica. A playlist corrente fica separada em `playlist.json`; presets schema 1 usam arquivos com GUID em `%LocalAppData%\GuiaSys\GuiaPlay\playlist-presets\`. Todos contêm somente metadados leves e caminhos absolutos, nunca bytes de mídia. Esses dados ficam fora de `%LocalAppData%\Programs\GuiaPlay` e não são substituídos pelo updater.
 
 ## Atualizações e distribuição
 
-O canal interno `Prototype` consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, incluindo prereleases compatíveis e ignorando drafts/tags inválidas. A checagem automática é ativada por padrão. Em cada novo processo, o cache restaura imediatamente o último indicador confiável e, 1,5 segundo depois de a janela carregar, ocorre exatamente uma consulta real ao GitHub mesmo que o cache seja recente. A janela de 12 horas limita apenas tentativas automáticas adicionais no mesmo processo. Falha de rede não bloqueia a abertura nem apaga uma atualização já confirmada. A instalação automática começa desativada e nunca interrompe mídia ativa.
+O canal interno `Prototype` consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, aceita prereleases Prototype/RC e versões estáveis compatíveis e ignora drafts/tags inválidas. O canal RC aceita RCs e estáveis; Stable aceita somente releases estáveis. A checagem automática é ativada por padrão. Em cada novo processo, o cache restaura imediatamente o último indicador confiável e, 1,5 segundo depois de a janela carregar, ocorre exatamente uma consulta real ao GitHub mesmo que o cache seja recente. A janela de 12 horas limita apenas tentativas automáticas adicionais no mesmo processo. Falha de rede não bloqueia a abertura nem apaga uma atualização já confirmada. A instalação automática começa desativada e nunca interrompe mídia ativa.
 
-Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. O download mostra bytes e percentual reais quando `Content-Length` existe, usa estado indeterminado sem tamanho conhecido e distingue download, SHA-256, preparação e início do updater. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
+Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. O download mostra bytes e percentual reais quando `Content-Length` existe, usa estado indeterminado sem tamanho conhecido e distingue download, SHA-256, preparação e início do updater. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. O manifesto pode publicar `win-x64` e `win-x86`, mas o updater seleciona exclusivamente o pacote do RID instalado; troca silenciosa de arquitetura é bloqueada. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
 
-A distribuição é self-contained para Windows x64, sem trimming e sem single-file no aplicativo principal, preservando as dependências nativas do LibVLC. O updater é um executável separado e temporário: espera o GuiaPlay encerrar, faz backup, aplica o staging, tenta rollback em falha e reinicia a aplicação. O log dele fica em `%LocalAppData%\GuiaSys\GuiaPlay\updater.log`.
+A distribuição é self-contained para Windows x64 e x86, sem trimming e sem single-file no aplicativo principal, preservando em cada pacote somente as dependências nativas correspondentes do LibVLC. O updater é um executável separado e temporário: espera o GuiaPlay encerrar, faz backup, aplica o staging, atualiza o marcador atômico, tenta rollback em falha e reinicia a aplicação. O log dele fica em `%LocalAppData%\GuiaSys\GuiaPlay\updater.log`.
 
 ## Integração com Windows e Explorer
 
@@ -143,8 +152,8 @@ O roteiro e a tabela para anotar 720p/1080p/4K, codecs, saídas, CPU/RAM e GPU o
 2. Execute `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-release.ps1` e corrija qualquer falha. O script valida formato, builds/testes Debug e Release, publish, LibVLC, updater, instalador, manifesto e checksums.
 3. Revise `git status`, `git diff` e confirme que `artifacts/`, dados pessoais, logs e segredos não serão versionados.
 4. Faça commit e `git push origin main`; confirme `main` sincronizada e limpa.
-5. Execute `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1`. Ele recusa branch/origin/árvore incorretos, tags ou releases existentes e checksums divergentes; então cria a tag anotada, envia a tag e publica a prerelease com os quatro assets.
-6. Consulte a Release pela API/`gh`, baixe os assets em uma pasta temporária e valide novamente os hashes.
+5. Execute `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1`. Ele recusa branch/origin/árvore incorretos, tags ou releases existentes e checksums divergentes; então cria a tag anotada, envia a tag, publica conforme o canal e baixa novamente todos os assets para comparar seus SHA-256 byte a byte.
+6. Consulte a Release pela API/`gh` e arquive a URL e a evidência dos hashes no relatório da versão.
 
 ## Limites conhecidos do protótipo
 
@@ -154,9 +163,10 @@ O roteiro e a tabela para anotar 720p/1080p/4K, codecs, saídas, CPU/RAM e GPU o
 - A lista explícita de áudio contém somente pares módulo/dispositivo que o LibVLC informou aceitar. Lista vazia não prova ausência de áudio no Windows; **Padrão do Windows** continua disponível.
 - A aplicação pode detectar uma perda de dispositivo depois de um redirecionamento transitório feito pelo backend/Windows. Ela pausa e não faz fallback nem retoma deliberadamente, mas ausência absoluta de transiente requer validação física.
 - A classificação inicial de mídia usa extensões comuns; a decodificação efetiva continua sendo responsabilidade do LibVLC e depende do conteúdo/codecs do arquivo.
-- O upgrade público de `0.8.0-prototipo` para `0.9.0-prototipo` usa o mesmo fluxo de GitHub Releases, manifesto e SHA-256 exercitado em diretórios temporários antes da publicação.
+- O caminho de update `0.10.2-prototipo x64 → 0.10.3-prototipo x64` e os cenários x86/WOW64 permanecem no gate físico antes da RC1; cobertura automatizada não substitui instalação real.
 - O menu de contexto pode ser apresentado pelo Windows 11 dentro de **Mostrar mais opções**, conforme a política do Explorer; o GuiaPlay não instala uma shell extension DLL.
 - Não há assinatura Authenticode nesta etapa; integridade do pacote de atualização é protegida pelo manifesto e SHA-256 publicado.
+- A build x86 tem o limite de espaço de endereço de um processo 32-bit; conteúdo 4K e sessões prolongadas exigem validação física específica e podem demandar x64.
 
 ## Argumento de linha de comando e instância única
 

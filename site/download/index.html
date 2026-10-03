@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#081018">
   <link rel="icon" type="image/png" href="../assets/images/favicon.png">
-  <meta name="description" content="Baixe a versão mais recente do GuiaPlay para Windows x64.">
+  <meta name="description" content="Baixe a versão mais recente do GuiaPlay para Windows em instaladores x64 e x86, quando disponíveis na Release.">
   <title>Download — GuiaPlay</title>
   <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
@@ -25,7 +25,7 @@
       <div class="container fade-up">
         <span class="eyebrow">Instalador oficial</span>
         <h1>Baixe o <span class="gradient-text">GuiaPlay</span></h1>
-        <p>A página identifica automaticamente a versão publicada mais recente e prepara o download direto do instalador para Windows x64.</p>
+        <p>A página consulta a versão publicada mais recente e oferece cada arquitetura realmente anexada à Release.</p>
       </div>
     </section>
 
@@ -33,23 +33,27 @@
       <div class="container download-layout">
         <article class="download-card fade-up">
           <img class="download-logo" src="../assets/images/guiaplay-wordmark-crop.png" alt="GuiaPlay">
-          <span class="release-pill">Versão disponível</span>
-          <h2>GuiaPlay <span data-latest-version>0.9.0-prototipo</span></h2>
-          <div class="release-line">Canal público · Windows x64</div>
-          <a class="btn btn-primary" data-download-latest href="#">↓ Baixar instalador</a>
-          <div class="status" data-download-status>Preparando o link de download…</div>
+          <span class="release-pill" data-release-pill>Consultando Release</span>
+          <h2>GuiaPlay <span data-latest-version>consultando…</span></h2>
+          <div class="release-line">Canal público · Windows x64 e x86</div>
+          <div class="download-options">
+            <a class="btn btn-primary" data-download-arch="x64" aria-disabled="true">↓ Windows 64 bits (x64) — recomendado</a>
+            <a class="btn btn-secondary" data-download-arch="x86" aria-disabled="true">↓ Windows 32 bits (x86)</a>
+          </div>
+          <div class="status" data-download-status aria-live="polite">Consultando a Release mais recente…</div>
+          <a class="release-link" data-releases-link href="https://github.com/guiasysstudio/GuiaPlay/releases">Ver Releases no GitHub</a>
         </article>
 
         <aside class="info-card fade-up">
           <h3>Requisitos e informações</h3>
           <dl class="info-list">
-            <div class="info-row"><dt>Sistema</dt><dd>Windows 10 ou Windows 11</dd></div>
-            <div class="info-row"><dt>Arquitetura</dt><dd>64 bits (x64)</dd></div>
+            <div class="info-row"><dt>Sistema</dt><dd>Windows 10 Enterprise LTSC 2019 (build 17763) ou posterior elegível; Windows 11 em versão/edição suportada pelo .NET 10.</dd></div>
+            <div class="info-row"><dt>Arquitetura</dt><dd>x64 recomendado; x86 para Windows 10 32 bits suportado e execução compatível via WOW64.</dd></div>
             <div class="info-row"><dt>Telas</dt><dd>Para vídeo multitelas, configure os monitores no modo estendido do Windows.</dd></div>
             <div class="info-row"><dt>Player</dt><dd>O motor de reprodução necessário acompanha a instalação.</dd></div>
             <div class="info-row"><dt>Atualizações</dt><dd>O GuiaPlay pode verificar novas versões automaticamente.</dd></div>
           </dl>
-          <div class="notice">O GuiaPlay está em evolução. Versões de protótipo podem receber mudanças de interface e novos recursos até a versão estável.</div>
+          <div class="notice">Windows 10 Home/Pro 22H2, Windows 7, 8 e 8.1 não integram a matriz oficial. A compatibilidade física da linha 0.10.3 continua sujeita ao gate pré-RC.</div>
         </aside>
       </div>
     </section>
@@ -60,7 +64,7 @@
         <div class="timeline">
           <div class="timeline-item fade-up"><div class="timeline-number">1</div><div class="timeline-content"><h3>Abra as Configurações</h3><p>Defina o monitor do operador e dê nomes curtos às telas conectadas.</p></div></div>
           <div class="timeline-item fade-up"><div class="timeline-number">2</div><div class="timeline-content"><h3>Identifique as telas</h3><p>Use o recurso de identificação para conferir qual número corresponde a cada projetor, TV ou monitor.</p></div></div>
-          <div class="timeline-item fade-up"><div class="timeline-number">3</div><div class="timeline-content"><h3>Organize sua playlist</h3><p>Crie grupos e adicione referências para os vídeos e áudios que serão usados.</p></div></div>
+          <div class="timeline-item fade-up"><div class="timeline-number">3</div><div class="timeline-content"><h3>Organize ou carregue um preset</h3><p>Crie grupos, adicione referências de mídia e salve estruturas reutilizáveis sem copiar os arquivos originais.</p></div></div>
           <div class="timeline-item fade-up"><div class="timeline-number">4</div><div class="timeline-content"><h3>Selecione as saídas e reproduza</h3><p>Marque as telas públicas desejadas para vídeo. Áudio pode ser reproduzido sem abrir saídas visuais.</p></div></div>
         </div>
       </div>

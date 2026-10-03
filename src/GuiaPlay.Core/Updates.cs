@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -8,6 +9,7 @@ namespace GuiaPlay.Core;
 public enum UpdateChannel
 {
     Prototype,
+    ReleaseCandidate,
     Stable
 }
 
@@ -43,8 +45,79 @@ public readonly partial record struct ProductVersion(int Major, int Minor, int P
         if (numeric != 0) return numeric;
         if (Prerelease is null) return other.Prerelease is null ? 0 : 1;
         if (other.Prerelease is null) return -1;
-        return string.Compare(Prerelease, other.Prerelease, StringComparison.OrdinalIgnoreCase);
+        return ComparePrerelease(Prerelease, other.Prerelease);
     }
+
+    private static int ComparePrerelease(string left, string right)
+    {
+        var leftTokens = TokenizePrerelease(left);
+        var rightTokens = TokenizePrerelease(right);
+        for (var index = 0; index < Math.Min(leftTokens.Count, rightTokens.Count); index++)
+        {
+            var leftToken = leftTokens[index];
+            var rightToken = rightTokens[index];
+            int comparison;
+            if (leftToken.Numeric && rightToken.Numeric)
+            {
+                comparison = CompareNumericIdentifier(leftToken.Value, rightToken.Value);
+            }
+            else if (leftToken.Numeric != rightToken.Numeric)
+            {
+                comparison = leftToken.Numeric ? -1 : 1;
+            }
+            else
+            {
+                comparison = string.Compare(leftToken.Value, rightToken.Value, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+        }
+
+        return leftTokens.Count.CompareTo(rightTokens.Count);
+    }
+
+    private static List<PrereleaseToken> TokenizePrerelease(string value)
+    {
+        var tokens = new List<PrereleaseToken>();
+        for (var index = 0; index < value.Length;)
+        {
+            if (value[index] is '.' or '-')
+            {
+                index++;
+                continue;
+            }
+
+            var numeric = char.IsAsciiDigit(value[index]);
+            var start = index++;
+            while (index < value.Length &&
+                   value[index] is not '.' and not '-' &&
+                   char.IsAsciiDigit(value[index]) == numeric)
+            {
+                index++;
+            }
+
+            tokens.Add(new PrereleaseToken(value[start..index], numeric));
+        }
+
+        return tokens;
+    }
+
+    private static int CompareNumericIdentifier(string left, string right)
+    {
+        var normalizedLeft = left.TrimStart('0');
+        var normalizedRight = right.TrimStart('0');
+        normalizedLeft = normalizedLeft.Length == 0 ? "0" : normalizedLeft;
+        normalizedRight = normalizedRight.Length == 0 ? "0" : normalizedRight;
+        var lengthComparison = normalizedLeft.Length.CompareTo(normalizedRight.Length);
+        return lengthComparison != 0
+            ? lengthComparison
+            : string.CompareOrdinal(normalizedLeft, normalizedRight);
+    }
+
+    private readonly record struct PrereleaseToken(string Value, bool Numeric);
 
     public override string ToString() => $"{Major}.{Minor}.{Patch}{(Prerelease is null ? string.Empty : $"-{Prerelease}")}";
     public static bool operator >(ProductVersion left, ProductVersion right) => left.CompareTo(right) > 0;
@@ -63,7 +136,7 @@ public sealed record PublishedRelease(
     bool Prerelease,
     IReadOnlyList<ReleaseAsset> Assets);
 
-public static class ReleaseSelector
+public static partial class ReleaseSelector
 {
     public static PublishedRelease? SelectLatest(IEnumerable<GitHubRelease> releases, UpdateChannel channel)
     {
@@ -83,13 +156,42 @@ public static class ReleaseSelector
             .FirstOrDefault();
     }
 
-    private static bool IsCompatible(ProductVersion version, bool prereleaseFlag, UpdateChannel channel) => channel switch
+    internal static UpdateChannel? Classify(ProductVersion version)
     {
-        UpdateChannel.Stable => !prereleaseFlag && version.Prerelease is null,
-        UpdateChannel.Prototype => version.Prerelease is null ||
-                                   (prereleaseFlag && string.Equals(version.Prerelease, "prototipo", StringComparison.OrdinalIgnoreCase)),
-        _ => false
-    };
+        if (version.Prerelease is null)
+        {
+            return UpdateChannel.Stable;
+        }
+
+        if (string.Equals(version.Prerelease, "prototipo", StringComparison.OrdinalIgnoreCase))
+        {
+            return UpdateChannel.Prototype;
+        }
+
+        return RcPattern().IsMatch(version.Prerelease)
+            ? UpdateChannel.ReleaseCandidate
+            : null;
+    }
+
+    private static bool IsCompatible(ProductVersion version, bool prereleaseFlag, UpdateChannel channel)
+    {
+        var releaseChannel = Classify(version);
+        if (releaseChannel is null || prereleaseFlag != (releaseChannel != UpdateChannel.Stable))
+        {
+            return false;
+        }
+
+        return channel switch
+        {
+            UpdateChannel.Prototype => true,
+            UpdateChannel.ReleaseCandidate => releaseChannel is UpdateChannel.ReleaseCandidate or UpdateChannel.Stable,
+            UpdateChannel.Stable => releaseChannel == UpdateChannel.Stable,
+            _ => false
+        };
+    }
+
+    [GeneratedRegex("^rc(?:\\.?[0-9]+)(?:[.-][0-9A-Za-z-]+)*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex RcPattern();
 }
 
 public enum UpdateCheckStatus
@@ -104,12 +206,19 @@ public sealed record UpdateCheckResult(
     UpdateCheckStatus Status,
     PublishedRelease? Release = null,
     UpdateManifest? Manifest = null,
+    UpdatePackage? SelectedPackage = null,
     string? Error = null)
 {
     public static UpdateCheckResult Failure(string error) => new(UpdateCheckStatus.Failed, Error: error);
 }
 
-public sealed partial record UpdateManifest(int Schema, string Version, string Channel, DateTimeOffset PublishedAt, UpdatePackage Package)
+public sealed partial record UpdateManifest(
+    int Schema,
+    string Version,
+    string Channel,
+    DateTimeOffset PublishedAt,
+    UpdatePackage Package,
+    IReadOnlyDictionary<string, UpdatePackage>? Packages = null)
 {
     public static bool TryParse(string json, out UpdateManifest? manifest, out string? error)
     {
@@ -117,13 +226,21 @@ public sealed partial record UpdateManifest(int Schema, string Version, string C
         {
             manifest = JsonSerializer.Deserialize<UpdateManifest>(json, JsonOptions);
             if (manifest is null || manifest.Schema != 1 ||
-                !ProductVersion.TryParse(manifest.Version, out _) ||
-                !string.Equals(manifest.Channel, "prototype", StringComparison.OrdinalIgnoreCase) ||
-                string.IsNullOrWhiteSpace(manifest.Package?.AssetName) ||
-                Path.GetFileName(manifest.Package.AssetName) != manifest.Package.AssetName ||
-                !Sha256Pattern().IsMatch(manifest.Package.Sha256 ?? string.Empty))
+                !ProductVersion.TryParse(manifest.Version, out var version) ||
+                !TryParseChannel(manifest.Channel, out var channel) ||
+                ReleaseSelector.Classify(version) != channel ||
+                !IsValidPackage(manifest.Package))
             {
                 throw new JsonException("O manifesto não contém os campos esperados.");
+            }
+
+            if (manifest.Packages is not null &&
+                (manifest.Packages.Count == 0 ||
+                 manifest.Packages.Any(pair => !IsSupportedRuntimeIdentifier(pair.Key) || !IsValidPackage(pair.Value)) ||
+                 !TryGetPackage(manifest.Packages, "win-x64", out var x64Package) ||
+                 x64Package != manifest.Package))
+            {
+                throw new JsonException("Os pacotes por arquitetura do manifesto são inválidos.");
             }
 
             error = null;
@@ -137,6 +254,74 @@ public sealed partial record UpdateManifest(int Schema, string Version, string C
         }
     }
 
+    public bool TrySelectPackage(string runtimeIdentifier, out UpdatePackage? package)
+    {
+        package = null;
+        if (!IsSupportedRuntimeIdentifier(runtimeIdentifier))
+        {
+            return false;
+        }
+
+        if (Packages is not null && TryGetPackage(Packages, runtimeIdentifier, out package))
+        {
+            return true;
+        }
+
+        if (string.Equals(runtimeIdentifier, "win-x64", StringComparison.OrdinalIgnoreCase))
+        {
+            package = Package;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseChannel(string? value, out UpdateChannel channel)
+    {
+        if (string.Equals(value, "prototype", StringComparison.OrdinalIgnoreCase))
+        {
+            channel = UpdateChannel.Prototype;
+            return true;
+        }
+
+        if (string.Equals(value, "releaseCandidate", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, "rc", StringComparison.OrdinalIgnoreCase))
+        {
+            channel = UpdateChannel.ReleaseCandidate;
+            return true;
+        }
+
+        if (string.Equals(value, "stable", StringComparison.OrdinalIgnoreCase))
+        {
+            channel = UpdateChannel.Stable;
+            return true;
+        }
+
+        channel = default;
+        return false;
+    }
+
+    private static bool IsValidPackage(UpdatePackage? package) =>
+        package is not null &&
+        !string.IsNullOrWhiteSpace(package.AssetName) &&
+        Path.GetFileName(package.AssetName) == package.AssetName &&
+        Sha256Pattern().IsMatch(package.Sha256 ?? string.Empty);
+
+    private static bool IsSupportedRuntimeIdentifier(string? runtimeIdentifier) =>
+        string.Equals(runtimeIdentifier, "win-x64", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(runtimeIdentifier, "win-x86", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryGetPackage(
+        IReadOnlyDictionary<string, UpdatePackage> packages,
+        string runtimeIdentifier,
+        out UpdatePackage? package)
+    {
+        var match = packages.FirstOrDefault(pair =>
+            string.Equals(pair.Key, runtimeIdentifier, StringComparison.OrdinalIgnoreCase));
+        package = match.Value;
+        return package is not null;
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -147,6 +332,22 @@ public sealed partial record UpdateManifest(int Schema, string Version, string C
 }
 
 public sealed record UpdatePackage(string AssetName, string Sha256);
+
+public static class UpdateRuntimeIdentifier
+{
+    public static string? Current => FromArchitecture(RuntimeInformation.ProcessArchitecture);
+
+    public static bool IsSupported(string? runtimeIdentifier) =>
+        string.Equals(runtimeIdentifier, "win-x64", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(runtimeIdentifier, "win-x86", StringComparison.OrdinalIgnoreCase);
+
+    public static string? FromArchitecture(Architecture architecture) => architecture switch
+    {
+        Architecture.X64 => "win-x64",
+        Architecture.X86 => "win-x86",
+        _ => null
+    };
+}
 
 public static class UpdateSchedule
 {

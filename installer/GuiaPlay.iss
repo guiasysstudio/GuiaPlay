@@ -7,11 +7,17 @@
 #ifndef SourceDir
   #error SourceDir must be provided by build-release.ps1
 #endif
-#ifndef MarkerPath
-  #error MarkerPath must be provided by build-release.ps1
-#endif
 #ifndef ReleaseDir
   #error ReleaseDir must be provided by build-release.ps1
+#endif
+#ifndef TargetRid
+  #error TargetRid must be provided by build-release.ps1
+#endif
+#ifndef AllowedArchitectures
+  #error AllowedArchitectures must be provided by build-release.ps1
+#endif
+#ifndef SetupBaseName
+  #error SetupBaseName must be provided by build-release.ps1
 #endif
 
 #define MyAppName "GuiaPlay"
@@ -29,10 +35,13 @@ DefaultDirName={localappdata}\Programs\GuiaPlay
 DefaultGroupName=GuiaPlay
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0.17763
+ArchitecturesAllowed={#AllowedArchitectures}
+#ifdef InstallIn64BitMode
+ArchitecturesInstallIn64BitMode={#InstallIn64BitMode}
+#endif
 OutputDir={#ReleaseDir}
-OutputBaseFilename=GuiaPlay-Setup-{#MyAppVersion}
+OutputBaseFilename={#SetupBaseName}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -62,7 +71,6 @@ Name: "contextmenu"; Description: "Adicionar Abrir com GuiaPlay ao menu de conte
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#MarkerPath}"; DestDir: "{app}"; DestName: "install.json"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\GuiaPlay"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
@@ -233,3 +241,47 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--remove-windows-integration"; F
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Executar GuiaPlay"; Flags: nowait postinstall skipifsilent unchecked
+
+[Code]
+function DetectInstalledRid(const MarkerPath: String): String;
+var
+  Contents: AnsiString;
+  Normalized: String;
+begin
+  Result := '';
+  if not LoadStringFromFile(MarkerPath, Contents) then
+  begin
+    Result := 'unreadable';
+    exit;
+  end;
+
+  Normalized := Lowercase(String(Contents));
+  if Pos('win-x64', Normalized) > 0 then
+    Result := 'win-x64'
+  else if Pos('win-x86', Normalized) > 0 then
+    Result := 'win-x86'
+  else if Pos('guiasys.guiaplay', Normalized) > 0 then
+    { Markers anteriores ao M10.3 eram exclusivamente x64 e não possuíam rid. }
+    Result := 'win-x64'
+  else
+    Result := 'unknown';
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  MarkerPath: String;
+  InstalledRid: String;
+begin
+  Result := '';
+  MarkerPath := AddBackslash(WizardDirValue) + 'install.json';
+  if not FileExists(MarkerPath) then
+    exit;
+
+  InstalledRid := DetectInstalledRid(MarkerPath);
+  if InstalledRid <> '{#TargetRid}' then
+  begin
+    Result := 'A pasta selecionada já contém uma instalação de arquitetura diferente (' +
+      InstalledRid + '). Desinstale essa edição antes de instalar {#TargetRid}. ' +
+      'Os dados do usuário em %LocalAppData%\GuiaSys\GuiaPlay serão preservados.';
+  end;
+end;

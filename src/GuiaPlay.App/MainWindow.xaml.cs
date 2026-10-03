@@ -21,19 +21,32 @@ namespace GuiaPlay.App;
 
 public partial class MainWindow : Window
 {
+    private enum MediaLoadOutcome
+    {
+        Loaded,
+        Cancelled,
+        Missing,
+        TimedOut,
+        Unsupported,
+        InvalidPath,
+        DecodeFailed
+    }
+
     private const int WmDisplayChange = 0x007E;
     private const string PlaylistDragFormat = "GuiaPlay.PlaylistNode";
     private readonly PlaybackCoordinator _coordinator = new();
     private readonly LibVlcPlaybackEngine _engine;
     private readonly ObservableCollection<MonitorChoice> _outputChoices = [];
     private readonly ObservableCollection<PlaylistGroupNode> _playlistGroups = [];
+    private readonly PlaylistWorkspace _playlistWorkspace;
+    private readonly PlaylistPresetStore _playlistPresetStore;
     private readonly PlaylistCatalog _playlistCatalog;
     private readonly Dictionary<string, OutputWindow> _outputWindows = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<IdentifierWindow> _identifierWindows = [];
     private readonly DispatcherTimer _monitorTimer;
     private readonly DispatcherTimer _settingsSaveTimer;
     private readonly ReconnectAuthorization _reconnectAuthorization = new();
-    private readonly NotificationDebouncer _displayChangeDebouncer = new(TimeSpan.FromMilliseconds(500));
+    private readonly NotificationDebouncer _displayChangeDebouncer = new(MonitorRefreshPolicy.DisplayChangeDebounceInterval);
     private readonly SessionDiagnostics _diagnostics = new();
     private readonly ProcessMetricsSampler _processMetrics = new();
     private readonly HashSet<string> _selectedOutputIdsThisSession = new(StringComparer.OrdinalIgnoreCase);
@@ -55,6 +68,7 @@ public partial class MainWindow : Window
     private bool _updatingMonitorChoices;
     private bool _controlsBusy;
     private bool _operatorRequiresConfiguration;
+    private bool _operatorRecoverySettingsAllowed;
     private bool _audioPreferenceAvailable = true;
     private bool _audioReconfigurationRequired;
     private bool _audioInventoryInitialized;
@@ -76,7 +90,13 @@ public partial class MainWindow : Window
         PlaylistTree.ItemsSource = _playlistGroups;
         var app = Application.Current as App;
         var settings = app?.Settings ?? AppSettings.Default;
-        _playlistCatalog = new PlaylistCatalog(app?.Playlist ?? PlaylistDocument.Empty);
+        _playlistWorkspace = new PlaylistWorkspace(app?.Playlist ?? PlaylistDocument.Empty);
+        _playlistCatalog = _playlistWorkspace.Catalog;
+        var presetPathOverride = Environment.GetEnvironmentVariable("GUIAPLAY_PLAYLIST_PRESETS_PATH");
+        _playlistPresetStore = new PlaylistPresetStore(
+            string.IsNullOrWhiteSpace(presetPathOverride)
+                ? PlaylistPresetStore.DefaultDirectoryPath
+                : Path.GetFullPath(presetPathOverride));
         RebuildPlaylistTree();
         foreach (var id in settings.SelectedOutputIds)
         {
@@ -98,7 +118,7 @@ public partial class MainWindow : Window
         _engine.AudioDeviceChanged += (generation, deviceId) => Dispatch(() => Engine_OnAudioDeviceChanged(generation, deviceId));
         _engine.EqualizerFailed += message => FileLogger.Error($"Falha ao aplicar equalizador; reprodução original preservada: {message}");
 
-        _monitorTimer = new DispatcherTimer(TimeSpan.FromSeconds(2), DispatcherPriority.Background, (_, _) => RefreshConnectedDevices(false), Dispatcher);
+        _monitorTimer = new DispatcherTimer(MonitorRefreshPolicy.SafetyPollInterval, DispatcherPriority.Background, (_, _) => RefreshConnectedDevices(false), Dispatcher);
         _settingsSaveTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(650), DispatcherPriority.Background, (_, _) => FlushDeferredSettings(), Dispatcher)
         {
             IsEnabled = false
@@ -185,23 +205,36 @@ public partial class MainWindow : Window
         await LoadMediaAsync(dialog.FileName, playImmediately: false);
     }
 
-    private async Task<bool> LoadMediaAsync(string path, bool playImmediately)
+    private async Task<MediaLoadOutcome> LoadMediaAsync(
+        string path,
+        bool playImmediately,
+        MediaProbeStatus? verifiedProbe = null)
     {
         var kind = MediaTypeDetector.Detect(path);
         if (kind == MediaKind.Unknown)
         {
             StatusText.Text = "Formato de mídia não reconhecido.";
-            return false;
+            return MediaLoadOutcome.Unsupported;
         }
 
         StatusText.Text = "Verificando disponibilidade da mídia…";
-        var probe = await MediaFileProbe.ProbeAsync(path, TimeSpan.FromSeconds(4));
+        var probe = verifiedProbe ?? await MediaFileProbe.ProbeAsync(path, TimeSpan.FromSeconds(4));
         if (probe != MediaProbeStatus.Available)
         {
-            StatusText.Text = probe == MediaProbeStatus.TimedOut
-                ? "A mídia ou unidade de rede não respondeu no tempo esperado."
-                : "Arquivo indisponível; a referência permanece na playlist.";
-            return false;
+            StatusText.Text = probe switch
+            {
+                MediaProbeStatus.TimedOut => "A mídia ou unidade de rede não respondeu no tempo esperado.",
+                MediaProbeStatus.InvalidPath => "O caminho da mídia é inválido.",
+                MediaProbeStatus.Unsupported => "Formato de mídia não reconhecido.",
+                _ => "Arquivo não encontrado; a referência permanece na playlist."
+            };
+            return probe switch
+            {
+                MediaProbeStatus.TimedOut => MediaLoadOutcome.TimedOut,
+                MediaProbeStatus.InvalidPath => MediaLoadOutcome.InvalidPath,
+                MediaProbeStatus.Unsupported => MediaLoadOutcome.Unsupported,
+                _ => MediaLoadOutcome.Missing
+            };
         }
 
         var replacementConfirmed = true;
@@ -218,7 +251,7 @@ public partial class MainWindow : Window
         if (_coordinator.TryLoad(path, kind, replacementConfirmed) == LoadDecision.Cancelled)
         {
             StatusText.Text = "Troca cancelada; a reprodução atual foi preservada.";
-            return false;
+            return MediaLoadOutcome.Cancelled;
         }
 
         _audioReconfigurationRequired = false;
@@ -257,8 +290,8 @@ public partial class MainWindow : Window
         {
             _coordinator.PlaybackFailed(_coordinator.Generation);
             FileLogger.Error($"Falha ao carregar '{Path.GetFileName(path)}'; geração {_coordinator.Generation}; tipo {kind}.", exception);
-            StatusText.Text = $"Falha ao carregar {Path.GetFileName(path)}; você pode escolher outro arquivo.";
-            return false;
+            StatusText.Text = $"O arquivo existe, mas não pôde ser decodificado: {Path.GetFileName(path)}.";
+            return MediaLoadOutcome.DecodeFailed;
         }
         finally
         {
@@ -270,7 +303,7 @@ public partial class MainWindow : Window
             await StartOrResumePlaybackAsync();
         }
 
-        return true;
+        return MediaLoadOutcome.Loaded;
     }
 
     private void NewGroupButton_OnClick(object sender, RoutedEventArgs e)
@@ -322,6 +355,168 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SavePlaylistPresetButton_OnClick(object sender, RoutedEventArgs e) =>
+        TrySavePlaylistPreset();
+
+    private void LoadPlaylistPresetButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var listResult = _playlistPresetStore.LoadAll();
+        foreach (var warning in listResult.Warnings)
+        {
+            FileLogger.Info(warning);
+        }
+
+        if (listResult.Presets.Count == 0)
+        {
+            MessageBox.Show(
+                this,
+                listResult.Warnings.Count == 0
+                    ? "Ainda não há playlists salvas. Use o botão Salvar playlist para criar a primeira."
+                    : "Nenhuma playlist válida pôde ser carregada. Consulte o log para ver os arquivos ignorados.",
+                "GuiaPlay — playlists salvas",
+                MessageBoxButton.OK,
+                listResult.Warnings.Count == 0 ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            return;
+        }
+
+        var picker = new PlaylistPresetPickerWindow(
+            listResult.Presets,
+            listResult.Warnings.Count,
+            preset =>
+            {
+                var result = _playlistPresetStore.Delete(preset.Id);
+                if (result.Succeeded)
+                {
+                    _playlistWorkspace.DetachPreset(preset.Id);
+                    FileLogger.Info($"Preset de playlist excluído: {preset.Name} ({preset.Id:D}).");
+                }
+                else
+                {
+                    FileLogger.Error($"Falha ao excluir preset de playlist {preset.Id:D}: {result.Error}");
+                }
+
+                return result;
+            })
+        {
+            Owner = this
+        };
+        if (picker.ShowDialog() != true || picker.SelectedPreset is not { } presetToLoad)
+        {
+            return;
+        }
+
+        var replacementMode = PlaylistReplacementMode.RequireCleanWorkspace;
+        if (_playlistWorkspace.IsDirty)
+        {
+            var decision = MessageBox.Show(
+                this,
+                "A playlist atual tem mudanças que ainda não foram salvas em um preset.\n\n" +
+                "Sim — Salvar…\nNão — Continuar sem salvar\nCancelar — manter a playlist atual",
+                "Alterações não salvas",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+            if (decision == MessageBoxResult.Cancel)
+            {
+                return;
+            }
+
+            if (decision == MessageBoxResult.Yes)
+            {
+                if (!TrySavePlaylistPreset())
+                {
+                    return;
+                }
+            }
+            else
+            {
+                replacementMode = PlaylistReplacementMode.DiscardUnsavedChanges;
+            }
+        }
+
+        if (Application.Current is not App app || app.PlaylistStore is null)
+        {
+            StatusText.Text = "O armazenamento da playlist ainda não está disponível.";
+            return;
+        }
+
+        var persisted = app.PlaylistStore.Save(presetToLoad.Playlist);
+        if (!persisted.Succeeded)
+        {
+            FileLogger.Error($"Falha ao persistir playlist carregada do preset {presetToLoad.Id:D}: {persisted.Error}");
+            MessageBox.Show(
+                this,
+                "A playlist salva não foi carregada porque a lista de trabalho não pôde ser persistida.",
+                "GuiaPlay — carregar playlist",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        var loadResult = _playlistWorkspace.LoadPreset(presetToLoad, replacementMode);
+        if (!loadResult.Succeeded)
+        {
+            StatusText.Text = "A playlist atual tem alterações não salvas e foi preservada.";
+            return;
+        }
+
+        app.Playlist = _playlistCatalog.Snapshot;
+        RebuildPlaylistTree();
+        StatusText.Text = $"Playlist “{presetToLoad.Name}” carregada sem iniciar reprodução.";
+        FileLogger.Info($"Preset de playlist carregado: {presetToLoad.Name} ({presetToLoad.Id:D}).");
+    }
+
+    private bool TrySavePlaylistPreset()
+    {
+        var prompt = new TextPromptWindow(
+            "Salvar playlist",
+            "Nome da playlist:",
+            _playlistWorkspace.ActivePresetName ?? string.Empty,
+            "Salvar")
+        {
+            Owner = this
+        };
+        if (prompt.ShowDialog() != true)
+        {
+            return false;
+        }
+
+        var snapshot = _playlistCatalog.Snapshot;
+        var result = _playlistPresetStore.Save(prompt.Value, snapshot);
+        if (result.Status == PlaylistPresetSaveStatus.NameConflict)
+        {
+            var overwrite = MessageBox.Show(
+                this,
+                "Já existe uma playlist com esse nome.\nDeseja substituir?",
+                "Substituir playlist salva",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (overwrite != MessageBoxResult.Yes)
+            {
+                StatusText.Text = "A playlist salva existente foi preservada.";
+                return false;
+            }
+
+            result = _playlistPresetStore.Save(prompt.Value, snapshot, overwriteExisting: true);
+        }
+
+        if (result.Preset is not { } savedPreset)
+        {
+            FileLogger.Error($"Falha ao salvar preset de playlist: {result.Error}");
+            MessageBox.Show(
+                this,
+                result.Error ?? "Não foi possível salvar a playlist.",
+                "GuiaPlay — salvar playlist",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return false;
+        }
+
+        _playlistWorkspace.AcceptSavedPreset(savedPreset);
+        StatusText.Text = $"Playlist “{savedPreset.Name}” salva.";
+        FileLogger.Info($"Preset de playlist salvo: {savedPreset.Name} ({savedPreset.Id:D}).");
+        return true;
+    }
+
     private void AddPlaylistItemButton_OnClick(object sender, RoutedEventArgs e)
     {
         var group = SelectedPlaylistGroup();
@@ -370,15 +565,33 @@ public partial class MainWindow : Window
             return;
         }
 
-        var action = PlaylistActivationPolicy.Resolve(item.Item.Kind, isAvailable: true, SelectedOutputCount());
+        StatusText.Text = "Verificando disponibilidade da mídia…";
+        var probe = await MediaFileProbe.ProbeAsync(item.Item.OriginalPath, TimeSpan.FromSeconds(4));
+        item.SetAvailability(probe);
+        var action = PlaylistActivationPolicy.Resolve(
+            item.Item.Kind,
+            probe == MediaProbeStatus.Available,
+            SelectedOutputCount());
         if (action == PlaylistActivationAction.None)
         {
-            StatusText.Text = $"Arquivo não encontrado: {item.Name}";
+            StatusText.Text = probe switch
+            {
+                MediaProbeStatus.Missing => $"Arquivo não encontrado: {item.Name}",
+                MediaProbeStatus.TimedOut => $"A disponibilidade de {item.Name} não pôde ser confirmada no tempo esperado.",
+                MediaProbeStatus.InvalidPath => $"Caminho inválido: {item.Name}",
+                _ => $"A mídia não está disponível: {item.Name}"
+            };
             return;
         }
 
-        var loaded = await LoadMediaAsync(item.Item.OriginalPath, playImmediately: action == PlaylistActivationAction.LoadAndPlay);
-        item.SetAvailability(loaded);
+        var outcome = await LoadMediaAsync(
+            item.Item.OriginalPath,
+            playImmediately: action == PlaylistActivationAction.LoadAndPlay,
+            verifiedProbe: probe);
+        if (outcome == MediaLoadOutcome.DecodeFailed)
+        {
+            item.SetDecodeFailure();
+        }
     }
 
     private void PlaylistTree_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -417,13 +630,13 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void PlaylistTree_OnDrop(object sender, DragEventArgs e)
+    private async void PlaylistTree_OnDrop(object sender, DragEventArgs e)
     {
         var target = FindPlaylistNode(e.OriginalSource as DependencyObject);
         if (e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] paths)
         {
-            ImportDroppedFiles(paths, target);
             e.Handled = true;
+            await ImportDroppedFilesAsync(paths, target);
             return;
         }
 
@@ -447,25 +660,47 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void ImportDroppedFiles(IEnumerable<string> paths, object? target)
+    private async Task ImportDroppedFilesAsync(IEnumerable<string> paths, object? target)
     {
-        var group = ResolveDropGroup(target);
-        if (group is null)
+        var receivedPaths = paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToArray();
+        if (receivedPaths.Length == 0)
         {
-            var created = _playlistCatalog.CreateGroup("Mídias");
-            group = new PlaylistGroupNode(created);
-        }
-
-        var result = _playlistCatalog.AddItems(group.Id, paths);
-        if (result.Added.Count == 0)
-        {
-            StatusText.Text = result.Rejected.Count == 0
-                ? "Nenhum arquivo foi recebido."
-                : "Nenhum formato de mídia reconhecido foi adicionado.";
+            StatusText.Text = "Nenhum arquivo foi recebido.";
             return;
         }
 
-        var message = $"{result.Added.Count} referência(s) adicionada(s) a {group.Name}.";
+        var targetGroupId = ResolveDropGroup(target)?.Id;
+        var cancellationToken = _playlistAvailabilityCancellation?.Token ?? CancellationToken.None;
+        IReadOnlyList<MediaProbeResult> probes;
+        try
+        {
+            StatusText.Text = "Verificando arquivos recebidos…";
+            probes = await MediaFileProbe.ProbeManyAsync(
+                receivedPaths,
+                TimeSpan.FromSeconds(3),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            FileLogger.Error("Falha ao verificar os arquivos arrastados para a playlist.", exception);
+            StatusText.Text = "Não foi possível verificar os arquivos recebidos; consulte o log.";
+            return;
+        }
+
+        var result = _playlistCatalog.ImportProbedItems(targetGroupId, "Mídias", probes);
+        if (result.Added.Count == 0 || result.TargetGroup is not { } targetGroup)
+        {
+            StatusText.Text = probes.Any(probe => probe.Status == MediaProbeStatus.TimedOut)
+                ? "Nenhum arquivo foi adicionado; ao menos um caminho não respondeu no tempo esperado."
+                : "Nenhum arquivo de mídia disponível e reconhecido foi adicionado.";
+            return;
+        }
+
+        var message = $"{result.Added.Count} referência(s) adicionada(s) a {targetGroup.Name}.";
         if (result.Rejected.Count > 0)
         {
             message += $" {result.Rejected.Count} arquivo(s) ignorado(s).";
@@ -545,28 +780,18 @@ public partial class MainWindow : Window
 
     private async Task RefreshLocalPlaylistAvailabilityAsync(CancellationToken cancellationToken)
     {
-        var items = _playlistGroups.SelectMany(group => group.Items)
-            .Where(item => !item.Item.OriginalPath.StartsWith(@"\\", StringComparison.Ordinal))
-            .ToArray();
-        var results = new System.Collections.Concurrent.ConcurrentBag<(PlaylistItemNode Item, bool Available)>();
+        var items = _playlistGroups.SelectMany(group => group.Items).ToArray();
         try
         {
-            await Parallel.ForEachAsync(
-                items,
-                new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken },
-                async (item, token) =>
-                {
-                    var probe = await MediaFileProbe.ProbeAsync(item.Item.OriginalPath, TimeSpan.FromSeconds(2), token);
-                    if (probe is MediaProbeStatus.Available or MediaProbeStatus.Missing)
-                    {
-                        results.Add((item, probe == MediaProbeStatus.Available));
-                    }
-                });
+            var results = await MediaFileProbe.ProbeManyAsync(
+                items.Select(item => item.Item.OriginalPath),
+                TimeSpan.FromSeconds(2),
+                cancellationToken);
             await Dispatcher.InvokeAsync(() =>
             {
-                foreach (var result in results)
+                for (var index = 0; index < items.Length; index++)
                 {
-                    result.Item.SetAvailability(result.Available);
+                    items[index].SetAvailability(results[index].Status);
                 }
             }, DispatcherPriority.Background, cancellationToken);
         }
@@ -694,13 +919,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        CloseOutputWindows();
-        _coordinator.Stop();
         SetControlsBusy(true);
+        CloseOutputWindows();
         var stoppedSafely = false;
         try
         {
             await _engine.StopAsync();
+            _coordinator.Stop();
+            _operatorRecoverySettingsAllowed = false;
             _audioReconfigurationRequired = false;
             RefreshAudioDevices(force: true);
             ProgressSlider.Value = 0;
@@ -715,8 +941,21 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
+            _coordinator.StopFailed();
+            try
+            {
+                _engine.Pause();
+            }
+            catch (Exception pauseException)
+            {
+                FileLogger.Error("Falha adicional ao tentar pausar o motor após erro de parada.", pauseException);
+            }
+
             FileLogger.Error("Falha ao parar o motor.", exception);
-            StatusText.Text = "A saída foi fechada, mas o motor informou uma falha ao parar";
+            StatusText.Text = "Falha ao parar com segurança; o estado foi marcado como erro e as saídas foram fechadas";
+            PlayButtonText.Text = "Tentar novamente";
+            SetConfigurationControlsEnabled(true);
+            RefreshPlaybackControls();
         }
         finally
         {
@@ -795,7 +1034,8 @@ public partial class MainWindow : Window
             windowsIntegration,
             CaptureDiagnostics,
             openUpdates,
-            _coordinator.IsActive)
+            _coordinator.IsActive,
+            _operatorRecoverySettingsAllowed)
         { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Result is not { } result)
         {
@@ -803,17 +1043,22 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_coordinator.IsActive)
+        var recoveringOperatorDuringPlayback = _coordinator.IsActive && _operatorRecoverySettingsAllowed;
+        if (_coordinator.IsActive && !recoveringOperatorDuringPlayback)
         {
-            _ = app.UpdateSettings(current => current with
+            if (!app.UpdateSettings(current => current with
             {
                 Appearance = result.Appearance,
                 AccentColor = result.AccentColor,
                 Equalizer = result.Equalizer,
                 CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
                 InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
-            }, out var activeSaveError);
-            ShowSettingsSaveFailure(activeSaveError);
+            }, out var activeSaveError))
+            {
+                ShowSettingsSaveFailure(activeSaveError);
+                return;
+            }
+
             app.ApplyAppearance(result.Appearance, result.AccentColor, persist: false);
             await _engine.ApplyEqualizerAsync(result.Equalizer);
             StatusText.Text = "Aparência, equalizador e atualizações salvos; reprodução preservada.";
@@ -835,48 +1080,71 @@ public partial class MainWindow : Window
             mergedNames[pair.Key] = pair.Value;
         }
 
-        _operatorMonitor = result.OperatorMonitor;
+        var nextOperator = result.OperatorMonitor;
+        var nextExplicitOutputIds = new HashSet<string>(_explicitOutputIds, StringComparer.OrdinalIgnoreCase);
+        if (nextOperator.PersistenceKey is { } nextOperatorKey)
+        {
+            nextExplicitOutputIds.Remove(nextOperatorKey);
+        }
+
+        if (!app.UpdateSettings(current => current with
+        {
+            OperatorMonitorId = nextOperator.PersistenceKey,
+            MonitorNames = mergedNames,
+            SelectedOutputIds = nextExplicitOutputIds,
+            Appearance = result.Appearance,
+            AccentColor = result.AccentColor,
+            AudioOutput = result.AudioOutput,
+            Equalizer = result.Equalizer,
+            CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
+            InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
+        }, out var error))
+        {
+            ShowSettingsSaveFailure(error);
+            return;
+        }
+
+        _operatorMonitor = nextOperator;
         _operatorRequiresConfiguration = false;
+        _operatorRecoverySettingsAllowed = false;
         if (_operatorMonitor.PersistenceKey is { } operatorKey)
         {
             _selectedOutputIdsThisSession.Remove(operatorKey);
-            _explicitOutputIds.Remove(operatorKey);
         }
 
-        if (app is not null)
+        _explicitOutputIds.Clear();
+        foreach (var outputId in nextExplicitOutputIds)
         {
-            _ = app.UpdateSettings(current => current with
-            {
-                OperatorMonitorId = _operatorMonitor.PersistenceKey,
-                MonitorNames = mergedNames,
-                SelectedOutputIds = new HashSet<string>(_explicitOutputIds, StringComparer.OrdinalIgnoreCase),
-                Appearance = result.Appearance,
-                AccentColor = result.AccentColor,
-                AudioOutput = result.AudioOutput,
-                Equalizer = result.Equalizer,
-                CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
-                InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
-            }, out var error);
-            ShowSettingsSaveFailure(error);
-            app.ApplyAppearance(result.Appearance, result.AccentColor, persist: false);
+            _explicitOutputIds.Add(outputId);
         }
+
+        if (_outputWindows.Remove(_operatorMonitor.Id, out var operatorOutput))
+        {
+            operatorOutput.Close();
+        }
+
+        app.ApplyAppearance(result.Appearance, result.AccentColor, persist: false);
 
         await _engine.ApplyEqualizerAsync(result.Equalizer);
 
-        _audioPreferenceAvailable = true;
-        _audioReconfigurationRequired = false;
-        if (_coordinator.MediaPath is not null)
+        if (!recoveringOperatorDuringPlayback)
         {
-            try
+            _audioReconfigurationRequired = false;
+            var audioAvailability = AudioPreferenceResolver.Resolve(result.AudioOutput, _audioDevices);
+            _audioPreferenceAvailable = AudioOutputRuntimePolicy.CanApplySelection(audioAvailability);
+            if (_coordinator.MediaPath is not null && _audioPreferenceAvailable)
             {
-                await _engine.ApplyAudioOutputAsync(result.AudioOutput);
-                _engine.Volume = (int)VolumeSlider.Value;
-                _engine.Muted = MuteButton.Tag as bool? ?? false;
-            }
-            catch (Exception exception)
-            {
-                FileLogger.Error("Falha ao aplicar a saída de áudio.", exception);
-                _audioPreferenceAvailable = false;
+                try
+                {
+                    await _engine.ApplyAudioOutputAsync(result.AudioOutput);
+                    _engine.Volume = (int)VolumeSlider.Value;
+                    _engine.Muted = MuteButton.Tag as bool? ?? false;
+                }
+                catch (Exception exception)
+                {
+                    FileLogger.Error("Falha ao aplicar a saída de áudio.", exception);
+                    _audioPreferenceAvailable = false;
+                }
             }
         }
 
@@ -887,7 +1155,9 @@ public partial class MainWindow : Window
             ? "Operador escolhido para esta sessão; a identidade desta tela é ambígua e não será restaurada automaticamente."
             : "O operador nunca aparece entre as saídas públicas.";
         WindowPlacement.PlaceOperatorPanel(this, _operatorMonitor);
-        StatusText.Text = "Configurações salvas e aplicadas.";
+        StatusText.Text = _audioPreferenceAvailable || recoveringOperatorDuringPlayback
+            ? "Configurações salvas e aplicadas."
+            : "Configurações salvas; a preferência de áudio indisponível foi preservada sem fallback.";
     }
 
     private void UpdateManager_OnStateChanged(object? sender, EventArgs e) => Dispatch(RefreshUpdateIndicator);
@@ -1303,7 +1573,7 @@ public partial class MainWindow : Window
             CustomName = monitor.PersistenceKey is { } key && names.TryGetValue(key, out var name) ? name : null
         }).ToArray();
         var currentIds = current.Select(monitor => monitor.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var disconnectedMonitors = previousMonitors.Where(monitor => FindCurrentMonitor(monitor, current) is null).ToArray();
+        var disconnectedMonitors = previousMonitors.Where(monitor => MonitorTopologyReconciler.FindCurrent(monitor, current) is null).ToArray();
         foreach (var monitor in disconnectedMonitors)
         {
             _selectedOutputIdsThisSession.Remove(SelectionKey(monitor));
@@ -1313,16 +1583,17 @@ public partial class MainWindow : Window
             }
         }
 
-        var currentOperatorMatch = _operatorMonitor is null ? null : FindCurrentMonitor(_operatorMonitor, current);
+        var currentOperatorMatch = _operatorMonitor is null ? null : MonitorTopologyReconciler.FindCurrent(_operatorMonitor, current);
         var operatorWasLost = _operatorMonitor is not null && currentOperatorMatch is null;
         var hadPublicOutputs = _outputWindows.Count > 0;
-        var disconnectedOutputIds = _outputWindows
-            .Where(pair => FindCurrentMonitor(pair.Value.Monitor, current) is null)
-            .Select(pair => pair.Key)
+        var outputReconciliations = _outputWindows.Values
+            .Select(window => (Window: window, Current: MonitorTopologyReconciler.FindCurrent(window.Monitor, current)))
             .ToArray();
-        var disconnectedOutputLabels = disconnectedOutputIds
-            .Select(id => _outputWindows[id].Monitor.ShortLabel)
+        var disconnectedOutputs = outputReconciliations
+            .Where(reconciliation => reconciliation.Current is null)
+            .Select(reconciliation => reconciliation.Window)
             .ToArray();
+        var disconnectedOutputLabels = disconnectedOutputs.Select(window => window.Monitor.ShortLabel).ToArray();
 
         foreach (var identifier in _identifierWindows.Where(window => !currentIds.Contains(window.MonitorId)).ToArray())
         {
@@ -1330,10 +1601,27 @@ public partial class MainWindow : Window
             _identifierWindows.Remove(identifier);
         }
 
-        foreach (var id in disconnectedOutputIds)
+        foreach (var window in disconnectedOutputs)
         {
-            _outputWindows[id].Close();
-            _outputWindows.Remove(id);
+            window.Close();
+        }
+
+        // Rebuild keys only after every old entry has been removed. GDI session IDs may swap
+        // between two still-connected physical monitors; renaming entries in-place would then
+        // overwrite one OutputWindow and leave the other alive but untracked.
+        _outputWindows.Clear();
+        foreach (var (window, matchedMonitor) in outputReconciliations.Where(item => item.Current is not null))
+        {
+            var monitor = matchedMonitor!;
+            if (!_outputWindows.TryAdd(monitor.Id, window))
+            {
+                FileLogger.Error($"Topologia de monitores produziu o ID de sessão duplicado '{monitor.Id}'; a saída duplicada foi fechada.");
+                window.Close();
+                continue;
+            }
+
+            window.Reposition(monitor);
+            window.Show();
         }
 
         _monitors = current;
@@ -1354,39 +1642,30 @@ public partial class MainWindow : Window
         UpdateOperatorIndicator();
         RebuildOutputChoices();
 
-        foreach (var pair in _outputWindows.ToArray())
-        {
-            var monitor = FindCurrentMonitor(pair.Value.Monitor, current);
-            if (monitor is null)
-            {
-                continue;
-            }
-
-            if (!string.Equals(pair.Key, monitor.Id, StringComparison.OrdinalIgnoreCase))
-            {
-                _outputWindows.Remove(pair.Key);
-                _outputWindows[monitor.Id] = pair.Value;
-            }
-
-            pair.Value.Reposition(monitor);
-            pair.Value.Show();
-        }
-
         UpdateMonitorWarning();
         UpdateActiveOutputs();
 
         if (operatorWasLost)
         {
-            FileLogger.Info("A tela do operador foi desconectada; reprodução pública bloqueada até nova configuração.");
+            var operatorRecoveryMessage = _operatorRecoverySettingsAllowed
+                ? "A tela do operador foi desconectada. A reprodução foi pausada e o painel foi movido para uma tela disponível. " +
+                  "Abra Configurar telas e escolha novamente o operador; a reprodução não será retomada automaticamente."
+                : _coordinator.IsActive
+                    ? "A tela do operador foi desconectada. O painel foi movido para uma tela disponível. " +
+                      "Pare a reprodução antes de alterar a configuração de telas."
+                    : "A tela do operador foi desconectada. O painel foi movido para uma tela disponível. " +
+                      "Abra Configurar telas e escolha novamente o operador.";
+            FileLogger.Info(_operatorRecoverySettingsAllowed
+                ? "A tela do operador foi desconectada; reprodução pública pausada até nova configuração."
+                : "A tela do operador foi desconectada; nova configuração necessária.");
             MessageBox.Show(
                 this,
-                "A tela do operador foi desconectada. A reprodução foi pausada e o painel foi movido para uma tela disponível. " +
-                "Abra Configurar telas e escolha novamente o operador; a reprodução não será retomada automaticamente.",
+                operatorRecoveryMessage,
                 "Tela do operador desconectada",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
-        else if (disconnectedOutputIds.Length > 0)
+        else if (disconnectedOutputs.Length > 0)
         {
             FileLogger.Info($"Saídas desconectadas: {string.Join(", ", disconnectedOutputLabels)}.");
             var transition = hadPublicOutputs ? _coordinator.PublicOutputsChanged(_outputWindows.Count) : default;
@@ -1443,6 +1722,7 @@ public partial class MainWindow : Window
     private void HandleOperatorDisconnection()
     {
         _operatorRequiresConfiguration = true;
+        _operatorRecoverySettingsAllowed = false;
         _operatorMonitor = _monitors.FirstOrDefault(monitor => monitor.IsPrimary) ?? _monitors.FirstOrDefault();
         OperatorStatusText.Text = "Operador provisório: escolha e salve novamente antes de continuar em telas públicas.";
         if (_operatorMonitor is not null)
@@ -1461,6 +1741,7 @@ public partial class MainWindow : Window
             : default;
         if (transition.PauseEngine)
         {
+            _operatorRecoverySettingsAllowed = true;
             PauseForRequiredReconfiguration();
         }
     }
@@ -1521,18 +1802,6 @@ public partial class MainWindow : Window
     }
 
     private static string SelectionKey(MonitorInfo monitor) => monitor.PersistenceKey ?? $"session:{monitor.Id}";
-
-    private static MonitorInfo? FindCurrentMonitor(MonitorInfo previous, IReadOnlyList<MonitorInfo> current)
-    {
-        if (previous.PersistenceKey is { } persistentId)
-        {
-            var matches = current.Where(monitor =>
-                string.Equals(monitor.PersistenceKey, persistentId, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
-            return matches.Length == 1 ? matches[0] : null;
-        }
-
-        return current.FirstOrDefault(monitor => string.Equals(monitor.Id, previous.Id, StringComparison.OrdinalIgnoreCase));
-    }
 
     private void ApplyMonitorNames()
     {
@@ -1676,7 +1945,7 @@ public partial class MainWindow : Window
 
     private void SetConfigurationControlsEnabled(bool enabled)
     {
-        ConfigureScreensButton.IsEnabled = enabled;
+        ConfigureScreensButton.IsEnabled = SettingsAccessPolicy.CanOpenSettings(_controlsBusy);
     }
 
     private void PersistExplicitOutputs()
@@ -1742,11 +2011,6 @@ public partial class MainWindow : Window
             }
 
             CloseIdentifierWindows();
-            foreach (var window in _outputWindows.Values)
-            {
-                window.Hide();
-            }
-
             _ = Dispatcher.BeginInvoke(() => RefreshConnectedDevices(true), DispatcherPriority.Send);
         }
 

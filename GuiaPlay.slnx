@@ -3,4 +3,5 @@
   <Project Path="src/GuiaPlay.App/GuiaPlay.App.csproj" />
   <Project Path="src/GuiaPlay.Updater/GuiaPlay.Updater.csproj" />
   <Project Path="tests/GuiaPlay.Core.Tests/GuiaPlay.Core.Tests.csproj" />
+  <Project Path="tests/GuiaPlay.App.Tests/GuiaPlay.App.Tests.csproj" />
 </Solution>

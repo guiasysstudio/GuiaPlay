@@ -16,25 +16,40 @@ internal sealed class PlaylistGroupNode(PlaylistGroup group)
 
 internal sealed class PlaylistItemNode(Guid groupId, PlaylistItem item) : INotifyPropertyChanged
 {
-    private bool? _isAvailable;
+    private PlaylistItemAvailability _availability;
 
     public Guid GroupId { get; } = groupId;
     public PlaylistItem Item { get; } = item;
     public string Name => Item.DisplayName;
     public string KindLabel => Item.Kind == MediaKind.Audio ? "Áudio" : "Vídeo";
-    public bool IsAvailable => _isAvailable != false;
-    public string AvailabilityLabel => IsAvailable ? KindLabel : $"{KindLabel} · arquivo não encontrado";
+    public bool IsAvailable => _availability is PlaylistItemAvailability.Unknown or PlaylistItemAvailability.Available;
+    public string AvailabilityLabel => _availability switch
+    {
+        PlaylistItemAvailability.Missing => $"{KindLabel} · arquivo não encontrado",
+        PlaylistItemAvailability.DecodeFailed => $"{KindLabel} · arquivo existe, mas não pôde ser decodificado",
+        PlaylistItemAvailability.TimedOut => $"{KindLabel} · disponibilidade não confirmada",
+        PlaylistItemAvailability.InvalidPath => $"{KindLabel} · caminho inválido",
+        PlaylistItemAvailability.Unsupported => $"{KindLabel} · formato não suportado",
+        _ => KindLabel
+    };
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public void SetAvailability(bool available)
+    public void SetAvailability(MediaProbeStatus status)
     {
-        if (_isAvailable == available)
+        SetAvailability(PlaylistItemAvailabilityPolicy.FromProbe(status));
+    }
+
+    public void SetDecodeFailure() => SetAvailability(PlaylistItemAvailability.DecodeFailed);
+
+    private void SetAvailability(PlaylistItemAvailability availability)
+    {
+        if (_availability == availability)
         {
             return;
         }
 
-        _isAvailable = available;
+        _availability = availability;
         OnPropertyChanged(nameof(IsAvailable));
         OnPropertyChanged(nameof(AvailabilityLabel));
     }

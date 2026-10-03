@@ -11,8 +11,8 @@ public sealed class ProductVersionTests
     [Fact]
     public void ProductMetadataUsesCentralVersionAndReleaseDate()
     {
-        Assert.Equal("0.10.2-prototipo", ProductInfo.Version);
-        Assert.Equal(new DateOnly(2026, 9, 26), ProductInfo.ReleaseDate);
+        Assert.Equal("0.10.3-prototipo", ProductInfo.Version);
+        Assert.Equal(new DateOnly(2026, 10, 2), ProductInfo.ReleaseDate);
         Assert.Equal(UpdateChannel.Prototype, ProductInfo.Channel);
     }
 
@@ -30,12 +30,21 @@ public sealed class ProductVersionTests
     [InlineData("0.5.1-prototipo", "0.6.0-prototipo")]
     [InlineData("0.9.9-prototipo", "1.0.0")]
     [InlineData("1.0.0-prototipo", "1.0.0")]
+    [InlineData("0.10.3-prototipo", "1.0.0-rc1")]
+    [InlineData("1.0.0-rc1", "1.0.0-rc2")]
+    [InlineData("1.0.0-rc2", "1.0.0-rc10")]
+    [InlineData("1.0.0-rc.2", "1.0.0-rc.10")]
+    [InlineData("1.0.0-rc10", "1.0.0")]
     public void ComparesSemantically(string older, string newer) =>
         Assert.True(ProductVersion.Parse(older) < ProductVersion.Parse(newer));
 
     [Fact]
     public void EqualVersionsCompareEqual() =>
         Assert.Equal(0, ProductVersion.Parse("v0.5.0-prototipo").CompareTo(ProductVersion.Parse("0.5.0-prototipo")));
+
+    [Fact]
+    public void RcCompactAndDottedFormsHaveEquivalentPrecedence() =>
+        Assert.Equal(0, ProductVersion.Parse("1.0.0-rc1").CompareTo(ProductVersion.Parse("1.0.0-rc.1")));
 }
 
 public sealed class ReleaseSelectorTests
@@ -67,6 +76,32 @@ public sealed class ReleaseSelectorTests
         Assert.Equal("1.0.1", latest!.Version.ToString());
     }
 
+    [Fact]
+    public void PrototypeAcceptsLaterPrototypeReleaseCandidateAndStable()
+    {
+        var releases = new[]
+        {
+            Release("v0.10.4-prototipo", prerelease: true),
+            Release("v1.0.0-rc2", prerelease: true),
+            Release("v1.0.0")
+        };
+
+        Assert.Equal("1.0.0", ReleaseSelector.SelectLatest(releases, UpdateChannel.Prototype)!.Version.ToString());
+    }
+
+    [Fact]
+    public void ReleaseCandidateRejectsPrototypeButAcceptsRcAndStable()
+    {
+        var releases = new[]
+        {
+            Release("v9.0.0-prototipo", prerelease: true),
+            Release("v1.0.0-rc2", prerelease: true),
+            Release("v1.0.0")
+        };
+
+        Assert.Equal("1.0.0", ReleaseSelector.SelectLatest(releases, UpdateChannel.ReleaseCandidate)!.Version.ToString());
+    }
+
     private static GitHubRelease Release(string tag, bool draft = false, bool prerelease = false) =>
         new(tag, draft, prerelease, DateTimeOffset.Parse("2026-09-25T12:00:00Z"), "notes", []);
 }
@@ -85,6 +120,84 @@ public sealed class GitHubUpdateServiceTests
 
         Assert.Equal(UpdateCheckStatus.UpdateAvailable, result.Status);
         Assert.Equal("0.6.0-prototipo", result.Manifest!.Version);
+        Assert.Equal("package.zip", result.SelectedPackage!.AssetName);
+    }
+
+    [Theory]
+    [InlineData("0.10.3-prototipo", UpdateChannel.Prototype, "1.0.0-rc1", true, "releaseCandidate")]
+    [InlineData("1.0.0-rc1", UpdateChannel.ReleaseCandidate, "1.0.0-rc2", true, "releaseCandidate")]
+    [InlineData("1.0.0-rc2", UpdateChannel.ReleaseCandidate, "1.0.0", false, "stable")]
+    public async Task FutureChannelTransitionsAreUpdates(
+        string current,
+        UpdateChannel channel,
+        string published,
+        bool prerelease,
+        string manifestChannel)
+    {
+        using var client = Client(request => request.RequestUri!.AbsolutePath.EndsWith("update-manifest.json", StringComparison.Ordinal)
+            ? Json(Manifest(published, "package.zip", manifestChannel))
+            : Json(Releases($"v{published}", "package.zip", prerelease)));
+
+        var result = await new GitHubUpdateService(client, "o", "r")
+            .CheckAsync(ProductVersion.Parse(current), channel, runtimeIdentifier: "win-x64");
+
+        Assert.Equal(UpdateCheckStatus.UpdateAvailable, result.Status);
+    }
+
+    [Fact]
+    public async Task StableChannelNeverDowngradesToReleaseCandidate()
+    {
+        using var client = Client(_ => Json(Releases("v1.0.0-rc3", "package.zip", prerelease: true)));
+
+        var result = await new GitHubUpdateService(client, "o", "r")
+            .CheckAsync(ProductVersion.Parse("1.0.0"), UpdateChannel.Stable, runtimeIdentifier: "win-x64");
+
+        Assert.NotEqual(UpdateCheckStatus.UpdateAvailable, result.Status);
+    }
+
+    [Theory]
+    [InlineData("win-x64", "x64.zip")]
+    [InlineData("win-x86", "x86.zip")]
+    public async Task MultiArchitectureManifestSelectsExactRuntimePackage(string runtimeIdentifier, string expectedAsset)
+    {
+        var manifest = """
+            {"schema":1,"version":"0.10.3-prototipo","channel":"prototype","publishedAt":"2026-10-02T12:00:00Z",
+             "package":{"assetName":"x64.zip","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+             "packages":{
+               "win-x64":{"assetName":"x64.zip","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+               "win-x86":{"assetName":"x86.zip","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}}
+            """;
+        using var client = Client(request => request.RequestUri!.AbsolutePath.EndsWith("update-manifest.json", StringComparison.Ordinal)
+            ? Json(manifest)
+            : Json(ReleasesWithAssets("v0.10.3-prototipo", true, "x64.zip", "x86.zip")));
+
+        var result = await new GitHubUpdateService(client, "o", "r")
+            .CheckAsync(ProductVersion.Parse("0.10.2-prototipo"), UpdateChannel.Prototype, runtimeIdentifier: runtimeIdentifier);
+
+        Assert.Equal(UpdateCheckStatus.UpdateAvailable, result.Status);
+        Assert.Equal(expectedAsset, result.SelectedPackage!.AssetName);
+    }
+
+    [Fact]
+    public async Task LegacyManifestRemainsX64Only()
+    {
+        using var client = Client(request => request.RequestUri!.AbsolutePath.EndsWith("update-manifest.json", StringComparison.Ordinal)
+            ? Json(Manifest("0.10.3-prototipo", "x64.zip"))
+            : Json(Releases("v0.10.3-prototipo", "x64.zip")));
+        var service = new GitHubUpdateService(client, "o", "r");
+
+        var x64 = await service.CheckAsync(
+            ProductVersion.Parse("0.10.2-prototipo"),
+            UpdateChannel.Prototype,
+            runtimeIdentifier: "win-x64");
+        var x86 = await service.CheckAsync(
+            ProductVersion.Parse("0.10.2-prototipo"),
+            UpdateChannel.Prototype,
+            runtimeIdentifier: "win-x86");
+
+        Assert.Equal(UpdateCheckStatus.UpdateAvailable, x64.Status);
+        Assert.Equal(UpdateCheckStatus.Failed, x86.Status);
+        Assert.Contains("win-x86", x86.Error);
     }
 
     [Theory]
@@ -166,13 +279,18 @@ public sealed class GitHubUpdateServiceTests
         Content = new StringContent(json, Encoding.UTF8, "application/json")
     };
 
-    private static string Releases(string tag, string packageName) =>
-        $"[{{\"tag_name\":\"{tag}\",\"draft\":false,\"prerelease\":true,\"published_at\":\"2026-09-25T12:00:00Z\",\"body\":\"Notas\",\"assets\":[" +
+    private static string Releases(string tag, string packageName, bool prerelease = true) =>
+        $"[{{\"tag_name\":\"{tag}\",\"draft\":false,\"prerelease\":{prerelease.ToString().ToLowerInvariant()},\"published_at\":\"2026-09-25T12:00:00Z\",\"body\":\"Notas\",\"assets\":[" +
         "{\"name\":\"update-manifest.json\",\"browser_download_url\":\"https://example.test/update-manifest.json\"}," +
         $"{{\"name\":\"{packageName}\",\"browser_download_url\":\"https://example.test/{packageName}\"}}]}}]";
 
-    private static string Manifest(string version, string packageName) =>
-        $"{{\"schema\":1,\"version\":\"{version}\",\"channel\":\"prototype\",\"publishedAt\":\"2026-09-25T12:00:00Z\"," +
+    private static string ReleasesWithAssets(string tag, bool prerelease, params string[] packageNames) =>
+        $"[{{\"tag_name\":\"{tag}\",\"draft\":false,\"prerelease\":{prerelease.ToString().ToLowerInvariant()},\"published_at\":\"2026-10-02T12:00:00Z\",\"body\":\"Notas\",\"assets\":[" +
+        "{\"name\":\"update-manifest.json\",\"browser_download_url\":\"https://example.test/update-manifest.json\"}," +
+        string.Join(',', packageNames.Select(name => $"{{\"name\":\"{name}\",\"browser_download_url\":\"https://example.test/{name}\"}}")) + "]}]";
+
+    private static string Manifest(string version, string packageName, string channel = "prototype") =>
+        $"{{\"schema\":1,\"version\":\"{version}\",\"channel\":\"{channel}\",\"publishedAt\":\"2026-09-25T12:00:00Z\"," +
         $"\"package\":{{\"assetName\":\"{packageName}\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}}}";
 
     private sealed class DelegateHandler(Func<HttpRequestMessage, HttpResponseMessage> response) : HttpMessageHandler
@@ -392,6 +510,21 @@ public sealed class PackageSecurityTests : IDisposable
     }
 
     [Fact]
+    public void ManifestRejectsUnknownRuntimeIdentifier()
+    {
+        const string json = """
+            {"schema":1,"version":"0.10.3-prototipo","channel":"prototype","publishedAt":"2026-10-02T12:00:00Z",
+             "package":{"assetName":"x64.zip","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+             "packages":{
+               "win-x64":{"assetName":"x64.zip","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+               "linux-x64":{"assetName":"linux.zip","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}}
+            """;
+
+        Assert.False(UpdateManifest.TryParse(json, out _, out var error));
+        Assert.Contains("arquitetura", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ZipSlipIsRejected()
     {
         Directory.CreateDirectory(_root);
@@ -408,6 +541,44 @@ public sealed class PackageSecurityTests : IDisposable
     }
 
     [Fact]
+    public void ZipEntryCountLimitIsEnforcedBeforeExtraction()
+    {
+        Directory.CreateDirectory(_root);
+        var zipPath = Path.Combine(_root, "too-many.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            archive.CreateEntry("one.txt");
+            archive.CreateEntry("two.txt");
+            archive.CreateEntry("three.txt");
+        }
+
+        Assert.Throws<InvalidDataException>(() => SafeZipExtractor.Extract(
+            zipPath,
+            Path.Combine(_root, "entries-out"),
+            new ZipExtractionLimits(2, 1024)));
+        Assert.False(Directory.Exists(Path.Combine(_root, "entries-out")));
+    }
+
+    [Fact]
+    public void ZipUncompressedSizeLimitIsEnforcedBeforeExtraction()
+    {
+        Directory.CreateDirectory(_root);
+        var zipPath = Path.Combine(_root, "too-large.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("large.txt");
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write("0123456789");
+        }
+
+        Assert.Throws<InvalidDataException>(() => SafeZipExtractor.Extract(
+            zipPath,
+            Path.Combine(_root, "size-out"),
+            new ZipExtractionLimits(10, 5)));
+        Assert.False(Directory.Exists(Path.Combine(_root, "size-out")));
+    }
+
+    [Fact]
     public void DevelopmentModeWithoutMarkerIsRejectedAndManagedInstallIsAccepted()
     {
         var install = Path.Combine(_root, "install");
@@ -417,7 +588,9 @@ public sealed class PackageSecurityTests : IDisposable
         Assert.Null(ManagedInstallationDetector.Detect(executable));
 
         File.WriteAllText(Path.Combine(install, "install.json"), "{\"schema\":1,\"appId\":\"GuiaSys.GuiaPlay\",\"version\":\"0.5.0-prototipo\"}");
-        Assert.NotNull(ManagedInstallationDetector.Detect(executable));
+        var detected = ManagedInstallationDetector.Detect(executable);
+        Assert.NotNull(detected);
+        Assert.Equal("win-x64", detected.RuntimeIdentifier);
     }
 
     [Fact]
@@ -428,7 +601,9 @@ public sealed class PackageSecurityTests : IDisposable
         Assert.True(result.Succeeded);
         Assert.Equal("B", File.ReadAllText(Path.Combine(target, "app.txt")));
         Assert.Equal("A", File.ReadAllText(Path.Combine(backup, "app.txt")));
-        Assert.True(File.Exists(Path.Combine(target, "install.json")));
+        Assert.True(InstallMarkerStore.TryRead(Path.Combine(target, "install.json"), out var version, out var rid));
+        Assert.Equal("0.10.3-prototipo", version);
+        Assert.Equal("win-x64", rid);
     }
 
     [Fact]
@@ -441,7 +616,106 @@ public sealed class PackageSecurityTests : IDisposable
         Assert.True(result.RolledBack);
         Assert.Equal("A", File.ReadAllText(Path.Combine(target, "app.txt")));
         Assert.False(File.Exists(Path.Combine(target, "second.txt")));
-        Assert.True(File.Exists(Path.Combine(target, "install.json")));
+        Assert.True(InstallMarkerStore.TryRead(Path.Combine(target, "install.json"), out var version, out _));
+        Assert.Equal("0.10.2-prototipo", version);
+    }
+
+    [Fact]
+    public void BackupFailureNeverModifiesInstallationOrAttemptsPartialRollback()
+    {
+        var (source, target, backup) = CreateInstallTrees();
+
+        var result = UpdateApplicator.Apply(
+            source,
+            target,
+            backup,
+            failBeforeCopy: null,
+            failDuringBackup: copyNumber => copyNumber == 1);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.RolledBack);
+        Assert.Equal("A", File.ReadAllText(Path.Combine(target, "app.txt")));
+        Assert.True(File.Exists(Path.Combine(target, "obsolete.txt")));
+        Assert.True(InstallMarkerStore.TryRead(Path.Combine(target, "install.json"), out var version, out _));
+        Assert.Equal("0.10.2-prototipo", version);
+    }
+
+    [Fact]
+    public void ApplicatorRejectsIncompletePayloadBeforeCreatingBackupOrChangingInstallation()
+    {
+        var (source, target, backup) = CreateInstallTrees();
+        File.Delete(Path.Combine(source, "GuiaPlay.exe"));
+
+        var error = Assert.Throws<InvalidDataException>(() => UpdateApplicator.Apply(source, target, backup));
+
+        Assert.Contains("arquivo obrigatório", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("A", File.ReadAllText(Path.Combine(target, "app.txt")));
+        Assert.False(Directory.Exists(backup));
+    }
+
+    [Fact]
+    public void ApplicatorRejectsCrossArchitecturePackageBeforeChangingInstallation()
+    {
+        var (source, target, backup) = CreateInstallTrees();
+        InstallMarkerStore.WriteAtomic(Path.Combine(source, "install.json"), "0.10.3-prototipo", "win-x86");
+
+        var error = Assert.Throws<InvalidDataException>(() => UpdateApplicator.Apply(source, target, backup));
+
+        Assert.Contains("arquiteturas diferentes", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("A", File.ReadAllText(Path.Combine(target, "app.txt")));
+        Assert.False(Directory.Exists(backup));
+    }
+
+    [Fact]
+    public void ApplicatorRejectsSameVersionOrDowngradeBeforeChangingInstallation()
+    {
+        var (source, target, backup) = CreateInstallTrees();
+        InstallMarkerStore.WriteAtomic(Path.Combine(source, "install.json"), "0.10.2-prototipo", "win-x64");
+
+        var error = Assert.Throws<InvalidDataException>(() => UpdateApplicator.Apply(source, target, backup));
+
+        Assert.Contains("não é mais novo", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("A", File.ReadAllText(Path.Combine(target, "app.txt")));
+        Assert.False(Directory.Exists(backup));
+    }
+
+    [Fact]
+    public void InstallMarkerReplacementIsAtomicAndLeavesNoTemporaryFile()
+    {
+        var markerPath = Path.Combine(_root, "atomic", "install.json");
+        InstallMarkerStore.WriteAtomic(markerPath, "0.10.2-prototipo", "win-x64");
+
+        InstallMarkerStore.WriteAtomic(markerPath, "0.10.3-prototipo", "win-x64");
+
+        Assert.True(InstallMarkerStore.TryRead(markerPath, out var version, out var rid));
+        Assert.Equal("0.10.3-prototipo", version);
+        Assert.Equal("win-x64", rid);
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(markerPath)!, "install.json.tmp-*"));
+    }
+
+    [Fact]
+    public void WorkspaceRetentionOnlyDeletesRecognizedGuiaPlayDirectories()
+    {
+        var temp = Path.Combine(_root, "retention");
+        var now = new DateTimeOffset(2026, 10, 2, 12, 0, 0, TimeSpan.Zero);
+        var staleUpdate = UpdateWorkspaceRetention.CreateDirectory(temp, UpdateWorkspaceKind.Update, "stale", now.AddDays(-3));
+        var freshUpdate = UpdateWorkspaceRetention.CreateDirectory(temp, UpdateWorkspaceKind.Update, "fresh", now);
+        var oldestBackup = UpdateWorkspaceRetention.CreateDirectory(temp, UpdateWorkspaceKind.Backup, "backup-old", now.AddDays(-3));
+        var middleBackup = UpdateWorkspaceRetention.CreateDirectory(temp, UpdateWorkspaceKind.Backup, "backup-middle", now.AddDays(-2));
+        var newestBackup = UpdateWorkspaceRetention.CreateDirectory(temp, UpdateWorkspaceKind.Backup, "backup-new", now.AddDays(-1));
+        var foreign = Path.Combine(temp, "GuiaPlayUpdate", "foreign");
+        Directory.CreateDirectory(foreign);
+        File.WriteAllText(Path.Combine(foreign, "keep.txt"), "not owned by GuiaPlay");
+
+        var result = UpdateWorkspaceRetention.Cleanup(temp, now, backupRetention: 2);
+
+        Assert.False(Directory.Exists(staleUpdate));
+        Assert.True(Directory.Exists(freshUpdate));
+        Assert.False(Directory.Exists(oldestBackup));
+        Assert.True(Directory.Exists(middleBackup));
+        Assert.True(Directory.Exists(newestBackup));
+        Assert.True(Directory.Exists(foreign));
+        Assert.Equal(2, result.DeletedDirectories);
     }
 
     private (string Source, string Target, string Backup) CreateInstallTrees()
@@ -452,9 +726,16 @@ public sealed class PackageSecurityTests : IDisposable
         Directory.CreateDirectory(source);
         Directory.CreateDirectory(target);
         File.WriteAllText(Path.Combine(source, "app.txt"), "B");
+        File.WriteAllText(Path.Combine(source, "GuiaPlay.exe"), "app");
+        File.WriteAllText(Path.Combine(source, "GuiaPlay.Updater.exe"), "updater");
+        var nativeDirectory = Path.Combine(source, "libvlc", "win-x64");
+        Directory.CreateDirectory(Path.Combine(nativeDirectory, "plugins"));
+        File.WriteAllText(Path.Combine(nativeDirectory, "libvlc.dll"), "libvlc");
+        File.WriteAllText(Path.Combine(nativeDirectory, "libvlccore.dll"), "libvlccore");
         File.WriteAllText(Path.Combine(target, "app.txt"), "A");
         File.WriteAllText(Path.Combine(target, "obsolete.txt"), "old");
-        File.WriteAllText(Path.Combine(target, "install.json"), "marker");
+        InstallMarkerStore.WriteAtomic(Path.Combine(source, "install.json"), "0.10.3-prototipo", "win-x64");
+        InstallMarkerStore.WriteAtomic(Path.Combine(target, "install.json"), "0.10.2-prototipo", "win-x64");
         return (source, target, backup);
     }
 

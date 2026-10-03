@@ -93,6 +93,64 @@ public sealed class PlaylistTests : IDisposable
     }
 
     [Fact]
+    public void RejectedProbedDropDoesNotCreateGhostGroupOrDirtyCatalog()
+    {
+        var catalog = new PlaylistCatalog(PlaylistDocument.Empty);
+        var probes = new[]
+        {
+            new MediaProbeResult(Path.Combine(_directory, "ausente.mp4"), MediaProbeStatus.Missing),
+            new MediaProbeResult(Path.Combine(_directory, "notas.txt"), MediaProbeStatus.Unsupported),
+            new MediaProbeResult(Path.Combine(_directory, "rede.mkv"), MediaProbeStatus.TimedOut)
+        };
+
+        var result = catalog.ImportProbedItems(null, "Mídias", probes);
+
+        Assert.Null(result.TargetGroup);
+        Assert.Empty(result.Added);
+        Assert.Equal(3, result.Rejected.Count);
+        Assert.Empty(catalog.Snapshot.Groups);
+        Assert.False(catalog.IsDirty);
+    }
+
+    [Fact]
+    public void ProbedDropCreatesFallbackGroupOnlyAfterAtLeastOneAcceptedMedia()
+    {
+        var catalog = new PlaylistCatalog(PlaylistDocument.Empty);
+        var available = Path.Combine(_directory, "abertura.mp4");
+        var missing = Path.Combine(_directory, "ausente.mp3");
+
+        var result = catalog.ImportProbedItems(
+            null,
+            "Mídias",
+            [
+                new MediaProbeResult(missing, MediaProbeStatus.Missing),
+                new MediaProbeResult(available, MediaProbeStatus.Available)
+            ]);
+
+        Assert.NotNull(result.TargetGroup);
+        Assert.Equal("Mídias", result.TargetGroup.Name);
+        Assert.Equal(Path.GetFullPath(available), Assert.Single(result.Added).OriginalPath);
+        Assert.Equal(missing, Assert.Single(result.Rejected));
+        Assert.True(catalog.IsDirty);
+        Assert.Single(catalog.Snapshot.Groups);
+    }
+
+    [Fact]
+    public void AvailabilityKeepsMissingAndDecodeFailureAsDistinctStates()
+    {
+        var missing = PlaylistItemAvailabilityPolicy.FromProbe(MediaProbeStatus.Missing);
+        var existing = PlaylistItemAvailabilityPolicy.FromProbe(MediaProbeStatus.Available);
+        var decodeFailure = PlaylistItemAvailability.DecodeFailed;
+
+        Assert.Equal(PlaylistItemAvailability.Missing, missing);
+        Assert.Equal(PlaylistItemAvailability.Available, existing);
+        Assert.NotEqual(missing, decodeFailure);
+        Assert.False(PlaylistItemAvailabilityPolicy.CanActivate(missing));
+        Assert.False(PlaylistItemAvailabilityPolicy.CanActivate(decodeFailure));
+        Assert.True(PlaylistItemAvailabilityPolicy.CanActivate(existing));
+    }
+
+    [Fact]
     public void ReordersGroups()
     {
         var catalog = new PlaylistCatalog(PlaylistDocument.Empty);
@@ -144,7 +202,7 @@ public sealed class PlaylistTests : IDisposable
     }
 
     [Fact]
-    public void MissingOriginalRemainsInPlaylistAndIsUnavailable()
+    public async Task MissingOriginalRemainsInPlaylistAndIsUnavailable()
     {
         var missing = Path.Combine(_directory, "nao-existe.webm");
         var group = new PlaylistGroup(Guid.NewGuid(), "Sermão", 0,
@@ -154,7 +212,9 @@ public sealed class PlaylistTests : IDisposable
         Assert.True(store.Save(new PlaylistDocument(1, [group])).Succeeded);
         var item = Assert.Single(Assert.Single(store.Load().Playlist.Groups).Items);
 
-        Assert.False(item.IsAvailable);
+        Assert.Equal(
+            MediaProbeStatus.Missing,
+            await MediaFileProbe.ProbeAsync(item.OriginalPath, TimeSpan.FromSeconds(1)));
         Assert.Equal(Path.GetFullPath(missing), item.OriginalPath);
     }
 
@@ -214,6 +274,54 @@ public sealed class PlaylistTests : IDisposable
 
         Assert.Empty(result.Playlist.Groups);
         Assert.NotNull(result.Warning);
+    }
+
+    [Fact]
+    public void InvalidItemDoesNotEraseValidGroupsOrSiblingItems()
+    {
+        Directory.CreateDirectory(_directory);
+        var groupId = Guid.NewGuid();
+        var validItemId = Guid.NewGuid();
+        var root = new JsonObject
+        {
+            ["schemaVersion"] = PlaylistDocument.CurrentSchemaVersion,
+            ["groups"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = groupId,
+                    ["name"] = "Grupo preservado",
+                    ["order"] = 0,
+                    ["items"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["id"] = validItemId,
+                            ["displayName"] = "válido.mp4",
+                            ["originalPath"] = Path.Combine(_directory, "válido.mp4"),
+                            ["kind"] = (int)MediaKind.Video,
+                            ["order"] = 0
+                        },
+                        new JsonObject
+                        {
+                            ["id"] = Guid.Empty,
+                            ["displayName"] = "inválido.mp4",
+                            ["originalPath"] = Path.Combine(_directory, "inválido.mp4"),
+                            ["kind"] = (int)MediaKind.Video,
+                            ["order"] = 1
+                        }
+                    }
+                }
+            }
+        };
+        File.WriteAllText(PlaylistPath, root.ToJsonString());
+
+        var result = new PlaylistStore(PlaylistPath).Load();
+
+        Assert.NotNull(result.Warning);
+        var group = Assert.Single(result.Playlist.Groups);
+        Assert.Equal(groupId, group.Id);
+        Assert.Equal(validItemId, Assert.Single(group.Items).Id);
     }
 
     [Fact]

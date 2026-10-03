@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Security;
 using System.Windows;
@@ -33,6 +32,8 @@ public partial class ScreenConfigurationWindow : Window
     private readonly Func<DiagnosticSnapshot> _diagnosticSnapshot;
     private readonly DispatcherTimer _diagnosticTimer;
     private readonly bool _playbackActive;
+    private readonly bool _screensEditable;
+    private readonly AudioOutputPreference _savedAudioOutput;
     private readonly LibVlcEqualizerCatalog _equalizerCatalog;
     private readonly EqualizerConfiguration _savedEqualizer;
     private readonly ObservableCollection<EqualizerBandItem> _equalizerBands = [];
@@ -56,13 +57,16 @@ public partial class ScreenConfigurationWindow : Window
         WindowsIntegrationService windowsIntegration,
         Func<DiagnosticSnapshot> diagnosticSnapshot,
         bool openUpdates,
-        bool playbackActive)
+        bool playbackActive,
+        bool operatorRecoveryRequired)
     {
         InitializeComponent();
         _updateManager = updateManager;
         _windowsIntegration = windowsIntegration;
         _diagnosticSnapshot = diagnosticSnapshot;
         _playbackActive = playbackActive;
+        _screensEditable = SettingsAccessPolicy.CanConfigureScreens(playbackActive, operatorRecoveryRequired);
+        _savedAudioOutput = settings.AudioOutput;
         _equalizerCatalog = equalizerCatalog;
         _savedEqualizer = settings.Equalizer;
         _items = monitors.Select(monitor => new ScreenConfigurationItem
@@ -124,9 +128,13 @@ public partial class ScreenConfigurationWindow : Window
         AboutReleaseDateText.Text = $"Data da versão: {ProductInfo.ReleaseDate:dd/MM/yyyy}";
         CheckUpdatesAutomaticallyCheckBox.IsChecked = settings.CheckUpdatesAutomatically;
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
-        SettingsTabs.SelectedItem = openUpdates ? UpdatesTab : playbackActive || monitors.Count == 0 ? DiagnosticsTab : ScreensTab;
-        ScreensTab.IsEnabled = !playbackActive;
-        ScreensNavigationButton.IsEnabled = !playbackActive;
+        SettingsTabs.SelectedItem = openUpdates
+            ? UpdatesTab
+            : _screensEditable && monitors.Count > 0
+                ? ScreensTab
+                : DiagnosticsTab;
+        ScreensTab.IsEnabled = _screensEditable;
+        ScreensNavigationButton.IsEnabled = _screensEditable;
         SynchronizeNavigationSelection();
         _updateManager.StateChanged += UpdateManager_OnStateChanged;
         _diagnosticTimer = new DispatcherTimer(
@@ -192,9 +200,15 @@ public partial class ScreenConfigurationWindow : Window
         }
 
         if (AppearanceCombo.SelectedItem is not SettingsAppearanceChoice appearance ||
-            AudioOutputCombo.SelectedItem is not SettingsAudioChoice { IsAvailable: true } audio)
+            AudioOutputCombo.SelectedItem is not SettingsAudioChoice audio)
         {
-            ValidationText.Text = "Escolha uma aparência e uma saída de áudio disponível.";
+            ValidationText.Text = "Escolha uma aparência e uma saída de áudio.";
+            return;
+        }
+
+        if (!AudioOutputRuntimePolicy.CanSaveSelection(_savedAudioOutput, audio.Preference, audio.IsAvailable))
+        {
+            ValidationText.Text = "Escolha uma saída de áudio disponível ou preserve a saída salva sem alterá-la.";
             return;
         }
 
@@ -317,11 +331,14 @@ public partial class ScreenConfigurationWindow : Window
         EqualizerPresetCombo.SelectedItem = _equalizerPresets.First(choice => choice.Preset is null);
     }
 
-    private void OpenProjectPageButton_OnClick(object sender, RoutedEventArgs e) =>
-        Process.Start(new ProcessStartInfo(ProductInfo.ProjectPageUri.AbsoluteUri)
+    private void OpenProjectPageButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var result = SafeProcessLauncher.TryOpenShell(ProductInfo.ProjectPageUri.AbsoluteUri);
+        if (!result.Succeeded)
         {
-            UseShellExecute = true
-        });
+            ValidationText.Text = $"Não foi possível abrir o site do projeto: {result.Error}";
+        }
+    }
 
     private void ConfigureWindowsIntegrationButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -344,14 +361,14 @@ public partial class ScreenConfigurationWindow : Window
 
     private void OpenDefaultAppsButton_OnClick(object sender, RoutedEventArgs e)
     {
-        try
+        var result = SafeProcessLauncher.TryOpenShell("ms-settings:defaultapps");
+        if (result.Succeeded)
         {
-            Process.Start(new ProcessStartInfo("ms-settings:defaultapps") { UseShellExecute = true });
             WindowsIntegrationMessageText.Text = "Escolha o aplicativo padrão diretamente nas Configurações do Windows.";
         }
-        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        else
         {
-            WindowsIntegrationMessageText.Text = $"Não foi possível abrir as Configurações do Windows: {exception.Message}";
+            WindowsIntegrationMessageText.Text = $"Não foi possível abrir as Configurações do Windows: {result.Error}";
         }
     }
 

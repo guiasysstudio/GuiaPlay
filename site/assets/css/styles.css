@@ -172,6 +172,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .release-pill { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; background: rgba(113,231,180,.1); color: var(--success); border: 1px solid rgba(113,231,180,.2); padding: 6px 10px; font-size: .82rem; font-weight: 700; }
 .release-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .download-card .btn { width: 100%; margin-top: 8px; }
+.download-card .btn[aria-disabled="true"] { opacity: .5; pointer-events: none; cursor: not-allowed; }
+.download-options { display: grid; gap: 8px; }
+.release-link { display: inline-flex; margin-top: 10px; color: var(--accent-3); font-size: .9rem; font-weight: 700; }
 .status { min-height: 24px; color: #8fa9bd; font-size: .86rem; margin-top: 12px; }
 .info-card h3 { margin: 0 0 14px; font-size: 1.15rem; }
 .info-list { display: grid; gap: 14px; margin: 0; }

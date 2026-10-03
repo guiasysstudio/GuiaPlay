@@ -67,6 +67,17 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+# GuiaPlay local state and generated validation output
+**/settings.json
+**/playlist.json
+**/playlist-presets/
+**/GuiaPlayUpdate/
+**/GuiaPlayUpdater/
+**/GuiaPlayBackup/
+GuiaPlay-soak-*.csv
+GuiaPlay-diagnostics-*.txt
+GuiaPlay-diagnostics-*.json
+
 # Tye
 .tye/
 

@@ -1,31 +1,162 @@
 {
-  "package": "GuiaPlay brand assets",
-  "version": 1,
-  "recommended_extract_root": "E:\\Projetos\\GuiaSys\\GuiaPlay\\GuiaPlay",
-  "main_assets": [
-    {
-      "path": "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay.ico",
-      "use": "Ícone principal do app, janela, atalho e taskbar"
-    },
-    {
-      "path": "src/GuiaPlay.App/Assets/Branding/Wordmarks/GuiaPlay-Wordmark-1024.png",
-      "use": "Escrita GuiaPlay para UI"
-    },
-    {
-      "path": "installer/Assets/GuiaPlay-Setup.ico",
-      "use": "Ícone do instalador / setup"
-    },
-    {
-      "path": "installer/Assets/WizardImageFile.bmp",
-      "use": "Imagem lateral do assistente do Inno Setup"
-    },
-    {
-      "path": "installer/Assets/WizardSmallImageFile.bmp",
-      "use": "Imagem pequena do cabeçalho do Inno Setup"
-    },
-    {
-      "path": "installer/Assets/GuiaPlay-Banner-700x200.png",
-      "use": "Banner extra opcional para tela de boas-vindas/documentação"
-    }
-  ]
+    "schema":  2,
+    "package":  "GuiaPlay official brand assets",
+    "sourceOfTruth":  [
+                          {
+                              "path":  "src/GuiaPlay.App/Assets/Branding/Source/GuiaPlay-Logo.svg",
+                              "sha256":  "6c033651261103cb1367e341897ca0ea006f7d1fd78839cdeb531bcfb56262ea"
+                          },
+                          {
+                              "path":  "src/GuiaPlay.App/Assets/Branding/Source/GuiaPlay-Wordmark.svg",
+                              "sha256":  "5bb08e9ab18d565565a6b7de1c63c9c93d972b7e2b6e7317b496c62d01d66771"
+                          }
+                      ],
+    "generator":  "scripts/generate-branding-assets.ps1",
+    "renderer":  "Microsoft Edge (SVG) + System.Drawing (resize, composition, ICO and BMP)",
+    "assets":  [
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/GuiaPlay-Icon-UI.png",
+                       "width":  256,
+                       "height":  256,
+                       "sha256":  "6d2ea46394f4dd2c71471e3a9c92d485783ec053e86f3d24ca4f141eaccbb902"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/GuiaPlay-Wordmark-UI.png",
+                       "width":  900,
+                       "height":  230,
+                       "sha256":  "ad91d6eac8d97dfecf173043c921bc16f485380fd375f7938a3ba1d0b6b2fb76"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay.ico",
+                       "width":  256,
+                       "height":  256,
+                       "sha256":  "ea3e8ab6ebcf892ce392fc0977ed105a94e1accc570b5b58f27f0edef4413517"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Symbol-Original.png",
+                       "width":  1240,
+                       "height":  1240,
+                       "sha256":  "7898d65c8d1c6e5f774def31d483fdd4821832a9f34a75995c3ff8132fdc9b49"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Symbol-128.png",
+                       "width":  128,
+                       "height":  128,
+                       "sha256":  "ebef8619d65f5ba5a5e768f95109ff687962240a87be71484a5989bb3335e57f"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Symbol-256.png",
+                       "width":  256,
+                       "height":  256,
+                       "sha256":  "6d2ea46394f4dd2c71471e3a9c92d485783ec053e86f3d24ca4f141eaccbb902"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Wordmarks/GuiaPlay-Wordmark-Original.png",
+                       "width":  2034,
+                       "height":  520,
+                       "sha256":  "de8ff67bc4603d469b5c995ab23382640bdc2d53b6dbf1dddd86fe17478d3132"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Wordmarks/GuiaPlay-Wordmark-1024.png",
+                       "width":  1024,
+                       "height":  262,
+                       "sha256":  "23907c51ff1390169160737b49050d1b2fc865495f79778815897ab1541aac32"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Wordmarks/GuiaPlay-Wordmark-768.png",
+                       "width":  768,
+                       "height":  196,
+                       "sha256":  "5f4fbb4821ab855c7cc1da3663ef1a4c2c8d084dbca4512080b34978e4a46ed0"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Wordmarks/GuiaPlay-Wordmark-512.png",
+                       "width":  512,
+                       "height":  131,
+                       "sha256":  "426faed4834ffaa99d2c9c6c1e70dbe76239d445e64c0181e50f091fe89c4fef"
+                   },
+                   {
+                       "path":  "installer/Assets/GuiaPlay-Setup.ico",
+                       "width":  256,
+                       "height":  256,
+                       "sha256":  "ea3e8ab6ebcf892ce392fc0977ed105a94e1accc570b5b58f27f0edef4413517"
+                   },
+                   {
+                       "path":  "installer/Assets/GuiaPlay-Banner-700x200.png",
+                       "width":  700,
+                       "height":  200,
+                       "sha256":  "19bec2b1006b159c5c69b6154dcdc3372943fcecbf7db14b1598b122b67ab16a"
+                   },
+                   {
+                       "path":  "installer/Assets/WizardImageFile-preview.png",
+                       "width":  164,
+                       "height":  314,
+                       "sha256":  "2e92cdef0a9c6d19163429228bcd3b5b913dad469affb89b9df04ccedb2ee3a6"
+                   },
+                   {
+                       "path":  "installer/Assets/WizardImageFile.bmp",
+                       "width":  164,
+                       "height":  314,
+                       "sha256":  "e1b1d3f7a090133fe62816578b4bab91503f9700a2ce4908162f32f9eb5784d2"
+                   },
+                   {
+                       "path":  "installer/Assets/WizardSmallImageFile-preview.png",
+                       "width":  55,
+                       "height":  58,
+                       "sha256":  "d14389de76a0c2aed0e405e881ae91f4eefe73ac3f65ce1657cb7131f3a7be16"
+                   },
+                   {
+                       "path":  "installer/Assets/WizardSmallImageFile.bmp",
+                       "width":  55,
+                       "height":  58,
+                       "sha256":  "2e20d19be7520c03ae9f982f9234b7d2ab38cb8e90ac99b7a6e4f3033a7c1d02"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Icon-16.png",
+                       "width":  16,
+                       "height":  16,
+                       "sha256":  "9fa9a36173c9c141a2605a1f3ebba3e774f73826646cebcff63c27b102baa03d"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Icon-24.png",
+                       "width":  24,
+                       "height":  24,
+                       "sha256":  "fc58d33cc3c272dfc918fe0b8382123f1e389ca8a3655c6469ccfd9b27e346ae"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Icon-32.png",
+                       "width":  32,
+                       "height":  32,
+                       "sha256":  "af9cc29e56ed742ff179eb3652a339649422688f82cb8d79490c1f6cd24b5c60"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Icon-48.png",
+                       "width":  48,
+                       "height":  48,
+                       "sha256":  "d837301fd1f662927d493a0fb9145f9ad20aa2b096c6c70224abd293f8ccc4a1"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Icon-64.png",
+                       "width":  64,
+                       "height":  64,
+                       "sha256":  "9b6979206ea8508d375364fffde9174392912e7125ba2f39a157d55db8d38e40"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Icon-128.png",
+                       "width":  128,
+                       "height":  128,
+                       "sha256":  "ebef8619d65f5ba5a5e768f95109ff687962240a87be71484a5989bb3335e57f"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Icon-256.png",
+                       "width":  256,
+                       "height":  256,
+                       "sha256":  "6d2ea46394f4dd2c71471e3a9c92d485783ec053e86f3d24ca4f141eaccbb902"
+                   },
+                   {
+                       "path":  "src/GuiaPlay.App/Assets/Branding/Icons/GuiaPlay-Icon-512.png",
+                       "width":  512,
+                       "height":  512,
+                       "sha256":  "1093e6f5b76a73a3b0ee3569cff33c2db322299bd6e813da383e5cba7d223c31"
+                   }
+               ]
 }

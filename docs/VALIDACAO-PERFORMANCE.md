@@ -1,4 +1,4 @@
-# Validação de performance e longa duração — GuiaPlay 0.9
+# Validação de performance e longa duração — GuiaPlay 0.10.3
 
 Este roteiro separa medições automatizadas leves de validação física. Não conclua que 4K, um codec ou múltiplas saídas são adequados sem medir no computador real do culto.
 
@@ -71,6 +71,22 @@ Registrar no mínimo:
 9. Abrir playlist com 100, 500 e 1.000 referências.
 10. Verificar e baixar update durante playback; não aplicar até estado seguro.
 11. Fechar durante vídeo, áudio, pausa e download cancelável.
+12. Repetir dez ciclos completos incluindo salvar/carregar preset e teardown dos buffers.
+13. Criar uma playlist e um preset com 1.000 referências; medir save/load, responsividade e memória.
+14. Repetir o smoke no publish x86 e observar o espaço de endereço do processo 32 bits.
+
+## Resultados M10.3
+
+| Cenário | Arquitetura | Duração/iterações | RAM inicial | RAM pico/final | CPU | Resultado | Evidência |
+|---|---|---:|---:|---:|---:|---|---|
+| Idle | x64 | 30 min |  |  |  | Pendente físico |  |
+| Áudio local | x64 | 30 min |  |  |  | Pendente físico |  |
+| 720p | x64 | 30 min |  |  |  | Pendente físico |  |
+| 1080p | x64 | 60 min |  |  |  | Pendente físico |  |
+| 4K | x64 | 30 min |  |  |  | Pendente físico |  |
+| Ciclo crítico | x64 | 10+ |  |  |  | Pendente físico |  |
+| Preset grande | x64 | 1.000 referências |  |  |  | Pendente |  |
+| Smoke WOW64 | x86 | 10 ciclos |  |  |  | Pendente físico |  |
 
 ## Critério de relato
 

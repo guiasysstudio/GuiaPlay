@@ -91,6 +91,19 @@ public sealed class PlaybackCoordinatorTests
     }
 
     [Fact]
+    public void FailedEngineStopBecomesExplicitErrorInsteadOfFalseStoppedState()
+    {
+        var sut = PlayingCoordinator();
+
+        var result = sut.StopFailed();
+
+        Assert.True(result.Accepted);
+        Assert.True(result.CloseOutputs);
+        Assert.Equal(PlaybackStatus.Error, sut.Status);
+        Assert.NotNull(sut.MediaPath);
+    }
+
+    [Fact]
     public void PauseKeepsOutputsOpen()
     {
         var sut = PlayingCoordinator();
@@ -171,6 +184,27 @@ public sealed class PlaybackCoordinatorTests
 
         Assert.True(result.PauseEngine);
         Assert.Equal(PlaybackStatus.Paused, sut.Status);
+    }
+
+    [Fact]
+    public void TenCriticalPlaybackStateCyclesCompleteWithoutStaleState()
+    {
+        var sut = new PlaybackCoordinator();
+
+        for (var cycle = 0; cycle < 10; cycle++)
+        {
+            Assert.Equal(
+                LoadDecision.Loaded,
+                sut.TryLoad($@"C:\Midias\ciclo-{cycle}.mp4", MediaKind.Video, replacementConfirmed: true));
+            var generation = sut.BeginPlayback();
+            Assert.True(sut.MarkPlaying(generation));
+            Assert.True(sut.Pause().Accepted);
+            Assert.True(sut.Resume().Accepted);
+            Assert.True(sut.Stop().Accepted);
+            Assert.Equal(PlaybackStatus.Stopped, sut.Status);
+        }
+
+        Assert.Equal(10, sut.Generation);
     }
 
     private static PlaybackCoordinator PlayingCoordinator()

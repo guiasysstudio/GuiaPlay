@@ -41,10 +41,14 @@ public partial class App : Application
             return;
         }
 
+        // Keep the original argument only for the local single-instance hand-off. The
+        // primary process validates it with LaunchArgumentParser before it reaches the
+        // playback workflow, so an Explorer verb can never launch an arbitrary file.
         var launchArgument = e.Args.FirstOrDefault(argument => !string.IsNullOrWhiteSpace(argument));
         _singleInstance = new SingleInstanceCoordinator(
-            @"Local\GuiaPlay.M04.SingleInstance",
-            "GuiaPlay.M04.Commands");
+            @"Local\GuiaPlay.SingleInstance",
+            "GuiaPlay.Commands",
+            [new SingleInstanceEndpoint(@"Local\GuiaPlay.M04.SingleInstance", "GuiaPlay.M04.Commands")]);
         SingleInstanceStartResult instanceResult;
         try
         {
@@ -68,6 +72,8 @@ public partial class App : Application
             Shutdown();
             return;
         }
+
+        var launchArguments = e.Args.ToArray();
 
         FileLogger.Initialize();
         _singleInstance.RequestFailed += exception =>
@@ -137,7 +143,15 @@ public partial class App : Application
         MainWindow = window;
         window.Loaded += async (_, _) =>
         {
-            if (launchArgument is { } mediaPath)
+            var launchRequest = await LaunchArgumentParser.ParseAsync(
+                launchArguments,
+                TimeSpan.FromSeconds(4));
+            if (launchRequest.Warning is { } warning)
+            {
+                FileLogger.Info(warning);
+                window.ShowExternalRequestStatus(warning);
+            }
+            else if (launchRequest.MediaPath is { } mediaPath)
             {
                 await window.HandleExternalMediaAsync(mediaPath);
             }
@@ -148,6 +162,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         SystemEvents.UserPreferenceChanged -= SystemEvents_OnUserPreferenceChanged;
+        UpdateManager?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);
     }
@@ -157,7 +172,13 @@ public partial class App : Application
         AccentColorPreference accentColor,
         bool persist = true)
     {
-        Settings = Settings with { Appearance = preference, AccentColor = accentColor };
+        if (persist && !UpdateSettings(
+                current => current with { Appearance = preference, AccentColor = accentColor },
+                out _))
+        {
+            return;
+        }
+
         ThemeMode = preference switch
         {
             AppearancePreference.Light => ThemeMode.Light,
@@ -166,13 +187,10 @@ public partial class App : Application
         };
         ApplyAccentPalette(preference, accentColor);
 
-        if (!persist)
+        if (persist)
         {
-            return;
+            FileLogger.Info($"Aparência alterada para {preference}; destaque {accentColor}.");
         }
-
-        _ = SaveSettings(out _);
-        FileLogger.Info($"Aparência alterada para {preference}; destaque {accentColor}.");
     }
 
     internal static bool WindowsUsesDarkMode()
@@ -243,11 +261,19 @@ public partial class App : Application
     public bool UpdateSettings(Func<AppSettings, AppSettings> update, out string? error)
     {
         ArgumentNullException.ThrowIfNull(update);
-        Settings = update(Settings);
-        return SaveSettings(out error);
+        var candidate = update(Settings);
+        if (!TrySaveSettings(candidate, out error))
+        {
+            return false;
+        }
+
+        Settings = candidate;
+        return true;
     }
 
-    public bool SaveSettings(out string? error)
+    public bool SaveSettings(out string? error) => TrySaveSettings(Settings, out error);
+
+    private bool TrySaveSettings(AppSettings candidate, out string? error)
     {
         if (_settingsStore is null)
         {
@@ -255,7 +281,7 @@ public partial class App : Application
             return false;
         }
 
-        var result = _settingsStore.Save(Settings);
+        var result = _settingsStore.Save(candidate);
         error = result.Error;
         if (!result.Succeeded)
         {
@@ -274,22 +300,32 @@ public partial class App : Application
             ShellAssociationNotifier.NotifyChanged);
     }
 
-    private Task HandleForwardedRequestAsync(string? argument)
+    private async Task HandleForwardedRequestAsync(string? argument)
     {
-        return Dispatcher.InvokeAsync(async () =>
+        var request = argument is null
+            ? null
+            : await LaunchArgumentParser.ParseAsync([argument], TimeSpan.FromSeconds(4)).ConfigureAwait(false);
+        await Dispatcher.InvokeAsync(async () =>
         {
             if (MainWindow is not MainWindow window)
             {
                 return;
             }
 
-            if (argument is null)
+            if (request is null)
             {
                 window.BringToFront();
                 return;
             }
 
-            await window.HandleExternalMediaAsync(argument);
+            if (request.Warning is { } warning)
+            {
+                FileLogger.Info(warning);
+                window.ShowExternalRequestStatus(warning);
+                return;
+            }
+
+            await window.HandleExternalMediaAsync(request.MediaPath!);
         }).Task.Unwrap();
     }
 }

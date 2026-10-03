@@ -107,6 +107,31 @@ public sealed class BrandingTests
 
         Assert.All(expectedNames, name => Assert.Contains(name, script, StringComparison.Ordinal));
         Assert.Contains("Asset obrigatório de branding ausente ou vazio", script, StringComparison.Ordinal);
+        Assert.Contains("Get-PeMachine", script, StringComparison.Ordinal);
+        Assert.Contains("Arquitetura PE incorreta", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReleasePublishRedownloadsEveryAssetAndComparesItsSha256()
+    {
+        var script = File.ReadAllText(PathInRepository("scripts/publish-release.ps1"));
+
+        Assert.Contains("gh release download", script, StringComparison.Ordinal);
+        Assert.Contains("$localHash", script, StringComparison.Ordinal);
+        Assert.Contains("$downloadedHash", script, StringComparison.Ordinal);
+        Assert.Contains("diverge byte a byte", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UpdateProcessLaunchesAreValidatedAndRecoverable()
+    {
+        var manager = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Services/UpdateManager.cs"));
+        var updater = File.ReadAllText(PathInRepository("src/GuiaPlay.Updater/Program.cs"));
+
+        Assert.Contains("SafeProcessLauncher.TryStart(start)", manager, StringComparison.Ordinal);
+        Assert.Contains("string.Equals(launch, \"GuiaPlay.exe\"", updater, StringComparison.Ordinal);
+        Assert.Contains("File.Exists(launchPath)", updater, StringComparison.Ordinal);
+        Assert.Contains("Logging must never hide", updater, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -173,7 +198,7 @@ public sealed class BrandingTests
         Assert.Contains("Update startup: scheduled", main, StringComparison.Ordinal);
         Assert.Contains("Update startup: querying GitHub", updateManager, StringComparison.Ordinal);
         Assert.Contains("Update startup: query completed", updateManager, StringComparison.Ordinal);
-        Assert.Contains("ApplyEqualizer(session.Player)", engine, StringComparison.Ordinal);
+        Assert.Contains("ApplyEqualizerWhileLocked(session.Player)", engine, StringComparison.Ordinal);
         Assert.Contains("SetEqualizer", adapter, StringComparison.Ordinal);
         Assert.Contains("UnsetEqualizer", adapter, StringComparison.Ordinal);
     }
@@ -248,18 +273,23 @@ public sealed class BrandingTests
         Assert.Contains("IsKeyboardFocused", settings, StringComparison.Ordinal);
         Assert.Equal(7, settings.Split("GroupName=\"SettingsNavigation\"", StringSplitOptions.None).Length - 1);
         Assert.Contains("SynchronizeNavigationSelection", settingsCode, StringComparison.Ordinal);
-        Assert.Contains("ScreensNavigationButton.IsEnabled = !playbackActive", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("ScreensNavigationButton.IsEnabled = _screensEditable", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("SettingsAccessPolicy.CanConfigureScreens", settingsCode, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void M102CompactsOperationsAndGivesPlaylistMoreUsefulSpace()
+    public void M103CompactsOperationsAndGivesPlaylistMoreUsefulSpace()
     {
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
 
         Assert.Contains("x:Name=\"OperationalControlPanel\"", main, StringComparison.Ordinal);
-        Assert.Contains("Background=\"{DynamicResource GuiaPlaySurfaceSecondaryBrush}\" Padding=\"10,8\"", main, StringComparison.Ordinal);
+        Assert.Contains("Background=\"{DynamicResource GuiaPlaySurfaceSecondaryBrush}\" Padding=\"8,6\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"CompactTransportButtonStyle\"", main, StringComparison.Ordinal);
-        Assert.Contains("<Setter Property=\"MinHeight\" Value=\"34\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<Setter Property=\"MinHeight\" Value=\"30\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"54*\" MinWidth=\"390\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"46*\" MinWidth=\"310\" />", main, StringComparison.Ordinal);
+        Assert.Contains("SavePlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
+        Assert.Contains("LoadPlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"OutputChipStyle\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PlaylistEmptyState\"", main, StringComparison.Ordinal);
         Assert.Contains("Text=\"{Binding Items.Count}\"", main, StringComparison.Ordinal);
@@ -267,6 +297,23 @@ public sealed class BrandingTests
         Assert.Contains("Background=\"Black\"", main, StringComparison.Ordinal);
         Assert.Contains("GuiaPlaySurfacePrimaryBrush", main, StringComparison.Ordinal);
         Assert.Contains("GuiaPlaySelectionBrush", main, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M103BrandingIsDerivedFromRequiredOfficialSvgs()
+    {
+        var logo = new FileInfo(PathInRepository("src/GuiaPlay.App/Assets/Branding/Source/GuiaPlay-Logo.svg"));
+        var wordmark = new FileInfo(PathInRepository("src/GuiaPlay.App/Assets/Branding/Source/GuiaPlay-Wordmark.svg"));
+        var generator = File.ReadAllText(PathInRepository("scripts/generate-branding-assets.ps1"));
+        var manifest = File.ReadAllText(PathInRepository("docs/branding/brand-manifest.json"));
+
+        Assert.True(logo.Exists && logo.Length > 0);
+        Assert.True(wordmark.Exists && wordmark.Length > 0);
+        Assert.Contains("GuiaPlay-Logo.svg", generator, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlay-Wordmark.svg", generator, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlay-Logo.svg", manifest, StringComparison.Ordinal);
+        Assert.Contains("GuiaPlay-Wordmark.svg", manifest, StringComparison.Ordinal);
+        Assert.Contains("sha256", manifest, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string PathInRepository(string relativePath) =>

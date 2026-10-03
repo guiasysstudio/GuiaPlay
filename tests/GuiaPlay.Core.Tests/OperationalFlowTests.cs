@@ -126,6 +126,19 @@ public sealed class OperationalFlowTests : IDisposable
     }
 
     [Fact]
+    public async Task AsyncCommandLineValidationUsesBoundedProbeWithoutBlockingCaller()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "abertura assíncrona.mp4");
+        await File.WriteAllTextAsync(path, "test");
+
+        var result = await LaunchArgumentParser.ParseAsync([path], TimeSpan.FromSeconds(1));
+
+        Assert.Equal(Path.GetFullPath(path), result.MediaPath);
+        Assert.Null(result.Warning);
+    }
+
+    [Fact]
     public async Task SecondInstanceForwardsRequestAndDoesNotBecomePersistentListener()
     {
         var suffix = Guid.NewGuid().ToString("N");
@@ -170,6 +183,54 @@ public sealed class OperationalFlowTests : IDisposable
         Assert.Equal(path, await received.Task.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.True(primary.IsListening);
         Assert.False(secondary.IsListening);
+    }
+
+    [Fact]
+    public async Task NewCoordinatorForwardsToAlreadyRunningLegacyInstance()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var legacy = new SingleInstanceEndpoint($"GuiaPlay.Tests.Legacy.{suffix}", $"GuiaPlay.Tests.Legacy.Pipe.{suffix}");
+        using var legacyInstance = new SingleInstanceCoordinator(legacy.MutexName, legacy.PipeName);
+        using var newInstance = new SingleInstanceCoordinator(
+            $"GuiaPlay.Tests.Current.{suffix}",
+            $"GuiaPlay.Tests.Current.Pipe.{suffix}",
+            [legacy]);
+        var received = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Assert.Equal(SingleInstanceStartResult.Primary, await legacyInstance.StartAsync(null, path =>
+        {
+            received.TrySetResult(path);
+            return Task.CompletedTask;
+        }));
+
+        var result = await newInstance.StartAsync(@"C:\Mídia\legado.mp4", _ => Task.CompletedTask);
+
+        Assert.Equal(SingleInstanceStartResult.Forwarded, result);
+        Assert.Equal(@"C:\Mídia\legado.mp4", await received.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.False(newInstance.IsListening);
+    }
+
+    [Fact]
+    public async Task NewCoordinatorKeepsLegacyEndpointSoOldVersionCannotStartBesideIt()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var legacy = new SingleInstanceEndpoint($"GuiaPlay.Tests.Legacy.{suffix}", $"GuiaPlay.Tests.Legacy.Pipe.{suffix}");
+        using var newInstance = new SingleInstanceCoordinator(
+            $"GuiaPlay.Tests.Current.{suffix}",
+            $"GuiaPlay.Tests.Current.Pipe.{suffix}",
+            [legacy]);
+        using var legacyInstance = new SingleInstanceCoordinator(legacy.MutexName, legacy.PipeName);
+        var received = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Assert.Equal(SingleInstanceStartResult.Primary, await newInstance.StartAsync(null, path =>
+        {
+            received.TrySetResult(path);
+            return Task.CompletedTask;
+        }));
+
+        var result = await legacyInstance.StartAsync(@"C:\Mídia\antigo.mp4", _ => Task.CompletedTask);
+
+        Assert.Equal(SingleInstanceStartResult.Forwarded, result);
+        Assert.Equal(@"C:\Mídia\antigo.mp4", await received.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.False(legacyInstance.IsListening);
     }
 
     [Fact]

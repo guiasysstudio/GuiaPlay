@@ -89,6 +89,16 @@ Protótipo funcional multitelas, prévia/controles, motor compartilhado por call
 - Concluído: toolbar da playlist integrada ao cabeçalho, grupos com contador, itens com ícone de tipo e estados vazios de Prévia/Playlist mais informativos.
 - Preservados sem mudança funcional ou de schema: playback, equalizador, integração Windows, instância única e consulta real de update após o startup.
 
+## M10.3 — 0.10.3-prototipo
+
+- Implementado: presets locais de playlist com schema 1, Save/Load, sobrescrita e exclusão confirmadas, dirty state e recuperação isolada de arquivos inválidos.
+- Implementado: hardening do ciclo de runtime para desconexão/reconexão de telas, ciclo de vida de playback, encerramento, processos externos e retenção de temporários.
+- Implementado: comparação de versões e canais Prototype/RC/Stable, manifesto multi-arquitetura e seleção estrita do pacote `win-x64` ou `win-x86` instalado.
+- Implementado: publishes e instaladores separados x64/x86, com LibVLC nativo correspondente e bloqueio contra troca silenciosa de arquitetura.
+- Definida: matriz Windows baseada no suporte do .NET 10, com Windows 10 Enterprise LTSC 2019/build 17763 como mínimo planejado e versões/edições elegíveis do Windows 11.
+- Atualizada: identidade visual oficial, proporção Prévia/Playlist, barra operacional, site e documentação pré-RC.
+- Pendente antes da RC1: gate físico em Windows 10/11, Intel/AMD, x64/x86-WOW64, múltiplas telas/DPIs, dispositivos de áudio, longa duração e update real `0.10.2 → 0.10.3`.
+
 ## Próximo marco — não iniciado
 
 - **1.0.0-rc1 — estabilização final.**

@@ -132,6 +132,17 @@ public sealed class PlaybackCoordinator
         return new(true, CloseOutputs: true);
     }
 
+    public PlaybackTransition StopFailed()
+    {
+        if (MediaPath is null)
+        {
+            return new(false);
+        }
+
+        Status = PlaybackStatus.Error;
+        return new(true, CloseOutputs: true);
+    }
+
     public PlaybackTransition NaturalEnd(long generation)
     {
         if (!AcceptsCallback(PlaybackCallbackKind.EndReached, generation))

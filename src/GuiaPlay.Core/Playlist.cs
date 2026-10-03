@@ -7,10 +7,7 @@ public sealed record PlaylistItem(
     string DisplayName,
     string OriginalPath,
     MediaKind Kind,
-    int Order)
-{
-    public bool IsAvailable => File.Exists(OriginalPath);
-}
+    int Order);
 
 public sealed record PlaylistGroup(
     Guid Id,
@@ -34,6 +31,38 @@ public sealed record PlaylistSaveResult(bool Succeeded, string? Error)
 public sealed record PlaylistImportResult(
     IReadOnlyList<PlaylistItem> Added,
     IReadOnlyList<string> Rejected);
+
+public sealed record PlaylistProbedImportResult(
+    PlaylistGroup? TargetGroup,
+    IReadOnlyList<PlaylistItem> Added,
+    IReadOnlyList<string> Rejected);
+
+public enum PlaylistItemAvailability
+{
+    Unknown,
+    Available,
+    Missing,
+    DecodeFailed,
+    TimedOut,
+    InvalidPath,
+    Unsupported
+}
+
+public static class PlaylistItemAvailabilityPolicy
+{
+    public static PlaylistItemAvailability FromProbe(MediaProbeStatus status) => status switch
+    {
+        MediaProbeStatus.Available => PlaylistItemAvailability.Available,
+        MediaProbeStatus.Missing => PlaylistItemAvailability.Missing,
+        MediaProbeStatus.Unsupported => PlaylistItemAvailability.Unsupported,
+        MediaProbeStatus.TimedOut => PlaylistItemAvailability.TimedOut,
+        MediaProbeStatus.InvalidPath => PlaylistItemAvailability.InvalidPath,
+        _ => PlaylistItemAvailability.Unknown
+    };
+
+    public static bool CanActivate(PlaylistItemAvailability availability) =>
+        availability == PlaylistItemAvailability.Available;
+}
 
 public static class PlaylistGroupName
 {
@@ -66,9 +95,11 @@ public sealed class PlaylistStore(string filePath)
 
             try
             {
-                var document = JsonSerializer.Deserialize<PlaylistDocument>(File.ReadAllText(_filePath), JsonOptions)
-                    ?? PlaylistDocument.Empty;
-                return new PlaylistLoadResult(Normalize(document), null);
+                var parsed = PlaylistDocumentCodec.Read(File.ReadAllText(_filePath));
+                var warning = parsed.Warnings.Count == 0
+                    ? null
+                    : string.Join(" ", parsed.Warnings);
+                return new PlaylistLoadResult(parsed.Playlist, warning);
             }
             catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
@@ -88,7 +119,7 @@ public sealed class PlaylistStore(string filePath)
                 var directory = Path.GetDirectoryName(_filePath)
                     ?? throw new InvalidOperationException("O caminho da playlist não possui diretório.");
                 Directory.CreateDirectory(directory);
-                var normalized = Normalize(document);
+                var normalized = PlaylistDocumentCodec.Normalize(document);
                 var bytes = JsonSerializer.SerializeToUtf8Bytes(normalized, JsonOptions);
                 using (var stream = new FileStream(
                            temporaryPath,
@@ -126,36 +157,15 @@ public sealed class PlaylistStore(string filePath)
         }
     }
 
-    private static PlaylistDocument Normalize(PlaylistDocument document)
-    {
-        var groups = (document.Groups ?? [])
-            .Where(group => group.Id != Guid.Empty && !string.IsNullOrWhiteSpace(group.Name))
-            .OrderBy(group => group.Order)
-            .Select((group, groupOrder) => new PlaylistGroup(
-                group.Id,
-                group.Name.Trim(),
-                groupOrder,
-                (group.Items ?? [])
-                    .Where(item => item.Id != Guid.Empty && !string.IsNullOrWhiteSpace(item.OriginalPath))
-                    .OrderBy(item => item.Order)
-                    .Select((item, itemOrder) => item with
-                    {
-                        DisplayName = string.IsNullOrWhiteSpace(item.DisplayName)
-                            ? Path.GetFileName(item.OriginalPath)
-                            : item.DisplayName.Trim(),
-                        OriginalPath = Path.GetFullPath(item.OriginalPath),
-                        Kind = item.Kind == MediaKind.Unknown ? MediaTypeDetector.Detect(item.OriginalPath) : item.Kind,
-                        Order = itemOrder
-                    })
-                    .ToArray()))
-            .ToArray();
-        return new PlaylistDocument(PlaylistDocument.CurrentSchemaVersion, groups);
-    }
 }
 
 public sealed class PlaylistCatalog(PlaylistDocument document)
 {
-    private readonly List<PlaylistGroup> _groups = document.Groups.OrderBy(group => group.Order).ToList();
+    private readonly List<PlaylistGroup> _groups = PlaylistDocumentCodec.Normalize(document).Groups.ToList();
+
+    public bool IsDirty { get; private set; }
+
+    public event EventHandler? Changed;
 
     public PlaylistDocument Snapshot => new(
         PlaylistDocument.CurrentSchemaVersion,
@@ -170,6 +180,7 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         var normalized = NormalizeName(name);
         var group = new PlaylistGroup(Guid.NewGuid(), normalized, _groups.Count, []);
         _groups.Add(group);
+        MarkChanged();
         return group;
     }
 
@@ -181,11 +192,27 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
             return false;
         }
 
-        _groups[index] = _groups[index] with { Name = NormalizeName(name) };
+        var normalized = NormalizeName(name);
+        if (string.Equals(_groups[index].Name, normalized, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        _groups[index] = _groups[index] with { Name = normalized };
+        MarkChanged();
         return true;
     }
 
-    public bool RemoveGroup(Guid groupId) => _groups.RemoveAll(group => group.Id == groupId) > 0;
+    public bool RemoveGroup(Guid groupId)
+    {
+        if (_groups.RemoveAll(group => group.Id == groupId) == 0)
+        {
+            return false;
+        }
+
+        MarkChanged();
+        return true;
+    }
 
     public PlaylistItem AddItem(Guid groupId, string path)
     {
@@ -206,6 +233,7 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         var item = new PlaylistItem(Guid.NewGuid(), Path.GetFileName(fullPath), fullPath, kind, items.Count);
         items.Add(item);
         _groups[index] = _groups[index] with { Items = items };
+        MarkChanged();
         return item;
     }
 
@@ -216,7 +244,7 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         var rejected = new List<string>();
         foreach (var path in paths)
         {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path) || MediaTypeDetector.Detect(path) == MediaKind.Unknown)
+            if (string.IsNullOrWhiteSpace(path) || MediaTypeDetector.Detect(path) == MediaKind.Unknown)
             {
                 rejected.Add(path ?? string.Empty);
                 continue;
@@ -228,6 +256,102 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         return new PlaylistImportResult(added, rejected);
     }
 
+    /// <summary>
+    /// Adds only paths already accepted by the bounded asynchronous probe service. This method
+    /// intentionally performs no synchronous filesystem access and is safe to call on the UI thread.
+    /// </summary>
+    public PlaylistImportResult AddProbedItems(Guid groupId, IEnumerable<MediaProbeResult> probes)
+    {
+        ArgumentNullException.ThrowIfNull(probes);
+        var added = new List<PlaylistItem>();
+        var rejected = new List<string>();
+        foreach (var probe in probes)
+        {
+            if (probe.Status != MediaProbeStatus.Available ||
+                string.IsNullOrWhiteSpace(probe.Path) ||
+                MediaTypeDetector.Detect(probe.Path) == MediaKind.Unknown)
+            {
+                rejected.Add(probe.Path ?? string.Empty);
+                continue;
+            }
+
+            added.Add(AddItem(groupId, probe.Path));
+        }
+
+        return new PlaylistImportResult(added, rejected);
+    }
+
+    /// <summary>
+    /// Imports a probed batch atomically at catalog level. A fallback group is created only when
+    /// at least one path is valid and available, preventing empty "ghost" groups after a rejected drop.
+    /// </summary>
+    public PlaylistProbedImportResult ImportProbedItems(
+        Guid? targetGroupId,
+        string fallbackGroupName,
+        IEnumerable<MediaProbeResult> probes)
+    {
+        ArgumentNullException.ThrowIfNull(probes);
+        var accepted = new List<(string FullPath, MediaKind Kind)>();
+        var rejected = new List<string>();
+        foreach (var probe in probes)
+        {
+            var kind = MediaTypeDetector.Detect(probe.Path);
+            if (probe.Status != MediaProbeStatus.Available ||
+                string.IsNullOrWhiteSpace(probe.Path) ||
+                kind == MediaKind.Unknown)
+            {
+                rejected.Add(probe.Path);
+                continue;
+            }
+
+            try
+            {
+                accepted.Add((Path.GetFullPath(probe.Path), kind));
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                rejected.Add(probe.Path);
+            }
+        }
+
+        if (accepted.Count == 0)
+        {
+            return new PlaylistProbedImportResult(null, [], rejected);
+        }
+
+        var groupIndex = targetGroupId is { } id
+            ? _groups.FindIndex(group => group.Id == id)
+            : -1;
+        PlaylistGroup group;
+        if (groupIndex < 0)
+        {
+            group = new PlaylistGroup(Guid.NewGuid(), NormalizeName(fallbackGroupName), _groups.Count, []);
+            groupIndex = _groups.Count;
+            _groups.Add(group);
+        }
+        else
+        {
+            group = _groups[groupIndex];
+        }
+
+        var items = group.Items.ToList();
+        var added = accepted.Select(entry =>
+        {
+            var item = new PlaylistItem(
+                Guid.NewGuid(),
+                Path.GetFileName(entry.FullPath),
+                entry.FullPath,
+                entry.Kind,
+                items.Count);
+            items.Add(item);
+            return item;
+        }).ToArray();
+        group = group with { Items = items };
+        _groups[groupIndex] = group;
+        MarkChanged();
+        return new PlaylistProbedImportResult(group, added, rejected);
+    }
+
     public bool MoveGroup(Guid groupId, int targetIndex)
     {
         var sourceIndex = _groups.FindIndex(group => group.Id == groupId);
@@ -237,8 +361,15 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         }
 
         var group = _groups[sourceIndex];
+        var normalizedTarget = Math.Clamp(targetIndex, 0, _groups.Count - 1);
+        if (sourceIndex == normalizedTarget)
+        {
+            return false;
+        }
+
         _groups.RemoveAt(sourceIndex);
         _groups.Insert(Math.Clamp(targetIndex, 0, _groups.Count), group);
+        MarkChanged();
         return true;
     }
 
@@ -259,11 +390,20 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         }
 
         var item = sourceItems[sourceItemIndex];
+        var normalizedTarget = sourceGroupId == targetGroupId
+            ? Math.Clamp(targetIndex, 0, sourceItems.Count - 1)
+            : targetIndex;
+        if (sourceGroupId == targetGroupId && sourceItemIndex == normalizedTarget)
+        {
+            return false;
+        }
+
         sourceItems.RemoveAt(sourceItemIndex);
         if (sourceGroupId == targetGroupId)
         {
             sourceItems.Insert(Math.Clamp(targetIndex, 0, sourceItems.Count), item);
             _groups[sourceGroupIndex] = _groups[sourceGroupIndex] with { Items = sourceItems };
+            MarkChanged();
             return true;
         }
 
@@ -271,6 +411,7 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         targetItems.Insert(Math.Clamp(targetIndex, 0, targetItems.Count), item);
         _groups[sourceGroupIndex] = _groups[sourceGroupIndex] with { Items = sourceItems };
         _groups[targetGroupIndex] = _groups[targetGroupIndex] with { Items = targetItems };
+        MarkChanged();
         return true;
     }
 
@@ -289,7 +430,25 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         }
 
         _groups[index] = _groups[index] with { Items = items };
+        MarkChanged();
         return true;
+    }
+
+    public void Replace(PlaylistDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        _groups.Clear();
+        _groups.AddRange(PlaylistDocumentCodec.Normalize(document).Groups);
+        IsDirty = false;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void AcceptChanges() => IsDirty = false;
+
+    private void MarkChanged()
+    {
+        IsDirty = true;
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     private static string NormalizeName(string name)

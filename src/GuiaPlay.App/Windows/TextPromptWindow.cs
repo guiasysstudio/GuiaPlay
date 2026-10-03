@@ -8,7 +8,11 @@ internal sealed class TextPromptWindow : Window
 {
     private readonly TextBox _textBox;
 
-    public TextPromptWindow(string title, string prompt, string initialValue = "")
+    public TextPromptWindow(
+        string title,
+        string prompt,
+        string initialValue = "",
+        string acceptText = "OK")
     {
         Title = title;
         Width = 430;
@@ -45,7 +49,7 @@ internal sealed class TextPromptWindow : Window
         var cancel = new Button { Content = "Cancelar", MinWidth = 88, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
         var accept = new Button
         {
-            Content = "OK",
+            Content = acceptText,
             MinWidth = 88,
             IsDefault = true,
             IsEnabled = PlaylistGroupName.IsValid(initialValue)

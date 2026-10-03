@@ -291,3 +291,38 @@
 7. Conferir no log: agendamento, automático habilitado, consulta iniciada/concluída e `UpdateAvailable 0.10.2-prototipo`.
 8. Baixar/aplicar e confirmar preservação de paleta, equalizador, playlist e integração Explorer.
 9. Reiniciar em 0.10.2 e confirmar `Current: 0.10.2-prototipo`, `Available: 0.10.2-prototipo`, `Status: UpToDate`.
+
+## M10.3 — presets e playlist resiliente
+
+1. Criar grupos e mídias em ordens reconhecíveis, clicar **Salvar playlist**, informar `Culto Domingo Noite` e reiniciar. Abrir **Carregar playlist** e confirmar nome, data, grupos, itens, tipos, caminhos e ordem.
+2. Modificar a lista carregada e tentar carregar outra. Testar separadamente **Salvar…**, **Continuar sem salvar** e **Cancelar**; Cancelar precisa manter a lista e o dirty state.
+3. Salvar novamente com diferença apenas de maiúsculas/minúsculas. Confirmar o overwrite; repetir escolhendo Não e verificar que o arquivo anterior não mudou.
+4. Excluir um preset, recusar e depois confirmar. Conferir que somente o JSON desaparece e que nenhuma mídia é removida.
+5. Remover do disco uma mídia referenciada e carregar o preset. O item deve continuar na árvore como arquivo não encontrado, sem autoplay.
+6. Usar um arquivo existente porém corrompido. Depois da tentativa de reprodução, confirmar mensagem de falha de decodificação diferente de arquivo ausente.
+7. Colocar um JSON inválido ao lado de dois presets válidos. A biblioteca deve listar os válidos e registrar warning isolado.
+8. Arrastar somente extensões inválidas para playlist vazia. Confirmar que nenhum grupo “Mídias” fantasma é criado.
+9. Arrastar ou importar arquivo local, USB e UNC indisponível. A janela deve continuar respondendo; resultados antigos de uma consulta cancelada não podem sobrescrever o estado novo.
+10. Abrir pelo Explorer arquivo suportado, inexistente, extensão desconhecida e argumento inválido. Apenas o suportado existente deve ser carregado, sempre sem autoplay.
+
+## M10.3 — UI, telas, áudio e teardown
+
+1. Em 1366 × 768, conferir aproximadamente 54% para Prévia e 46% para Playlist. A playlist deve estar perceptivelmente mais larga que na 0.10.2.
+2. Medir o painel inferior em DPI 100%; alvo de 88–100 DIPs sem clipping. Repetir em DPI 125% e 150%, janela mínima e tela maximizada.
+3. Conferir Grupo, Renomear, Excluir, Salvar playlist e Carregar playlist como controles compactos com tooltip, foco visível e alvo confortável.
+4. Iniciar reprodução, desconectar somente a tela do operador e abrir **Configurações > Telas** a partir do aviso. Corrigir o operador sem liberar páginas perigosas durante playback normal.
+5. Com dispositivo de áudio salvo indisponível e playback ativo/pausado, alterar somente Aparência, Equalizador ou Atualizações. Salvar deve funcionar e preservar o dispositivo ausente sem fallback silencioso.
+6. Durante `WM_DISPLAYCHANGE`, manter saídas ainda válidas visíveis e reposicionadas; somente janelas inválidas devem fechar. Observar projetor para flicker/blackout.
+7. Executar pelo menos dez ciclos load → play → pause → resume → stop → load another → preset save/load → dispose. Nenhum hang, crash nativo ou UI/motor divergentes.
+
+## M10.3 — arquiteturas, instalador e update
+
+1. Em Windows 10 LTSC 2019/2021 real, instalar o Setup x64, abrir, fechar, reabrir e desinstalar. Repetir no Windows 11 alvo.
+2. Quando o x86 estiver publicado, repetir em Windows 10 x86 ou WOW64. Confirmar no Gerenciador de Tarefas o processo 32 bits e verificar `libvlc\win-x86`; nenhuma DLL `win-x64` deve integrar o pacote.
+3. Tentar deliberadamente aplicar manifest/pacote de RID diferente. O GuiaPlay deve rejeitar antes de substituir arquivos.
+4. Instalar 0.10.2 x64, habilitar update automático e iniciar normalmente. Sem abrir Configurações, confirmar consulta real, seta e `UpdateAvailable` para 0.10.3 x64.
+5. Aplicar o update e conferir rollback disponível, limpeza limitada às pastas GuiaPlay, preservação de settings/playlist/presets e `install.json` em `0.10.3-prototipo` com RID correto.
+6. Reiniciar em 0.10.3 e confirmar `UpToDate`; testar offline e falha temporária do GitHub sem oferta silenciosa de versão antiga.
+7. Instalar/desinstalar com e sem integração Explorer. Validar atalhos/ícones oficiais e preservação dos dados em `%LocalAppData%\GuiaSys\GuiaPlay`.
+
+Todos esses itens continuam manuais até que data, máquina, arquitetura e evidência sejam registrados em `docs/RELATORIO-M10.3.md` e no gate da RC1.

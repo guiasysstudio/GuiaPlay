@@ -11,7 +11,8 @@ public sealed class GitHubUpdateService(HttpClient httpClient, string owner, str
     public async Task<UpdateCheckResult> CheckAsync(
         ProductVersion currentVersion,
         UpdateChannel channel,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? runtimeIdentifier = null)
     {
         try
         {
@@ -58,12 +59,18 @@ public sealed class GitHubUpdateService(HttpClient httpClient, string owner, str
                 return UpdateCheckResult.Failure($"Manifesto de atualização inválido: {error ?? "versão divergente"}");
             }
 
-            if (!latest.Assets.Any(asset => string.Equals(asset.Name, manifest.Package.AssetName, StringComparison.OrdinalIgnoreCase)))
+            runtimeIdentifier ??= UpdateRuntimeIdentifier.Current;
+            if (runtimeIdentifier is null || !manifest.TrySelectPackage(runtimeIdentifier, out var selectedPackage) || selectedPackage is null)
+            {
+                return UpdateCheckResult.Failure($"O manifesto não oferece pacote compatível com a arquitetura '{runtimeIdentifier ?? "desconhecida"}'.");
+            }
+
+            if (!latest.Assets.Any(asset => string.Equals(asset.Name, selectedPackage.AssetName, StringComparison.OrdinalIgnoreCase)))
             {
                 return UpdateCheckResult.Failure("O pacote indicado pelo manifesto não está anexado à release.");
             }
 
-            return new UpdateCheckResult(UpdateCheckStatus.UpdateAvailable, latest, manifest);
+            return new UpdateCheckResult(UpdateCheckStatus.UpdateAvailable, latest, manifest, selectedPackage);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

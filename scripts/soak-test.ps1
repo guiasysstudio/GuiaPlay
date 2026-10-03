@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$ExePath = (Join-Path $PSScriptRoot '..\artifacts\publish\GuiaPlay\GuiaPlay.exe'),
+    [string]$ExePath = (Join-Path $PSScriptRoot '..\artifacts\publish\GuiaPlay-win-x64\GuiaPlay.exe'),
     [int]$DurationMinutes = 30,
     [int]$SampleSeconds = 5,
     [string]$OutputPath,

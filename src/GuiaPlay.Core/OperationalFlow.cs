@@ -86,6 +86,38 @@ public static class LaunchArgumentParser
             return new LaunchArgumentResult(null, $"O caminho recebido pela linha de comando é inválido: {exception.Message}");
         }
     }
+
+    public static async Task<LaunchArgumentResult> ParseAsync(
+        IEnumerable<string> arguments,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
+        var candidate = arguments.FirstOrDefault(argument => !string.IsNullOrWhiteSpace(argument));
+        if (candidate is null)
+        {
+            return new LaunchArgumentResult(null, null);
+        }
+
+        try
+        {
+            var fullPath = Path.GetFullPath(candidate);
+            var status = await MediaFileProbe.ProbeAsync(fullPath, timeout, cancellationToken).ConfigureAwait(false);
+            return status switch
+            {
+                MediaProbeStatus.Available => new LaunchArgumentResult(fullPath, null),
+                MediaProbeStatus.Missing => new LaunchArgumentResult(null, "O arquivo recebido pela linha de comando não foi encontrado."),
+                MediaProbeStatus.Unsupported => new LaunchArgumentResult(null, "O formato recebido pela linha de comando não é suportado."),
+                MediaProbeStatus.TimedOut => new LaunchArgumentResult(null, "O caminho recebido pela linha de comando não respondeu dentro do tempo limite."),
+                _ => new LaunchArgumentResult(null, "O caminho recebido pela linha de comando é inválido.")
+            };
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return new LaunchArgumentResult(null, $"O caminho recebido pela linha de comando é inválido: {exception.Message}");
+        }
+    }
 }
 
 public enum SingleInstanceStartResult
@@ -94,25 +126,49 @@ public enum SingleInstanceStartResult
     Forwarded
 }
 
-public sealed class SingleInstanceCoordinator(string mutexName, string pipeName) : IDisposable
+public sealed record SingleInstanceEndpoint(string MutexName, string PipeName);
+
+public sealed class SingleInstanceCoordinator : IDisposable
 {
-    private readonly string _mutexName = mutexName;
-    private readonly string _pipeName = pipeName;
+    private readonly SingleInstanceEndpoint[] _endpoints;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Channel<string?> _requests = Channel.CreateBounded<string?>(new BoundedChannelOptions(64)
     {
         SingleReader = true,
-        SingleWriter = true,
+        SingleWriter = false,
         AllowSynchronousContinuations = false,
         FullMode = BoundedChannelFullMode.Wait
     });
-    private Mutex? _mutex;
-    private Task? _listener;
+    private readonly List<Mutex> _mutexes = [];
+    private readonly List<Task> _listeners = [];
     private Task? _processor;
     private Func<string?, Task>? _requestHandler;
+    private bool _started;
     private bool _disposed;
 
-    public bool IsListening => _listener is not null && !_listener.IsCompleted;
+    public SingleInstanceCoordinator(string mutexName, string pipeName)
+        : this(mutexName, pipeName, [])
+    {
+    }
+
+    public SingleInstanceCoordinator(
+        string mutexName,
+        string pipeName,
+        IEnumerable<SingleInstanceEndpoint> compatibilityEndpoints)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mutexName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pipeName);
+        ArgumentNullException.ThrowIfNull(compatibilityEndpoints);
+        _endpoints = [new SingleInstanceEndpoint(mutexName, pipeName), .. compatibilityEndpoints];
+        if (_endpoints.Any(endpoint => string.IsNullOrWhiteSpace(endpoint.MutexName) || string.IsNullOrWhiteSpace(endpoint.PipeName)) ||
+            _endpoints.Select(endpoint => endpoint.MutexName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != _endpoints.Length ||
+            _endpoints.Select(endpoint => endpoint.PipeName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != _endpoints.Length)
+        {
+            throw new ArgumentException("Os endpoints de instância única precisam ter nomes válidos e distintos.", nameof(compatibilityEndpoints));
+        }
+    }
+
+    public bool IsListening => _listeners.Any(listener => !listener.IsCompleted);
     public event Action<Exception>? RequestFailed;
 
     public async Task<SingleInstanceStartResult> StartAsync(
@@ -122,18 +178,48 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(requestHandler);
-        _mutex = new Mutex(initiallyOwned: false, _mutexName, out var createdNew);
-        if (!createdNew)
+        if (_started)
         {
-            await ForwardAsync(mediaPath, cancellationToken).ConfigureAwait(false);
-            _mutex.Dispose();
-            _mutex = null;
-            return SingleInstanceStartResult.Forwarded;
+            throw new InvalidOperationException("O coordenador de instância única já foi iniciado.");
+        }
+
+        _started = true;
+        try
+        {
+            foreach (var endpoint in _endpoints)
+            {
+                var mutex = new Mutex(initiallyOwned: false, endpoint.MutexName, out var createdNew);
+                if (!createdNew)
+                {
+                    try
+                    {
+                        await ForwardAsync(endpoint.PipeName, mediaPath, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        mutex.Dispose();
+                        DisposeMutexes();
+                    }
+
+                    return SingleInstanceStartResult.Forwarded;
+                }
+
+                _mutexes.Add(mutex);
+            }
+        }
+        catch
+        {
+            DisposeMutexes();
+            throw;
         }
 
         _requestHandler = requestHandler;
         _processor = Task.Run(ProcessRequestsAsync);
-        _listener = Task.Run(ListenAsync);
+        foreach (var endpoint in _endpoints)
+        {
+            _listeners.Add(Task.Run(() => ListenAsync(endpoint.PipeName)));
+        }
+
         return SingleInstanceStartResult.Primary;
     }
 
@@ -147,28 +233,46 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
         _disposed = true;
         _requests.Writer.TryComplete();
         _shutdown.Cancel();
-        _mutex?.Dispose();
-        var tasks = new[] { _listener, _processor }.OfType<Task>().ToArray();
+        DisposeMutexes();
+        var tasks = _listeners.Concat(new[] { _processor }.OfType<Task>()).ToArray();
         if (tasks.Length == 0)
         {
             _shutdown.Dispose();
             return;
         }
 
-        _ = Task.WhenAll(tasks).ContinueWith(
-            completed =>
-            {
-                _ = completed.Exception;
-                _shutdown.Dispose();
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
+        _ = CompleteDisposalAsync(tasks);
     }
 
-    private async Task ForwardAsync(string? mediaPath, CancellationToken cancellationToken)
+    private async Task CompleteDisposalAsync(Task[] tasks)
     {
-        using var client = new NamedPipeClientStream(".", _pipeName, PipeDirection.Out, PipeOptions.Asynchronous);
+        try
+        {
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Listener failures have already been surfaced through RequestFailed when actionable.
+        }
+        finally
+        {
+            _shutdown.Dispose();
+        }
+    }
+
+    private void DisposeMutexes()
+    {
+        foreach (var mutex in _mutexes)
+        {
+            mutex.Dispose();
+        }
+
+        _mutexes.Clear();
+    }
+
+    private static async Task ForwardAsync(string pipeName, string? mediaPath, CancellationToken cancellationToken)
+    {
+        using var client = new NamedPipeClientStream(".", pipeName, PipeDirection.Out, PipeOptions.Asynchronous);
         await client.ConnectAsync(5000, cancellationToken).ConfigureAwait(false);
         await using var writer = new StreamWriter(client, new UTF8Encoding(false), leaveOpen: false) { AutoFlush = true };
         await writer.WriteLineAsync(
@@ -176,14 +280,14 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
             cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task ListenAsync()
+    private async Task ListenAsync(string pipeName)
     {
         while (!_shutdown.IsCancellationRequested)
         {
             try
             {
                 await using var server = new NamedPipeServerStream(
-                    _pipeName,
+                    pipeName,
                     PipeDirection.In,
                     1,
                     PipeTransmissionMode.Byte,
@@ -199,6 +303,10 @@ public sealed class SingleInstanceCoordinator(string mutexName, string pipeName)
                 }
             }
             catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (ChannelClosedException) when (_shutdown.IsCancellationRequested)
             {
                 return;
             }

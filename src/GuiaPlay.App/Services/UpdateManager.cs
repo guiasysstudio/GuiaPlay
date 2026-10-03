@@ -21,7 +21,7 @@ internal sealed record UpdatePreparationProgress(
     long? TotalBytes = null,
     int? Percentage = null);
 
-internal sealed class UpdateManager
+internal sealed class UpdateManager : IDisposable
 {
     private static readonly HttpClient QueryHttpClient = CreateHttpClient(TimeSpan.FromSeconds(20));
     private static readonly HttpClient DownloadHttpClient = CreateHttpClient(Timeout.InfiniteTimeSpan);
@@ -29,6 +29,8 @@ internal sealed class UpdateManager
     private readonly GitHubUpdateService _service;
     private readonly SemaphoreSlim _checkGate = new(1, 1);
     private readonly StartupUpdateCheckCoordinator _startupCheck = new();
+    private readonly CancellationTokenSource _shutdown = new();
+    private bool _disposed;
 
     public UpdateManager(App app)
     {
@@ -42,6 +44,16 @@ internal sealed class UpdateManager
         {
             FileLogger.Info($"Update startup: cache restored {cached.Release?.Version.ToString() ?? cached.Status.ToString()}");
         }
+
+        try
+        {
+            var cleanup = UpdateWorkspaceRetention.Cleanup(Path.GetTempPath(), DateTimeOffset.UtcNow);
+            FileLogger.Info($"Updater: retenção temporária removeu {cleanup.DeletedDirectories} pasta(s); {cleanup.PreservedDirectories} preservada(s).");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            FileLogger.Error("Updater: não foi possível concluir a retenção temporária.", exception);
+        }
     }
 
     public event EventHandler? StateChanged;
@@ -53,6 +65,11 @@ internal sealed class UpdateManager
 
     public async Task<UpdateCheckResult?> CheckOnStartupAsync(CancellationToken cancellationToken = default)
     {
+        if (_disposed)
+        {
+            return LastResult;
+        }
+
         if (!_app.Settings.CheckUpdatesAutomatically)
         {
             FileLogger.Info("Update startup: automatic disabled");
@@ -65,7 +82,7 @@ internal sealed class UpdateManager
             {
                 FileLogger.Info("Update startup: automatic enabled");
                 FileLogger.Info("Update startup: querying GitHub");
-                var result = await QueryGitHubAsync("startup", CancellationToken.None).ConfigureAwait(false);
+                var result = await QueryGitHubAsync("startup", _shutdown.Token).ConfigureAwait(false);
                 FileLogger.Info("Update startup: query completed");
                 var detail = result.Release?.Version.ToString();
                 FileLogger.Info(result.Status switch
@@ -78,13 +95,26 @@ internal sealed class UpdateManager
                 return result;
             });
 
-        return task is null
-            ? LastResult
-            : await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        if (task is null)
+        {
+            return LastResult;
+        }
+
+        try
+        {
+            return await task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            return LastResult;
+        }
     }
 
     public async Task<UpdateCheckResult?> CheckAsync(bool manual, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _shutdown.Token);
+        cancellationToken = linkedCancellation.Token;
         var settings = _app.Settings;
         var now = DateTimeOffset.UtcNow;
         var currentVersion = ProductVersion.Parse(ProductInfo.Version);
@@ -170,6 +200,9 @@ internal sealed class UpdateManager
 
     public async Task<(bool Launched, string Message)> PrepareAndLaunchInstallerAsync(CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _shutdown.Token);
+        cancellationToken = linkedCancellation.Token;
         if (LastResult is { Status: UpdateCheckStatus.UpdateAvailable, Manifest: null })
         {
             await CheckAsync(manual: true, cancellationToken);
@@ -187,15 +220,40 @@ internal sealed class UpdateManager
             return (false, "A instalação automática é destinada à versão instalada pelo GuiaPlay Setup.");
         }
 
-        var asset = release.Assets.First(item => string.Equals(item.Name, manifest.Package.AssetName, StringComparison.OrdinalIgnoreCase));
-        var operationRoot = Path.Combine(Path.GetTempPath(), "GuiaPlayUpdate", Guid.NewGuid().ToString("N"));
-        var packagePath = Path.Combine(operationRoot, manifest.Package.AssetName);
-        var stagingPath = Path.Combine(operationRoot, "staging");
-        var backupPath = Path.Combine(Path.GetTempPath(), "GuiaPlayBackup", $"{ProductInfo.Version}-to-{manifest.Version}-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(operationRoot);
+        if (!string.Equals(installation.RuntimeIdentifier, UpdateRuntimeIdentifier.Current, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "A arquitetura registrada da instalação não corresponde ao processo em execução.");
+        }
+
+        if (!manifest.TrySelectPackage(installation.RuntimeIdentifier, out var selectedPackage) || selectedPackage is null)
+        {
+            return (false, $"A release não contém pacote para {installation.RuntimeIdentifier}.");
+        }
+
+        var asset = release.Assets.FirstOrDefault(item =>
+            string.Equals(item.Name, selectedPackage.AssetName, StringComparison.OrdinalIgnoreCase));
+        if (asset is null)
+        {
+            return (false, "O pacote selecionado não está anexado à release.");
+        }
+
+        string? operationRoot = null;
+        string? backupPath = null;
+        string? updaterTempRoot = null;
         IsPreparing = true;
         try
         {
+            var temporaryDirectory = Path.GetTempPath();
+            operationRoot = UpdateWorkspaceRetention.CreateDirectory(
+                temporaryDirectory,
+                UpdateWorkspaceKind.Update,
+                Guid.NewGuid().ToString("N"));
+            backupPath = UpdateWorkspaceRetention.CreateDirectory(
+                temporaryDirectory,
+                UpdateWorkspaceKind.Backup,
+                $"{ProductInfo.Version}-to-{manifest.Version}-{Guid.NewGuid():N}");
+            var packagePath = Path.Combine(operationRoot, selectedPackage.AssetName);
+            var stagingPath = Path.Combine(operationRoot, "staging");
             FileLogger.Info($"Updater: baixando {asset.Name}.");
             SetPreparationProgress(new UpdatePreparationProgress(UpdatePreparationStage.Downloading));
             var progress = new Progress<UpdateDownloadProgress>(value => SetPreparationProgress(
@@ -207,7 +265,7 @@ internal sealed class UpdateManager
             var downloader = new UpdatePackageDownloader(DownloadHttpClient);
             await downloader.DownloadAsync(asset.DownloadUrl, packagePath, progress, cancellationToken);
             SetPreparationProgress(new UpdatePreparationProgress(UpdatePreparationStage.VerifyingIntegrity));
-            if (!await PackageIntegrity.VerifySha256Async(packagePath, manifest.Package.Sha256, cancellationToken))
+            if (!await PackageIntegrity.VerifySha256Async(packagePath, selectedPackage.Sha256, cancellationToken))
             {
                 throw new InvalidDataException("O SHA-256 do pacote baixado não confere com o manifesto.");
             }
@@ -215,11 +273,23 @@ internal sealed class UpdateManager
             FileLogger.Info("Updater: SHA-256 validado; extraindo staging seguro.");
             SetPreparationProgress(new UpdatePreparationProgress(UpdatePreparationStage.PreparingFiles));
             await Task.Run(() => SafeZipExtractor.Extract(packagePath, stagingPath), cancellationToken);
+            if (!InstallMarkerStore.TryRead(
+                    Path.Combine(stagingPath, "install.json"),
+                    out var stagedVersion,
+                    out var stagedRuntimeIdentifier) ||
+                !string.Equals(stagedVersion, manifest.Version, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(stagedRuntimeIdentifier, installation.RuntimeIdentifier, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    "O marcador do pacote não corresponde à versão e à arquitetura selecionadas.");
+            }
 
             var installedUpdater = Path.Combine(installation.RootDirectory, "GuiaPlay.Updater.exe");
             if (!File.Exists(installedUpdater)) throw new FileNotFoundException("O executável do updater não está instalado.", installedUpdater);
-            var updaterTempRoot = Path.Combine(Path.GetTempPath(), "GuiaPlayUpdater", Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(updaterTempRoot);
+            updaterTempRoot = UpdateWorkspaceRetention.CreateDirectory(
+                temporaryDirectory,
+                UpdateWorkspaceKind.Updater,
+                Guid.NewGuid().ToString("N"));
             var updaterTemp = Path.Combine(updaterTempRoot, "GuiaPlay.Updater.exe");
             File.Copy(installedUpdater, updaterTemp);
 
@@ -229,20 +299,27 @@ internal sealed class UpdateManager
             start.ArgumentList.Add($"--target={installation.RootDirectory}");
             start.ArgumentList.Add("--launch=GuiaPlay.exe");
             start.ArgumentList.Add($"--backup={backupPath}");
+            start.ArgumentList.Add($"--version={manifest.Version}");
             SetPreparationProgress(new UpdatePreparationProgress(UpdatePreparationStage.StartingUpdater));
-            _ = Process.Start(start) ?? throw new InvalidOperationException("O processo do updater não pôde ser iniciado.");
+            var launchResult = SafeProcessLauncher.TryStart(start);
+            if (!launchResult.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    $"O processo do updater não pôde ser iniciado: {launchResult.Error}");
+            }
+
             FileLogger.Info("Updater temporário iniciado; o GuiaPlay será encerrado.");
             return (true, "Atualização preparada. O GuiaPlay será reiniciado.");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            TryDeleteDirectory(operationRoot);
+            CleanupFailedPreparation(operationRoot, updaterTempRoot, backupPath);
             FileLogger.Info("Download da atualização cancelado pelo usuário.");
             return (false, "Download da atualização cancelado.");
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            TryDeleteDirectory(operationRoot);
+            CleanupFailedPreparation(operationRoot, updaterTempRoot, backupPath);
             FileLogger.Error("Falha ao preparar atualização.", exception);
             return (false, $"Não foi possível preparar a atualização: {exception.Message}");
         }
@@ -267,14 +344,25 @@ internal sealed class UpdateManager
         return client;
     }
 
-    private static void TryDeleteDirectory(string path)
+    private static void CleanupFailedPreparation(string? operationRoot, string? updaterRoot, string? backupRoot)
     {
-        try
+        if (operationRoot is not null)
+            _ = UpdateWorkspaceRetention.TryDeleteRecognizedDirectory(operationRoot, UpdateWorkspaceKind.Update);
+        if (updaterRoot is not null)
+            _ = UpdateWorkspaceRetention.TryDeleteRecognizedDirectory(updaterRoot, UpdateWorkspaceKind.Updater);
+        if (backupRoot is not null)
+            _ = UpdateWorkspaceRetention.TryDeleteRecognizedDirectory(backupRoot, UpdateWorkspaceKind.Backup);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
         {
-            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+            return;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-        }
+
+        _disposed = true;
+        _shutdown.Cancel();
+        _shutdown.Dispose();
     }
 }

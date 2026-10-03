@@ -15,6 +15,9 @@
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="GuiaPlay.App.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="Assets\Branding\GuiaPlay-Wordmark-UI.png" />
     <None Remove="Assets\Branding\Icons\GuiaPlay.ico" />
     <None Remove="Assets\Icons\*.svg" />

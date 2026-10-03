@@ -11,25 +11,25 @@
         PreviewKeyDown="MainWindow_OnPreviewKeyDown">
     <Window.Resources>
         <Style x:Key="CompactTransportButtonStyle" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
-            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="MinHeight" Value="30" />
             <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Padding" Value="9,4" />
         </Style>
         <Style x:Key="CompactPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="MinHeight" Value="30" />
             <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Padding" Value="10,4" />
         </Style>
         <Style x:Key="PlaylistCommandButtonStyle" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="MinWidth" Value="32" />
-            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="Padding" Value="7,4" />
         </Style>
         <Style x:Key="OutputChipStyle" TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
             <Setter Property="Background" Value="{DynamicResource GuiaPlayControlSurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource GuiaPlayDividerBrush}" />
-            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Padding" Value="7,2" />
             <Setter Property="Margin" Value="0,0,6,0" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
@@ -148,8 +148,8 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*" MinWidth="390" /><ColumnDefinition Width="12" />
-                <ColumnDefinition Width="2*" MinWidth="310" />
+                <ColumnDefinition Width="54*" MinWidth="390" /><ColumnDefinition Width="12" />
+                <ColumnDefinition Width="46*" MinWidth="310" />
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
@@ -208,8 +208,16 @@
                                 <Path Data="{StaticResource EditIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
                             </Button>
                             <Button Click="DeleteGroupButton_OnClick" ToolTip="Excluir grupo virtual"
-                                    AutomationProperties.Name="Excluir grupo" Style="{StaticResource PlaylistCommandButtonStyle}">
+                                    AutomationProperties.Name="Excluir grupo" Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,5,0">
                                 <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                            </Button>
+                            <Button Click="SavePlaylistPresetButton_OnClick" ToolTip="Salvar a playlist atual como preset"
+                                    AutomationProperties.Name="Salvar playlist" Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,5,0">
+                                <Path Data="{StaticResource SaveIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                            </Button>
+                            <Button Click="LoadPlaylistPresetButton_OnClick" ToolTip="Carregar ou excluir uma playlist salva"
+                                    AutomationProperties.Name="Carregar playlist" Style="{StaticResource PlaylistCommandButtonStyle}">
+                                <Path Data="{StaticResource FolderOpenIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
                             </Button>
                         </StackPanel>
                     </Grid>
@@ -246,8 +254,8 @@
             </Border>
         </Grid>
 
-        <Border x:Name="OperationalControlPanel" Grid.Row="2" Margin="0,10,0,0" Style="{StaticResource CardStyle}"
-                Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="10,8">
+        <Border x:Name="OperationalControlPanel" Grid.Row="2" Margin="0,8,0,0" Style="{StaticResource CardStyle}"
+                Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="8,6">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Grid>
@@ -260,7 +268,7 @@
                     <TextBlock x:Name="RemainingText" Grid.Column="2" Text="-00:00 / 00:00" VerticalAlignment="Center"
                                TextAlignment="Right" />
                 </Grid>
-                <Grid Grid.Row="1" Margin="0,6,0,0">
+                <Grid Grid.Row="1" Margin="0,4,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <WrapPanel VerticalAlignment="Center">
                         <Button x:Name="OpenButton" Content="Abrir mídia…" Click="OpenButton_OnClick" Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,6,0" />
@@ -274,7 +282,7 @@
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource StopIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Parar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </WrapPanel>
-                    <Border Grid.Column="1" Margin="10,0" Padding="9,5" CornerRadius="12"
+                    <Border Grid.Column="1" Margin="8,0" Padding="8,3" CornerRadius="11"
                             Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
                             BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
                         <TextBlock x:Name="StatusText" Text="Pronto" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
@@ -293,11 +301,11 @@
                         <TextBlock x:Name="VolumeText" Text="100%" Width="42" VerticalAlignment="Center" TextAlignment="Right" />
                     </StackPanel>
                 </Grid>
-                <Grid Grid.Row="2" Margin="0,6,0,0">
+                <Grid Grid.Row="2" Margin="0,4,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <TextBlock Text="Operador" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" />
-                    <Border x:Name="OperatorIndicatorBorder" Grid.Column="1" Margin="7,0,12,0" Padding="8,4" MinWidth="120" MaxWidth="220"
-                            CornerRadius="12" Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
+                    <Border x:Name="OperatorIndicatorBorder" Grid.Column="1" Margin="7,0,10,0" Padding="7,2" MinWidth="120" MaxWidth="220"
+                            CornerRadius="11" Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
                             BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}" BorderThickness="1">
                         <TextBlock x:Name="OperatorIndicatorText" Text="Nenhuma tela" TextTrimming="CharacterEllipsis" />
                     </Border>
