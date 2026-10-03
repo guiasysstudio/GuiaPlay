@@ -209,8 +209,8 @@ Conteúdo adicional validado:
 ## Git e Release
 
 - branch de trabalho: `main`;
-- commit de implementação: a registrar após a revisão final;
-- push: a executar após a revisão final;
+- commit de implementação: `dc4f7f3` — `M10.3: harden GuiaPlay for Windows compatibility and final RC`;
+- push: concluído em `origin/main` em 03/10/2026;
 - tag `v0.10.3-prototipo`: **não criada**;
 - GitHub Release: **não criada**;
 - URL: **não aplicável enquanto o gate físico estiver aberto**;
