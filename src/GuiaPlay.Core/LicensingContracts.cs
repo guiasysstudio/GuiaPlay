@@ -163,7 +163,6 @@ public static class LicensingErrorMessages
         "device_limit" => "O limite de dispositivos desta licença foi atingido.",
         "device_not_authorized" => "Este dispositivo não está autorizado para esta licença.",
         "device_bound_to_other_license" => "Este dispositivo já está vinculado a outra licença. Desative a licença anterior antes de reutilizá-lo.",
-        "device_bound_to_other_license" => "Este dispositivo já está vinculado a outra licença.",
         "origin_not_allowed" => "A origem deste aplicativo não está autorizada.",
         "rate_limited" => "Muitas solicitações foram feitas. Aguarde um pouco e tente novamente.",
         "network_error" => "Não foi possível acessar o serviço de licenças.",
