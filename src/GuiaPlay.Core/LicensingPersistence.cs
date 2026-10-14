@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Win32;
 
@@ -296,10 +297,16 @@ internal static class WindowsDataProtection
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private readonly struct DataBlob(int size, IntPtr data)
+    private struct DataBlob
     {
-        public readonly int Size = size;
-        public readonly IntPtr Data = data;
+        public DataBlob(int size, IntPtr data)
+        {
+            Size = size;
+            Data = data;
+        }
+
+        public int Size;
+        public IntPtr Data;
     }
 
     [DllImport("Crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
