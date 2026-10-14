@@ -263,9 +263,9 @@
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="430" Margin="30">
                 <Path Data="{StaticResource PersonIconGeometry}" Width="42" Height="42" Stretch="Uniform"
                       Fill="{DynamicResource GuiaPlayAccentBrush}" HorizontalAlignment="Center" />
-                <TextBlock Text="Ativação necessária" FontSize="22" FontWeight="SemiBold"
+                <TextBlock x:Name="LicenseBlockedTitleText" Text="Escolha como continuar" FontSize="22" FontWeight="SemiBold"
                            HorizontalAlignment="Center" Margin="0,14,0,0" />
-                <TextBlock x:Name="LicenseBlockedMessageText" Text="Verifique sua avaliação ou ative uma licença para usar o GuiaPlay."
+                <TextBlock x:Name="LicenseBlockedMessageText" Text="Inicie a avaliação gratuita ou ative uma licença para usar o GuiaPlay."
                            TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,16"
                            Style="{StaticResource SecondaryTextStyle}" />
                 <Button Content="Abrir usuário e licença" HorizontalAlignment="Center"
