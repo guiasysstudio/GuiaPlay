@@ -23,7 +23,8 @@ public static class EntitlementVerifier
         LicensingAccessKind expectedAccessKind,
         string deviceId,
         DateTimeOffset nowUtc,
-        DateTimeOffset? lastObservedUtc = null)
+        DateTimeOffset? lastObservedUtc = null,
+        bool enforceLocalTimeWindow = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         ArgumentNullException.ThrowIfNull(signing);
@@ -96,25 +97,28 @@ public static class EntitlementVerifier
                 return Invalid("entitlement_invalid", serverTime, expiresAt, offlineUntil);
             }
 
-            nowUtc = nowUtc.ToUniversalTime();
-            if (nowUtc + ClockRollbackTolerance < serverTime ||
-                lastObservedUtc is { } observed && nowUtc + ClockRollbackTolerance < observed.ToUniversalTime())
+            if (enforceLocalTimeWindow)
             {
-                return Invalid("clock_rollback", serverTime, expiresAt, offlineUntil);
-            }
+                nowUtc = nowUtc.ToUniversalTime();
+                if (nowUtc + ClockRollbackTolerance < serverTime ||
+                    lastObservedUtc is { } observed && nowUtc + ClockRollbackTolerance < observed.ToUniversalTime())
+                {
+                    return Invalid("clock_rollback", serverTime, expiresAt, offlineUntil);
+                }
 
-            if (expiresAt is { } expires && nowUtc > expires)
-            {
-                return Invalid(
-                    expectedAccessKind == LicensingAccessKind.Trial ? "trial_expired" : "expired",
-                    serverTime,
-                    expiresAt,
-                    offlineUntil);
-            }
+                if (expiresAt is { } expires && nowUtc > expires)
+                {
+                    return Invalid(
+                        expectedAccessKind == LicensingAccessKind.Trial ? "trial_expired" : "expired",
+                        serverTime,
+                        expiresAt,
+                        offlineUntil);
+                }
 
-            if (nowUtc > offlineUntil)
-            {
-                return Invalid("offline_window_expired", serverTime, expiresAt, offlineUntil);
+                if (nowUtc > offlineUntil)
+                {
+                    return Invalid("offline_window_expired", serverTime, expiresAt, offlineUntil);
+                }
             }
 
             return new EntitlementVerificationResult(
