@@ -31,7 +31,9 @@ public sealed class LicensingManager : IDisposable
 
     public LicensingSnapshot Current { get; private set; } = LicensingSnapshot.Checking;
     public string DeviceId => _device.DeviceId;
-    public bool TrialAvailable => _state.ProjectConfig?.Trial.Enabled == true;
+    public bool TrialAvailable =>
+        _state.ProjectConfig?.Trial.Enabled == true &&
+        !_state.TrialConsumed;
     public int TrialOfferDays => Math.Max(0, _state.ProjectConfig?.Trial.Days ?? 0);
 
     public event EventHandler? StateChanged;
@@ -78,6 +80,12 @@ public sealed class LicensingManager : IDisposable
             }
             catch (LicensingApiException exception)
             {
+                if (exception.ErrorCode is "trial_expired" or "trial_converted")
+                {
+                    _state = _state with { TrialConsumed = true };
+                    _ = _stateStore.Save(_state);
+                }
+
                 return PublishOperationError(
                     exception.ErrorCode,
                     exception.Message,
@@ -242,7 +250,8 @@ public sealed class LicensingManager : IDisposable
                 EntitlementToken = null,
                 ServerView = null,
                 LastOnlineValidationUtc = null,
-                LastObservedUtc = MaxUtc(_state.LastObservedUtc, _timeProvider.GetUtcNow())
+                LastObservedUtc = MaxUtc(_state.LastObservedUtc, _timeProvider.GetUtcNow()),
+                TrialConsumed = true
             };
             _ = _stateStore.Save(_state);
             return Publish(LicensingSnapshot.Unlicensed(
@@ -320,7 +329,7 @@ public sealed class LicensingManager : IDisposable
                 cancellationToken);
         }
 
-        var offerMessage = configuration.Trial.Enabled && configuration.Trial.Days > 0
+        var offerMessage = TrialAvailable && configuration.Trial.Days > 0
             ? $"Escolha entre iniciar a avaliação gratuita de {configuration.Trial.Days} dia(s) ou ativar uma licença."
             : "Informe uma chave de licença para ativar o GuiaPlay.";
         return Publish(LicensingSnapshot.Unlicensed(null, offerMessage));
@@ -453,6 +462,10 @@ public sealed class LicensingManager : IDisposable
                 licenseKey));
         }
 
+        var trialConsumed =
+            _state.TrialConsumed ||
+            view.AccessKind is LicensingAccessKind.Trial or LicensingAccessKind.License;
+
         _state = new PersistedLicensingState(
             PersistedLicensingState.CurrentSchemaVersion,
             view.AccessKind == LicensingAccessKind.License ? licenseKey : null,
@@ -461,7 +474,8 @@ public sealed class LicensingManager : IDisposable
             view,
             configuration,
             view.ServerTime,
-            now.ToUniversalTime());
+            now.ToUniversalTime(),
+            trialConsumed);
 
         var saved = _stateStore.Save(_state);
         return Publish(BuildSnapshot(
