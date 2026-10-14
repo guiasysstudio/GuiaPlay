@@ -11,8 +11,8 @@ public sealed class ProductVersionTests
     [Fact]
     public void ProductMetadataUsesCentralVersionAndReleaseDate()
     {
-        Assert.Equal("1.0.0", ProductInfo.Version);
-        Assert.Equal(new DateOnly(2026, 10, 13), ProductInfo.ReleaseDate);
+        Assert.Equal("1.0.1", ProductInfo.Version);
+        Assert.Equal(new DateOnly(2026, 10, 14), ProductInfo.ReleaseDate);
         Assert.Equal(UpdateChannel.Stable, ProductInfo.Channel);
     }
 
