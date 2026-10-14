@@ -130,6 +130,9 @@
                                Text="{Binding Text, ElementName=StatusText}" TextTrimming="CharacterEllipsis" />
                 </StackPanel>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="LicenseStatusButton" Content="Verificando licença…" MinWidth="132" Height="36"
+                            Margin="0,0,7,0" Style="{StaticResource StandardButtonStyle}"
+                            ToolTip="Abrir usuário e licença" Click="LicenseStatusButton_OnClick" />
                     <Button x:Name="UpdateAvailableButton" Visibility="Collapsed" Width="40" Height="36" Padding="9"
                             MinWidth="40" Margin="0,0,7,0" Background="{DynamicResource GuiaPlayAccentBrush}"
                             Foreground="{DynamicResource GuiaPlayAccentForegroundBrush}"
@@ -146,7 +149,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
+        <Grid x:Name="LicensedWorkspace" Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="54*" MinWidth="390" /><ColumnDefinition Width="12" />
                 <ColumnDefinition Width="46*" MinWidth="310" />
@@ -253,6 +256,22 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <Border x:Name="LicenseBlockedOverlay" Grid.Row="1" Visibility="Collapsed"
+                Background="{DynamicResource GuiaPlayWindowBackgroundBrush}" Opacity="0.96"
+                CornerRadius="8" Panel.ZIndex="20">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="430" Margin="30">
+                <Path Data="{StaticResource PersonIconGeometry}" Width="42" Height="42" Stretch="Uniform"
+                      Fill="{DynamicResource GuiaPlayAccentBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="Ativação necessária" FontSize="22" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" Margin="0,14,0,0" />
+                <TextBlock x:Name="LicenseBlockedMessageText" Text="Verifique sua avaliação ou ative uma licença para usar o GuiaPlay."
+                           TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,16"
+                           Style="{StaticResource SecondaryTextStyle}" />
+                <Button Content="Abrir usuário e licença" HorizontalAlignment="Center"
+                        Click="LicenseStatusButton_OnClick" Style="{StaticResource PrimaryButtonStyle}" />
+            </StackPanel>
+        </Border>
 
         <Border x:Name="OperationalControlPanel" Grid.Row="2" Margin="0,8,0,0" Style="{StaticResource CardStyle}"
                 Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="8,6">
