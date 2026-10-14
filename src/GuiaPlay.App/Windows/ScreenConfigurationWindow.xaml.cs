@@ -474,10 +474,10 @@ public partial class ScreenConfigurationWindow : Window
         if (_licensingManager.TrialAvailable)
         {
             var days = Math.Max(1, _licensingManager.TrialOfferDays);
-            TrialOfferTitleText.Text = $"Teste grátis por {days} dia(s)";
+            TrialOfferTitleText.Text = "Período grátis";
             TrialOfferDescriptionText.Text =
                 $"O período de {days} dia(s) começa somente quando você clicar em iniciar. Se você já comprou uma licença, pode ativá-la diretamente sem iniciar o teste grátis.";
-            StartTrialButton.Content = $"Iniciar {days} dia(s) grátis";
+            StartTrialButton.Content = "Iniciar período grátis";
         }
 
         LicenseStatusText.Text = snapshot.HasAccess
