@@ -176,7 +176,6 @@ public sealed class BrandingTests
     }
 
     [Fact]
-    [Fact]
     public void LicensingCheckDoesNotFlashActivationOverlay()
     {
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
@@ -186,6 +185,7 @@ public sealed class BrandingTests
         Assert.Contains(": Visibility.Visible", main, StringComparison.Ordinal);
     }
 
+    [Fact]
     public void LicensingAccountButtonTargetsPurchasesAndTrialOfferIsOneTimePerLocalState()
     {
         var contracts = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingContracts.cs"));
