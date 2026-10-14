@@ -135,14 +135,17 @@ public sealed class BrandingTests
     }
 
     [Fact]
-    public void M09DiagnosticsAndSoakScriptAvoidAggressiveSamplingAndFakeGpuMetrics()
+    public void M09DiagnosticsInfrastructureAndSoakScriptAvoidAggressiveSamplingAndFakeGpuMetrics()
     {
         var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
         var soak = File.ReadAllText(PathInRepository("scripts/soak-test.ps1"));
 
-        Assert.Contains("Header=\"Diagnóstico\"", settings, StringComparison.Ordinal);
-        Assert.Contains("Copiar diagnóstico", settings, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromSeconds(2)", File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs")), StringComparison.Ordinal);
+        Assert.DoesNotContain("Header=\"Diagnóstico\"", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("Copiar diagnóstico", settings, StringComparison.Ordinal);
+        Assert.Contains("SessionDiagnostics", main, StringComparison.Ordinal);
+        Assert.Contains("ProcessMetricsSampler", main, StringComparison.Ordinal);
+        Assert.Contains("LogDiagnosticSnapshot", main, StringComparison.Ordinal);
         Assert.Contains("[int]$SampleSeconds = 5", soak, StringComparison.Ordinal);
         Assert.Contains("WorkingSetMB", soak, StringComparison.Ordinal);
         Assert.Contains("PrivateMemoryMB", soak, StringComparison.Ordinal);
