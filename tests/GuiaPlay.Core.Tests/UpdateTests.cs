@@ -125,6 +125,7 @@ public sealed class GitHubUpdateServiceTests
 
     [Theory]
     [InlineData("0.10.3-prototipo", UpdateChannel.Prototype, "1.0.0-rc1", true, "releaseCandidate")]
+    [InlineData("0.10.2-prototipo", UpdateChannel.Prototype, "1.0.0", false, "stable")]
     [InlineData("0.10.3-prototipo", UpdateChannel.Prototype, "1.0.0", false, "stable")]
     [InlineData("1.0.0-rc1", UpdateChannel.ReleaseCandidate, "1.0.0-rc2", true, "releaseCandidate")]
     [InlineData("1.0.0-rc2", UpdateChannel.ReleaseCandidate, "1.0.0", false, "stable")]
