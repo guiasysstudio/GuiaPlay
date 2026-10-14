@@ -81,6 +81,15 @@ public static class EntitlementVerifier
             var serverTime = ReadRequiredDate(payload, "serverTime");
             var expiresAt = ReadOptionalDate(payload, "expiresAt");
             var offlineUntil = ReadRequiredDate(payload, "offlineUntil");
+            var lifetime = payload.TryGetProperty("lifetime", out var lifetimeProperty) &&
+                           lifetimeProperty.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+                           lifetimeProperty.GetBoolean();
+
+            if (expectedAccessKind == LicensingAccessKind.Trial && expiresAt is null ||
+                expectedAccessKind == LicensingAccessKind.License && !lifetime && expiresAt is null)
+            {
+                return Invalid("entitlement_invalid", serverTime, expiresAt, offlineUntil);
+            }
 
             if (expiresAt is { } expiry && expiry < serverTime)
             {
