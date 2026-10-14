@@ -156,6 +156,7 @@ public static class LicensingErrorMessages
         "trial_not_started" => "A avaliação gratuita ainda não foi iniciada neste dispositivo.",
         "trial_expired" => "O período de avaliação deste dispositivo terminou.",
         "trial_converted" => "A avaliação deste dispositivo já foi convertida em uma licença paga.",
+        "trial_consumed" => "Este dispositivo já utilizou o período grátis disponível.",
         "license_invalid" => "A chave informada é inválida.",
         "pending" => "A licença ainda não foi ativada.",
         "expired" => "A licença expirou.",
