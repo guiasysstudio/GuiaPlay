@@ -14,7 +14,8 @@ internal sealed record PersistedLicensingState(
     LicensingServerView? ServerView,
     ProjectLicensingConfiguration? ProjectConfig,
     DateTimeOffset? LastOnlineValidationUtc,
-    DateTimeOffset? LastObservedUtc)
+    DateTimeOffset? LastObservedUtc,
+    bool TrialConsumed = false)
 {
     public const int CurrentSchemaVersion = 1;
 
@@ -26,7 +27,8 @@ internal sealed record PersistedLicensingState(
         null,
         null,
         null,
-        null);
+        null,
+        false);
 }
 
 internal sealed class LicensingStateStore(string filePath)
