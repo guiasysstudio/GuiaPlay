@@ -176,6 +176,21 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void LicensingAccountButtonTargetsPurchasesAndTrialOfferIsOneTimePerLocalState()
+    {
+        var contracts = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingContracts.cs"));
+        var manager = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingManager.cs"));
+        var persistence = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingPersistence.cs"));
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
+
+        Assert.Contains("https://licencas.guiasys.online/conta/compras", contracts, StringComparison.Ordinal);
+        Assert.Contains("LicensingProtocol.AccountUri", settings, StringComparison.Ordinal);
+        Assert.Contains("bool TrialConsumed = false", persistence, StringComparison.Ordinal);
+        Assert.Contains("!_state.TrialConsumed", manager, StringComparison.Ordinal);
+        Assert.Contains("TrialConsumed = true", manager, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void M10UsesProfessionalCardsAndKeepsPrimaryOperationsVisible()
     {
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
