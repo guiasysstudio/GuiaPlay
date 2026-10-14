@@ -533,7 +533,7 @@
 
                         <Border x:Name="TrialOfferPanel" Style="{StaticResource CardStyle}" Margin="0,0,0,14" Visibility="Collapsed">
                             <StackPanel>
-                                <TextBlock x:Name="TrialOfferTitleText" Text="Teste grátis" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock x:Name="TrialOfferTitleText" Text="Período grátis" Style="{StaticResource SectionTitleStyle}" />
                                 <TextBlock x:Name="TrialOfferDescriptionText" Margin="0,5,0,10" TextWrapping="Wrap"
                                            Style="{StaticResource SecondaryTextStyle}"
                                            Text="O período de avaliação começa somente quando você clicar no botão abaixo." />
