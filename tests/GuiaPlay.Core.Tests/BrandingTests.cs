@@ -209,6 +209,19 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void AboutPageTargetsOfficialGuiaSysStudioWebsite()
+    {
+        var product = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/ProductInfo.cs"));
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+        var settingsCode = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
+
+        Assert.Contains("https://www.guiasys.online/", product, StringComparison.Ordinal);
+        Assert.Contains("Abrir página do GuiaSys Studio", settings, StringComparison.Ordinal);
+        Assert.Contains("ProductInfo.StudioPageUri.AbsoluteUri", settingsCode, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProductInfo.ProjectPageUri.AbsoluteUri", settingsCode, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void M10UsesProfessionalCardsAndKeepsPrimaryOperationsVisible()
     {
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
