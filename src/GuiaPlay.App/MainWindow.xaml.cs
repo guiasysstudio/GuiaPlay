@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     private bool _startupMonitorPreferencesApplied;
     private bool _updatingMonitorChoices;
     private bool _controlsBusy;
+    private bool _licensingAllowsAccess;
     private bool _operatorRequiresConfiguration;
     private bool _operatorRecoverySettingsAllowed;
     private bool _audioPreferenceAvailable = true;
@@ -128,6 +129,11 @@ public partial class MainWindow : Window
         {
             updateManager.StateChanged += UpdateManager_OnStateChanged;
         }
+
+        if (app?.Licensing is { } licensing)
+        {
+            licensing.StateChanged += LicensingManager_OnStateChanged;
+        }
         Loaded += (_, _) =>
         {
             FitToWorkArea();
@@ -152,6 +158,7 @@ public partial class MainWindow : Window
 
             FileLogger.Info("Painel do operador carregado.");
             RefreshUpdateIndicator();
+            ApplyLicensingState((Application.Current as App)?.Licensing?.Current ?? LicensingSnapshot.Checking);
             _ = CheckForUpdatesOnStartupAsync();
         };
         SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessageHook);
@@ -168,6 +175,12 @@ public partial class MainWindow : Window
     internal async Task HandleExternalMediaAsync(string path)
     {
         BringToFront();
+        if (!_licensingAllowsAccess)
+        {
+            StatusText.Text = "Ative o GuiaPlay ou valide a avaliação gratuita antes de abrir uma mídia.";
+            return;
+        }
+
         await LoadMediaAsync(path, playImmediately: false);
     }
 
@@ -210,6 +223,12 @@ public partial class MainWindow : Window
         bool playImmediately,
         MediaProbeStatus? verifiedProbe = null)
     {
+        if (!_licensingAllowsAccess)
+        {
+            StatusText.Text = "Ative o GuiaPlay ou valide a avaliação gratuita antes de abrir uma mídia.";
+            return MediaLoadOutcome.Cancelled;
+        }
+
         var kind = MediaTypeDetector.Detect(path);
         if (kind == MediaKind.Unknown)
         {
@@ -1008,17 +1027,28 @@ public partial class MainWindow : Window
     }
 
     private async void ConfigureScreensButton_OnClick(object sender, RoutedEventArgs e) =>
-        await OpenSettingsAsync(openUpdates: false);
+        await OpenSettingsAsync(openUpdates: false, openLicense: false);
 
     private async void UpdateAvailableButton_OnClick(object sender, RoutedEventArgs e) =>
-        await OpenSettingsAsync(openUpdates: true);
+        await OpenSettingsAsync(openUpdates: true, openLicense: false);
 
-    private async Task OpenSettingsAsync(bool openUpdates)
+    private async void LicenseStatusButton_OnClick(object sender, RoutedEventArgs e) =>
+        await OpenSettingsAsync(openUpdates: false, openLicense: true);
+
+    internal Task OpenLicenseSettingsAsync() =>
+        OpenSettingsAsync(openUpdates: false, openLicense: true);
+
+    private async Task OpenSettingsAsync(bool openUpdates, bool openLicense)
     {
         var app = Application.Current as App;
-        if (app is not { UpdateManager: { } updateManager, WindowsIntegration: { } windowsIntegration })
+        if (app is not
+            {
+                UpdateManager: { } updateManager,
+                WindowsIntegration: { } windowsIntegration,
+                Licensing: { } licensing
+            })
         {
-            StatusText.Text = "O serviço de atualizações ainda não está disponível.";
+            StatusText.Text = "Os serviços do GuiaPlay ainda não estão disponíveis.";
             return;
         }
         var currentSettings = app.Settings;
@@ -1032,14 +1062,18 @@ public partial class MainWindow : Window
             _engine.EqualizerCatalog,
             updateManager,
             windowsIntegration,
-            CaptureDiagnostics,
+            licensing,
             openUpdates,
+            openLicense,
             _coordinator.IsActive,
             _operatorRecoverySettingsAllowed)
         { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Result is not { } result)
         {
-            StatusText.Text = "Configuração de telas cancelada; nada foi alterado.";
+            ApplyLicensingState(licensing.Current);
+            StatusText.Text = openLicense
+                ? licensing.Current.Message ?? (licensing.Current.HasAccess ? "Estado da licença atualizado." : "Ativação necessária para usar o GuiaPlay.")
+                : "Configurações fechadas; nenhuma preferência pendente foi salva.";
             return;
         }
 
@@ -2020,7 +2054,7 @@ public partial class MainWindow : Window
     private void SetControlsBusy(bool busy)
     {
         _controlsBusy = busy;
-        OpenButton.IsEnabled = !busy;
+        OpenButton.IsEnabled = !busy && _licensingAllowsAccess;
         SetConfigurationControlsEnabled(!busy && !_coordinator.IsActive);
         RefreshPlaybackControls();
     }
@@ -2029,7 +2063,7 @@ public partial class MainWindow : Window
 
     private void RefreshPlaybackControls()
     {
-        if (_controlsBusy)
+        if (_controlsBusy || !_licensingAllowsAccess)
         {
             PlayButton.IsEnabled = false;
             PauseButton.IsEnabled = false;
@@ -2042,6 +2076,82 @@ public partial class MainWindow : Window
         PlayButton.IsEnabled = mayStart && _coordinator.CanPlay(SelectedOutputCount());
         PauseButton.IsEnabled = status == PlaybackStatus.Playing;
         StopButton.IsEnabled = _coordinator.MediaPath is not null;
+    }
+
+
+    internal void ApplyLicensingState(LicensingSnapshot snapshot)
+    {
+        var previouslyAllowed = _licensingAllowsAccess;
+        _licensingAllowsAccess = snapshot.HasAccess;
+        LicensedWorkspace.IsEnabled = snapshot.HasAccess;
+        OperationalControlPanel.IsEnabled = snapshot.HasAccess;
+        LicenseBlockedOverlay.Visibility = snapshot.HasAccess ? Visibility.Collapsed : Visibility.Visible;
+        LicenseBlockedMessageText.Text = snapshot.Message ??
+            "Verifique sua avaliação ou ative uma licença para usar o GuiaPlay.";
+        LicenseStatusButton.Content = FormatLicenseSummary(snapshot);
+
+        if (!snapshot.HasAccess && previouslyAllowed && _coordinator.IsActive)
+        {
+            try
+            {
+                if (_coordinator.Status == PlaybackStatus.Playing)
+                {
+                    _engine.Pause();
+                    _coordinator.Pause();
+                }
+
+                CloseOutputWindows();
+                StatusText.Text = snapshot.Message ?? "A autorização do GuiaPlay deixou de ser válida.";
+            }
+            catch (Exception exception)
+            {
+                FileLogger.Error("Falha ao interromper reprodução após bloqueio de licença.", exception);
+            }
+        }
+        else if (!snapshot.HasAccess)
+        {
+            StatusText.Text = snapshot.Message ?? "Ativação necessária para usar o GuiaPlay.";
+        }
+
+        OpenButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
+        RefreshPlaybackControls();
+    }
+
+    private void LicensingManager_OnStateChanged(object? sender, EventArgs e)
+    {
+        if (sender is LicensingManager licensing)
+        {
+            Dispatch(() => ApplyLicensingState(licensing.Current));
+        }
+    }
+
+    private static string FormatLicenseSummary(LicensingSnapshot snapshot)
+    {
+        if (snapshot.HasAccess && snapshot.AccessKind == LicensingAccessKind.License)
+        {
+            return snapshot.UsingOfflineAuthorization ? "Licença ativa • offline" : "Licença ativa";
+        }
+
+        if (snapshot.HasAccess && snapshot.AccessKind == LicensingAccessKind.Trial)
+        {
+            if (snapshot.ExpiresAt is { } expiresAt)
+            {
+                var remaining = expiresAt.ToUniversalTime() - DateTimeOffset.UtcNow;
+                if (remaining > TimeSpan.Zero)
+                {
+                    var text = remaining.TotalDays >= 1
+                        ? $"{(int)remaining.TotalDays}d {remaining.Hours}h"
+                        : $"{Math.Max(0, (int)remaining.TotalHours)}h {remaining.Minutes}min";
+                    return snapshot.UsingOfflineAuthorization
+                        ? $"Avaliação • {text} • offline"
+                        : $"Avaliação • {text}";
+                }
+            }
+
+            return "Avaliação ativa";
+        }
+
+        return snapshot.Status == "checking" ? "Verificando licença…" : "Ativar GuiaPlay";
     }
 
     private void CloseIdentifierWindows()
@@ -2079,9 +2189,13 @@ public partial class MainWindow : Window
         }
 
         _isClosing = true;
-        if (Application.Current is App { UpdateManager: { } updateManager })
+        if (Application.Current is App { UpdateManager: { } updateManager } app)
         {
             updateManager.StateChanged -= UpdateManager_OnStateChanged;
+            if (app.Licensing is { } licensing)
+            {
+                licensing.StateChanged -= LicensingManager_OnStateChanged;
+            }
         }
         FlushDeferredSettings();
         Hide();
