@@ -1,0 +1,32 @@
+name: Windows build and tests
+
+on:
+  push:
+    branches:
+      - main
+      - feat/gsl-v1-licensing
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore GuiaPlay.sln
+
+      - name: Build
+        run: dotnet build GuiaPlay.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test GuiaPlay.sln -c Release --no-build --no-restore
