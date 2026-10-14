@@ -1,0 +1,59 @@
+name: Licensing production config smoke
+
+on:
+  push:
+    branches:
+      - feat/gsl-v1-licensing
+
+jobs:
+  project-config:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check GuiaPlay licensing project config
+        shell: pwsh
+        run: |
+          $body = @{
+            integrationCode = "GSLI-8TPY-5KA6-HK4J"
+          } | ConvertTo-Json
+
+          try {
+            $response = Invoke-RestMethod -Method Post -Uri "https://licencas.guiasys.online/api/v1/project/config" -ContentType "application/json" -Body $body -TimeoutSec 20
+          }
+          catch {
+            Write-Host "HTTP request failed:"
+            Write-Host $_.Exception.Message
+            if ($_.ErrorDetails.Message) {
+              Write-Host $_.ErrorDetails.Message
+            }
+            throw
+          }
+
+          if (-not $response.ok) {
+            throw "Licensing API returned ok=false."
+          }
+
+          $project = $response.project
+          [pscustomobject]@{
+            protocolVersion = $project.protocolVersion
+            projectId = $project.projectId
+            prefix = $project.prefix
+            trialEnabled = $project.trial.enabled
+            trialDays = $project.trial.days
+            trialValidationHours = $project.trial.validationHours
+            trialOfflineHours = $project.trial.offlineHours
+            licenseValidationHours = $project.license.validationHours
+            licenseOfflineDays = $project.license.offlineDays
+            signingAlgorithm = $project.signing.algorithm
+            signingKeyIdPresent = -not [string]::IsNullOrWhiteSpace([string]$project.signing.keyId)
+            signingPublicKeyPresent = (
+              -not [string]::IsNullOrWhiteSpace([string]$project.signing.publicJwk.x) -and
+              -not [string]::IsNullOrWhiteSpace([string]$project.signing.publicJwk.y)
+            )
+          } | ConvertTo-Json -Compress
+
+          if ($project.protocolVersion -ne "GSL-v1") { throw "Unexpected protocolVersion." }
+          if ($project.projectId -ne "prj_04d2013877c14fdc8d85") { throw "Unexpected projectId." }
+          if (-not $project.trial.enabled) { throw "Trial is disabled in production." }
+          if ([int]$project.trial.days -le 0) { throw "Trial duration is invalid." }
+          if ($project.signing.algorithm -ne "ES256") { throw "Unexpected signing algorithm." }
