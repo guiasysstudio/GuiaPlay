@@ -299,10 +299,11 @@ public sealed class LicensingManager : IDisposable
         var validationHours = accessKind == LicensingAccessKind.License
             ? configuration.License.ValidationHours
             : configuration.Trial.ValidationHours;
-        var due = _state.LastOnlineValidationUtc is not { } lastOnline;
-        if (!due)
+        var lastOnline = _state.LastOnlineValidationUtc;
+        var due = lastOnline is null;
+        if (lastOnline is { } validatedAt)
         {
-            var elapsed = now - lastOnline.ToUniversalTime();
+            var elapsed = now - validatedAt.ToUniversalTime();
             due = elapsed < TimeSpan.Zero || elapsed >= TimeSpan.FromHours(validationHours);
         }
 
