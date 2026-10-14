@@ -152,6 +152,29 @@ public sealed class BrandingTests
         Assert.DoesNotContain("GpuPercent", soak, StringComparison.OrdinalIgnoreCase);
     }
 
+
+    [Fact]
+    public void LicensingTrialIsExplicitAndDoesNotStartOnApplicationInitialization()
+    {
+        var manager = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingManager.cs"));
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+
+        Assert.Contains("public async Task<LicensingSnapshot> StartTrialAsync", manager, StringComparison.Ordinal);
+        Assert.Contains("StartTrialButton", settings, StringComparison.Ordinal);
+        Assert.Contains("Iniciar período grátis", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("allowTrialStart: true", manager, StringComparison.Ordinal);
+        Assert.DoesNotContain("_apiClient.StartTrialAsync(", ExtractInitializeMethod(manager), StringComparison.Ordinal);
+    }
+
+    private static string ExtractInitializeMethod(string source)
+    {
+        const string startMarker = "public async Task<LicensingSnapshot> InitializeAsync";
+        const string endMarker = "public async Task<LicensingSnapshot> RefreshAsync";
+        var start = source.IndexOf(startMarker, StringComparison.Ordinal);
+        var end = source.IndexOf(endMarker, start, StringComparison.Ordinal);
+        return start >= 0 && end > start ? source[start..end] : source;
+    }
+
     [Fact]
     public void M10UsesProfessionalCardsAndKeepsPrimaryOperationsVisible()
     {
