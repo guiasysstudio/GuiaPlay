@@ -339,10 +339,10 @@ public partial class ScreenConfigurationWindow : Window
 
     private void OpenProjectPageButton_OnClick(object sender, RoutedEventArgs e)
     {
-        var result = SafeProcessLauncher.TryOpenShell(ProductInfo.ProjectPageUri.AbsoluteUri);
+        var result = SafeProcessLauncher.TryOpenShell(ProductInfo.StudioPageUri.AbsoluteUri);
         if (!result.Succeeded)
         {
-            ValidationText.Text = $"Não foi possível abrir o site do projeto: {result.Error}";
+            ValidationText.Text = $"Não foi possível abrir o site da GuiaSys Studio: {result.Error}";
         }
     }
 

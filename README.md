@@ -1,8 +1,8 @@
 # GuiaPlay
 
-Versão estável 1.0.1 do GuiaPlay, com Interface 2.0, presets de playlist, aparência avançada, equalizador nativo do LibVLC, reprodução de vídeos/áudios locais, atualização automática por GitHub Releases, integração opcional ao Windows Explorer e licenciamento GSL-v1.
+Versão estável 1.0.2 do GuiaPlay, com Interface 2.0, presets de playlist, aparência avançada, equalizador nativo do LibVLC, reprodução de vídeos/áudios locais, atualização automática por GitHub Releases, integração opcional ao Windows Explorer e licenciamento GSL-v1.
 
-Versão: **1.0.1**
+Versão: **1.0.2**
 
 Plataforma: **Windows x64 e x86**
 
@@ -100,6 +100,7 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Notas da versão 0.10.3-prototipo](docs/releases/0.10.3-prototipo.md)
 - [Notas da versão 1.0.0](docs/releases/1.0.0.md)
 - [Notas da versão 1.0.1](docs/releases/1.0.1.md)
+- [Notas da versão 1.0.2](docs/releases/1.0.2.md)
 - [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
@@ -108,7 +109,7 @@ As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: tema,
 
 ## Atualizações e distribuição
 
-O GuiaPlay 1.0.1 usa o canal `Stable`, que consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, aceita somente releases estáveis compatíveis e ignora drafts/tags inválidas. Builds antigas no canal Prototype continuam aceitando uma versão Stable mais nova, permitindo a atualização direta de `0.10.2-prototipo` ou `0.10.3-prototipo` para `1.0.0`. O canal RC aceita RCs e estáveis. A checagem automática é ativada por padrão. Em cada novo processo, o cache restaura imediatamente o último indicador confiável e, 1,5 segundo depois de a janela carregar, ocorre exatamente uma consulta real ao GitHub mesmo que o cache seja recente. A janela de 12 horas limita apenas tentativas automáticas adicionais no mesmo processo. Falha de rede não bloqueia a abertura nem apaga uma atualização já confirmada. A instalação automática começa desativada e nunca interrompe mídia ativa.
+O GuiaPlay 1.0.2 usa o canal `Stable`, que consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, aceita somente releases estáveis compatíveis e ignora drafts/tags inválidas. Builds antigas no canal Prototype continuam aceitando uma versão Stable mais nova, permitindo a atualização direta de `0.10.2-prototipo` ou `0.10.3-prototipo` para `1.0.0`. O canal RC aceita RCs e estáveis. A checagem automática é ativada por padrão. Em cada novo processo, o cache restaura imediatamente o último indicador confiável e, 1,5 segundo depois de a janela carregar, ocorre exatamente uma consulta real ao GitHub mesmo que o cache seja recente. A janela de 12 horas limita apenas tentativas automáticas adicionais no mesmo processo. Falha de rede não bloqueia a abertura nem apaga uma atualização já confirmada. A instalação automática começa desativada e nunca interrompe mídia ativa.
 
 Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. O download mostra bytes e percentual reais quando `Content-Length` existe, usa estado indeterminado sem tamanho conhecido e distingue download, SHA-256, preparação e início do updater. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. O manifesto pode publicar `win-x64` e `win-x86`, mas o updater seleciona exclusivamente o pacote do RID instalado; troca silenciosa de arquitetura é bloqueada. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
 

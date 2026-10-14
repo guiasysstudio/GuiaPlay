@@ -578,7 +578,7 @@
                         <TextBlock x:Name="AboutVersionText" Margin="0,6,0,0" />
                         <TextBlock Text="GuiaSys Studio" Margin="0,6,0,0" />
                         <TextBlock x:Name="AboutReleaseDateText" Margin="0,6,0,18" />
-                        <Button Content="Abrir página do projeto" HorizontalAlignment="Left"
+                        <Button Content="Abrir página do GuiaSys Studio" HorizontalAlignment="Left"
                                 Style="{StaticResource StandardButtonStyle}"
                                 Click="OpenProjectPageButton_OnClick" />
                     </StackPanel>
