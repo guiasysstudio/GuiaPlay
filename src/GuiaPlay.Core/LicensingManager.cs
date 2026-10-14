@@ -574,7 +574,13 @@ public sealed class LicensingManager : IDisposable
     }
 
     private static bool CanUseCachedAuthorization(string errorCode) =>
-        errorCode is "network_error" or "rate_limited";
+        errorCode is
+            "network_error" or
+            "rate_limited" or
+            "internal_error" or
+            "upstream_error" or
+            "upstream_timeout" or
+            "signing_unavailable";
 
     private static void ValidateConfiguration(ProjectLicensingConfiguration configuration)
     {
