@@ -85,19 +85,19 @@ public sealed class LicensingManager : IDisposable
             }
             catch (LicensingApiException exception)
             {
-                return Publish(Denied(
-                    LicensingAccessKind.License,
+                return PublishOperationError(
                     exception.ErrorCode,
                     LicensingErrorMessages.For(exception.ErrorCode),
-                    normalizedKey));
+                    LicensingAccessKind.License,
+                    normalizedKey);
             }
             catch (InvalidDataException)
             {
-                return Publish(Denied(
-                    LicensingAccessKind.License,
+                return PublishOperationError(
                     "invalid_response",
                     LicensingErrorMessages.For("entitlement_invalid"),
-                    normalizedKey));
+                    LicensingAccessKind.License,
+                    normalizedKey);
             }
 
             try
@@ -111,19 +111,19 @@ public sealed class LicensingManager : IDisposable
             }
             catch (LicensingApiException exception)
             {
-                return Publish(Denied(
-                    LicensingAccessKind.License,
+                return PublishOperationError(
                     exception.ErrorCode,
                     LicensingErrorMessages.For(exception.ErrorCode),
-                    normalizedKey));
+                    LicensingAccessKind.License,
+                    normalizedKey);
             }
             catch (InvalidDataException)
             {
-                return Publish(Denied(
-                    LicensingAccessKind.License,
+                return PublishOperationError(
                     "invalid_response",
                     "O servidor retornou uma autorização de licença inválida.",
-                    normalizedKey));
+                    LicensingAccessKind.License,
+                    normalizedKey);
             }
         }
         finally
@@ -155,11 +155,11 @@ public sealed class LicensingManager : IDisposable
             }
             catch (LicensingApiException exception)
             {
-                return Publish(Denied(
-                    LicensingAccessKind.License,
+                return PublishOperationError(
                     exception.ErrorCode,
                     LicensingErrorMessages.For(exception.ErrorCode),
-                    key));
+                    LicensingAccessKind.License,
+                    key);
             }
 
             _state = _state with
@@ -308,7 +308,7 @@ public sealed class LicensingManager : IDisposable
 
         if (!forceOnlineValidation && !due && localVerification.IsValid)
         {
-            RememberObservedTime(now, localVerification.ServerTime);
+            RememberObservedTime(now);
             return Publish(BuildSnapshot(
                 _state.ServerView!,
                 _state.LicenseKey,
@@ -341,7 +341,7 @@ public sealed class LicensingManager : IDisposable
         {
             if (localVerification.IsValid)
             {
-                RememberObservedTime(now, localVerification.ServerTime);
+                RememberObservedTime(now);
                 var message = exception.ErrorCode == "rate_limited"
                     ? "Validação online temporariamente limitada; a autorização offline assinada continua válida."
                     : "Sem conexão; usando a autorização offline assinada.";
@@ -471,7 +471,7 @@ public sealed class LicensingManager : IDisposable
         return result;
     }
 
-    private void RememberObservedTime(DateTimeOffset now, DateTimeOffset? serverTime)
+    private void RememberObservedTime(DateTimeOffset now)
     {
         _state = _state with
         {
@@ -546,6 +546,24 @@ public sealed class LicensingManager : IDisposable
             _state.LastOnlineValidationUtc,
             view?.OfflineUntil,
             false);
+    }
+
+    private LicensingSnapshot PublishOperationError(
+        string errorCode,
+        string message,
+        LicensingAccessKind requestedKind,
+        string? requestedLicenseKey)
+    {
+        if (Current.HasAccess)
+        {
+            return Publish(Current with
+            {
+                ErrorCode = errorCode,
+                Message = message
+            });
+        }
+
+        return Publish(Denied(requestedKind, errorCode, message, requestedLicenseKey));
     }
 
     private LicensingSnapshot Publish(LicensingSnapshot snapshot)
