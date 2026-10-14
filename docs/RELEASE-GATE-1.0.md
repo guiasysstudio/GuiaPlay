@@ -1,6 +1,6 @@
 # Release gate — GuiaPlay 1.0
 
-Este gate impede que `1.0.0-rc1` ou `1.0.0` seja publicado apenas porque o build automatizado ficou verde. A versão deste marco continua sendo `0.10.3-prototipo`.
+Este gate protege a publicação final da `1.0.0`. A árvore de release já usa versão `1.0.0` e canal `Stable`, mas a tag e a GitHub Release só devem ser criadas depois que os gates aplicáveis desta execução estiverem concluídos.
 
 ## Bloqueadores absolutos
 
@@ -48,7 +48,7 @@ Marcar cada item somente no relatório da execução que produziu os artefatos. 
 - [ ] equalizador validado por audição
 - [ ] playback prolongado
 - [ ] indicador de update no startup
-- [ ] update real `0.10.2-prototipo → 0.10.3-prototipo`
+- [ ] update real `0.10.3-prototipo → 1.0.0`
 - [ ] preset Save
 - [ ] preset Load
 - [ ] preset Delete
@@ -57,6 +57,10 @@ Marcar cada item somente no relatório da execução que produziu os artefatos. 
 - [ ] instalação x64
 - [ ] desinstalação x64 preservando dados do usuário
 - [ ] instalação/desinstalação x86, se publicada
+- [ ] ativação real por chave no GuiaSys Licensing
+- [ ] vínculo e desvínculo de dispositivo refletidos no portal
+- [ ] período grátis bloqueado após uso/conversão no mesmo dispositivo
+- [ ] botão **Gerenciar conta** abre `/conta/compras`
 
 ## Aprovação
 
@@ -66,4 +70,4 @@ Marcar cada item somente no relatório da execução que produziu os artefatos. 
 | Operação/igreja |  |  |  |
 | Release |  |  |  |
 
-Enquanto qualquer item obrigatório permanecer sem evidência, a tag `v1.0.0-rc1` e a Release correspondente não devem ser criadas.
+Enquanto qualquer item obrigatório para a publicação final permanecer sem evidência, a tag `v1.0.0` e a Release Stable correspondente não devem ser criadas.
