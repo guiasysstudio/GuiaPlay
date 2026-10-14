@@ -188,14 +188,11 @@ public sealed class LicensingManager : IDisposable
         CancellationToken cancellationToken)
     {
         var configuration = _state.ProjectConfig;
-        var configurationWasOnline = false;
-
         try
         {
             var onlineConfiguration = await _apiClient.GetProjectConfigAsync(cancellationToken);
             ValidateConfiguration(onlineConfiguration);
             configuration = onlineConfiguration;
-            configurationWasOnline = true;
             _state = _state with { ProjectConfig = onlineConfiguration };
             _ = _stateStore.Save(_state);
         }
@@ -237,7 +234,6 @@ public sealed class LicensingManager : IDisposable
                 configuration,
                 LicensingAccessKind.License,
                 forceOnlineValidation,
-                configurationWasOnline,
                 cancellationToken);
         }
 
@@ -249,7 +245,6 @@ public sealed class LicensingManager : IDisposable
                 configuration,
                 LicensingAccessKind.Trial,
                 forceOnlineValidation,
-                configurationWasOnline,
                 cancellationToken);
         }
 
@@ -297,7 +292,6 @@ public sealed class LicensingManager : IDisposable
         ProjectLicensingConfiguration configuration,
         LicensingAccessKind accessKind,
         bool forceOnlineValidation,
-        bool configurationWasOnline,
         CancellationToken cancellationToken)
     {
         var now = _timeProvider.GetUtcNow();
@@ -305,8 +299,12 @@ public sealed class LicensingManager : IDisposable
         var validationHours = accessKind == LicensingAccessKind.License
             ? configuration.License.ValidationHours
             : configuration.Trial.ValidationHours;
-        var due = _state.LastOnlineValidationUtc is not { } lastOnline ||
-                  now - lastOnline.ToUniversalTime() >= TimeSpan.FromHours(validationHours);
+        var due = _state.LastOnlineValidationUtc is not { } lastOnline;
+        if (!due)
+        {
+            var elapsed = now - lastOnline.ToUniversalTime();
+            due = elapsed < TimeSpan.Zero || elapsed >= TimeSpan.FromHours(validationHours);
+        }
 
         if (!forceOnlineValidation && !due && localVerification.IsValid)
         {
@@ -403,7 +401,8 @@ public sealed class LicensingManager : IDisposable
             view.AccessKind,
             _device.DeviceId,
             now,
-            null);
+            null,
+            enforceLocalTimeWindow: false);
         if (!verification.IsValid ||
             verification.ExpiresAt != view.ExpiresAt ||
             verification.OfflineUntil != view.OfflineUntil)
@@ -423,7 +422,7 @@ public sealed class LicensingManager : IDisposable
             view,
             configuration,
             view.ServerTime,
-            MaxUtc(now, view.ServerTime));
+            now.ToUniversalTime());
 
         var saved = _stateStore.Save(_state);
         return Publish(BuildSnapshot(
@@ -476,7 +475,7 @@ public sealed class LicensingManager : IDisposable
     {
         _state = _state with
         {
-            LastObservedUtc = MaxUtc(_state.LastObservedUtc, MaxUtc(now, serverTime))
+            LastObservedUtc = MaxUtc(_state.LastObservedUtc, now)
         };
         _ = _stateStore.Save(_state);
     }
