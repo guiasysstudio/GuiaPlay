@@ -35,6 +35,7 @@ public sealed class LicensingManager : IDisposable
         _state.ProjectConfig?.Trial.Enabled == true &&
         !_state.TrialConsumed;
     public int TrialOfferDays => Math.Max(0, _state.ProjectConfig?.Trial.Days ?? 0);
+    public bool TrialConsumed => _state.TrialConsumed;
 
     public event EventHandler? StateChanged;
 
@@ -118,6 +119,7 @@ public sealed class LicensingManager : IDisposable
                 {
                     _state = _state with { TrialConsumed = true };
                     _ = _stateStore.Save(_state);
+                    return Publish(TrialConsumedSnapshot());
                 }
 
                 return PublishOperationError(
@@ -255,8 +257,8 @@ public sealed class LicensingManager : IDisposable
             };
             _ = _stateStore.Save(_state);
             return Publish(LicensingSnapshot.Unlicensed(
-                null,
-                "Licença desativada neste dispositivo. A vaga foi liberada."));
+                "trial_consumed",
+                "Licença desativada neste dispositivo. A vaga foi liberada. O período grátis não está mais disponível neste computador."));
         }
         finally
         {
@@ -327,6 +329,11 @@ public sealed class LicensingManager : IDisposable
                 LicensingAccessKind.Trial,
                 forceOnlineValidation,
                 cancellationToken);
+        }
+
+        if (_state.TrialConsumed)
+        {
+            return Publish(TrialConsumedSnapshot());
         }
 
         var offerMessage = TrialAvailable && configuration.Trial.Days > 0
@@ -600,6 +607,11 @@ public sealed class LicensingManager : IDisposable
             view?.OfflineUntil,
             false);
     }
+
+    private static LicensingSnapshot TrialConsumedSnapshot() =>
+        LicensingSnapshot.Unlicensed(
+            "trial_consumed",
+            "Este dispositivo já utilizou o período grátis disponível. Para continuar usando o GuiaPlay, ative uma licença.");
 
     private LicensingSnapshot PublishOperationError(
         string errorCode,
