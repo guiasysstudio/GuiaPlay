@@ -531,6 +531,19 @@
                             </StackPanel>
                         </Border>
 
+                        <Border x:Name="TrialOfferPanel" Style="{StaticResource CardStyle}" Margin="0,0,0,14" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock x:Name="TrialOfferTitleText" Text="Teste grátis" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock x:Name="TrialOfferDescriptionText" Margin="0,5,0,10" TextWrapping="Wrap"
+                                           Style="{StaticResource SecondaryTextStyle}"
+                                           Text="O período de avaliação começa somente quando você clicar no botão abaixo." />
+                                <Button x:Name="StartTrialButton" Content="Iniciar período grátis"
+                                        HorizontalAlignment="Left"
+                                        Click="StartTrialButton_OnClick"
+                                        Style="{StaticResource PrimaryButtonStyle}" />
+                            </StackPanel>
+                        </Border>
+
                         <Border x:Name="LicenseActivationPanel" Style="{StaticResource CardStyle}">
                             <StackPanel>
                                 <TextBlock Text="Ativar GuiaPlay" Style="{StaticResource SectionTitleStyle}" />
