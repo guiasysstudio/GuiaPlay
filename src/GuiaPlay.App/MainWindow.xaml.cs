@@ -2086,8 +2086,16 @@ public partial class MainWindow : Window
         LicensedWorkspace.IsEnabled = snapshot.HasAccess;
         OperationalControlPanel.IsEnabled = snapshot.HasAccess;
         LicenseBlockedOverlay.Visibility = snapshot.HasAccess ? Visibility.Collapsed : Visibility.Visible;
-        LicenseBlockedMessageText.Text = snapshot.Message ??
-            "Verifique sua avaliação ou ative uma licença para usar o GuiaPlay.";
+        LicenseBlockedTitleText.Text = snapshot.Status == "checking"
+            ? "Verificando licença…"
+            : snapshot.ErrorCode is null
+                ? "Escolha como continuar"
+                : "Não foi possível validar";
+        var errorSuffix = string.IsNullOrWhiteSpace(snapshot.ErrorCode)
+            ? string.Empty
+            : $" (código: {snapshot.ErrorCode})";
+        LicenseBlockedMessageText.Text = (snapshot.Message ??
+            "Inicie a avaliação gratuita ou ative uma licença para usar o GuiaPlay.") + errorSuffix;
         LicenseStatusButton.Content = FormatLicenseSummary(snapshot);
 
         if (!snapshot.HasAccess && previouslyAllowed && _coordinator.IsActive)
@@ -2151,7 +2159,7 @@ public partial class MainWindow : Window
             return "Avaliação ativa";
         }
 
-        return snapshot.Status == "checking" ? "Verificando licença…" : "Ativar GuiaPlay";
+        return snapshot.Status == "checking" ? "Verificando licença…" : "Continuar";
     }
 
     private void CloseIdentifierWindows()
