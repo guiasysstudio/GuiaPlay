@@ -1,8 +1,8 @@
 # GuiaPlay
 
-Protótipo funcional M10.3 com Interface 2.0, presets de playlist, aparência avançada, equalizador nativo do LibVLC, operação endurecida de vídeos/áudios locais, atualizações por arquitetura e integração opcional ao Windows Explorer.
+Versão estável 1.0.0 do GuiaPlay, com Interface 2.0, presets de playlist, aparência avançada, equalizador nativo do LibVLC, reprodução de vídeos/áudios locais, atualização automática por GitHub Releases, integração opcional ao Windows Explorer e licenciamento GSL-v1.
 
-Versão: **0.10.3-prototipo**
+Versão: **1.0.0**
 
 Plataforma: **Windows x64 e x86**
 
@@ -98,6 +98,7 @@ Com um único monitor, áudio continua disponível. Vídeo permanece carregado, 
 - [Notas da versão 0.10.1-prototipo](docs/releases/0.10.1-prototipo.md)
 - [Notas da versão 0.10.2-prototipo](docs/releases/0.10.2-prototipo.md)
 - [Notas da versão 0.10.3-prototipo](docs/releases/0.10.3-prototipo.md)
+- [Notas da versão 1.0.0](docs/releases/1.0.0.md)
 - [Guia dos assets oficiais](docs/branding/README-COMO-USAR.md)
 - [Backlog por marcos](docs/BACKLOG.md)
 
@@ -106,7 +107,7 @@ As preferências ficam em `%LocalAppData%\GuiaSys\GuiaPlay\settings.json`: tema,
 
 ## Atualizações e distribuição
 
-O canal interno `Prototype` consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, aceita prereleases Prototype/RC e versões estáveis compatíveis e ignora drafts/tags inválidas. O canal RC aceita RCs e estáveis; Stable aceita somente releases estáveis. A checagem automática é ativada por padrão. Em cada novo processo, o cache restaura imediatamente o último indicador confiável e, 1,5 segundo depois de a janela carregar, ocorre exatamente uma consulta real ao GitHub mesmo que o cache seja recente. A janela de 12 horas limita apenas tentativas automáticas adicionais no mesmo processo. Falha de rede não bloqueia a abertura nem apaga uma atualização já confirmada. A instalação automática começa desativada e nunca interrompe mídia ativa.
+O GuiaPlay 1.0.0 usa o canal `Stable`, que consulta assincronamente a lista de Releases de `guiasysstudio/GuiaPlay`, aceita somente releases estáveis compatíveis e ignora drafts/tags inválidas. Builds antigas no canal Prototype continuam aceitando uma versão Stable mais nova, permitindo a atualização direta de `0.10.2-prototipo` ou `0.10.3-prototipo` para `1.0.0`. O canal RC aceita RCs e estáveis. A checagem automática é ativada por padrão. Em cada novo processo, o cache restaura imediatamente o último indicador confiável e, 1,5 segundo depois de a janela carregar, ocorre exatamente uma consulta real ao GitHub mesmo que o cache seja recente. A janela de 12 horas limita apenas tentativas automáticas adicionais no mesmo processo. Falha de rede não bloqueia a abertura nem apaga uma atualização já confirmada. A instalação automática começa desativada e nunca interrompe mídia ativa.
 
 Em **Configurações > Atualizações** ficam a versão/data local, busca manual e ação de instalação. Uma seta aparece à esquerda da engrenagem somente quando há uma versão mais nova. O download mostra bytes e percentual reais quando `Content-Length` existe, usa estado indeterminado sem tamanho conhecido e distingue download, SHA-256, preparação e início do updater. Download e instalação exigem `update-manifest.json`, SHA-256 válido e o marcador `install.json` criado pelo Setup. O manifesto pode publicar `win-x64` e `win-x86`, mas o updater seleciona exclusivamente o pacote do RID instalado; troca silenciosa de arquitetura é bloqueada. Execuções via `dotnet run`, `bin/Debug`, `bin/Release` ou pasta do projeto podem consultar, mas não substituir arquivos.
 
@@ -155,7 +156,7 @@ O roteiro e a tabela para anotar 720p/1080p/4K, codecs, saídas, CPU/RAM e GPU o
 5. Execute `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1`. Ele recusa branch/origin/árvore incorretos, tags ou releases existentes e checksums divergentes; então cria a tag anotada, envia a tag, publica conforme o canal e baixa novamente todos os assets para comparar seus SHA-256 byte a byte.
 6. Consulte a Release pela API/`gh` e arquive a URL e a evidência dos hashes no relatório da versão.
 
-## Limites conhecidos do protótipo
+## Limites conhecidos
 
 - A distribuição usa quadros BGRA/RV32 em memória de CPU. Há uma única decodificação e um único relógio LibVLC, mas a cópia CPU e a composição de cada monitor têm custo; não se declara aceleração por GPU.
 - TVs e projetores podem adicionar atrasos próprios. Mesma fonte/relógio não significa sincronismo físico perfeito dos painéis.
@@ -163,7 +164,7 @@ O roteiro e a tabela para anotar 720p/1080p/4K, codecs, saídas, CPU/RAM e GPU o
 - A lista explícita de áudio contém somente pares módulo/dispositivo que o LibVLC informou aceitar. Lista vazia não prova ausência de áudio no Windows; **Padrão do Windows** continua disponível.
 - A aplicação pode detectar uma perda de dispositivo depois de um redirecionamento transitório feito pelo backend/Windows. Ela pausa e não faz fallback nem retoma deliberadamente, mas ausência absoluta de transiente requer validação física.
 - A classificação inicial de mídia usa extensões comuns; a decodificação efetiva continua sendo responsabilidade do LibVLC e depende do conteúdo/codecs do arquivo.
-- O caminho de update `0.10.2-prototipo x64 → 0.10.3-prototipo x64` e os cenários x86/WOW64 permanecem no gate físico antes da RC1; cobertura automatizada não substitui instalação real.
+- Os caminhos de update `0.10.2-prototipo → 1.0.0` e `0.10.3-prototipo → 1.0.0` são cobertos por teste automatizado e devem ser confirmados em instalação real antes da publicação final; cobertura automatizada não substitui o smoke de atualização.
 - O menu de contexto pode ser apresentado pelo Windows 11 dentro de **Mostrar mais opções**, conforme a política do Explorer; o GuiaPlay não instala uma shell extension DLL.
 - Não há assinatura Authenticode nesta etapa; integridade do pacote de atualização é protegida pelo manifesto e SHA-256 publicado.
 - A build x86 tem o limite de espaço de endereço de um processo 32-bit; conteúdo 4K e sessões prolongadas exigem validação física específica e podem demandar x64.

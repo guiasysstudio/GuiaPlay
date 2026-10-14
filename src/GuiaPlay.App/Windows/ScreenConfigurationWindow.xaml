@@ -127,10 +127,10 @@
                                  Click="SettingsNavigationButton_OnClick">
                         <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource WindowIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
                     </RadioButton>
-                    <RadioButton x:Name="DiagnosticsNavigationButton" GroupName="SettingsNavigation" Content="Diagnóstico"
-                                 AutomationProperties.Name="Diagnóstico" Style="{StaticResource SettingsNavigationButtonStyle}"
+                    <RadioButton x:Name="UserNavigationButton" GroupName="SettingsNavigation" Content="Usuário"
+                                 AutomationProperties.Name="Usuário e licença" Style="{StaticResource SettingsNavigationButtonStyle}"
                                  Click="SettingsNavigationButton_OnClick">
-                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource PulseIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
+                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource PersonIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
                     </RadioButton>
                     <RadioButton x:Name="AboutNavigationButton" GroupName="SettingsNavigation" Content="Sobre"
                                  AutomationProperties.Name="Sobre" Style="{StaticResource SettingsNavigationButtonStyle}"
@@ -447,23 +447,123 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem x:Name="DiagnosticsTab" Header="Diagnóstico">
+            <TabItem x:Name="UserTab" Header="Usuário">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="18" MaxWidth="620" HorizontalAlignment="Left">
-                        <TextBlock Text="Diagnóstico da sessão" Style="{StaticResource SettingsPageTitleStyle}" />
-                        <TextBlock Margin="0,7,0,14" TextWrapping="Wrap"
+                    <StackPanel Margin="20" MaxWidth="650" HorizontalAlignment="Left">
+                        <TextBlock Text="Usuário e licença" Style="{StaticResource SettingsPageTitleStyle}" />
+                        <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"
                                    Style="{StaticResource SecondaryTextStyle}"
-                                   Text="Snapshot leve para suporte e testes. Atualizado a cada dois segundos; não inclui caminhos completos, conteúdo de mídia, tokens ou métrica estimada de GPU." />
-                        <Border Padding="12" CornerRadius="6"
-                                Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
-                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
-                            <TextBlock x:Name="DiagnosticText" FontFamily="Consolas" FontSize="12"
-                                       TextWrapping="Wrap" />
+                                   Text="Gerencie a avaliação gratuita ou a licença do GuiaPlay neste computador." />
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Estado do programa" Style="{StaticResource SectionTitleStyle}" />
+                                        <TextBlock x:Name="LicenseStatusText" Margin="0,5,0,0" FontSize="16" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="LicenseMessageText" Margin="0,5,0,0" TextWrapping="Wrap"
+                                                   Style="{StaticResource SecondaryTextStyle}" />
+                                    </StackPanel>
+                                    <Button x:Name="RefreshLicenseButton" Grid.Column="1" Content="Verificar agora"
+                                            VerticalAlignment="Top" Margin="12,0,0,0"
+                                            Click="RefreshLicenseButton_OnClick"
+                                            Style="{StaticResource StandardButtonStyle}" />
+                                </Grid>
+                            </StackPanel>
                         </Border>
-                        <Button Content="Copiar diagnóstico" HorizontalAlignment="Left" Margin="0,14,0,0"
-                                Click="CopyDiagnosticsButton_OnClick" Style="{StaticResource PrimaryButtonStyle}" />
-                        <TextBlock x:Name="DiagnosticCopyStatusText" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   Style="{StaticResource SecondaryTextStyle}" />
+
+                        <Border x:Name="TrialLicensePanel" Style="{StaticResource CardStyle}" Margin="0,0,0,14" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Versão de avaliação" Style="{StaticResource SectionTitleStyle}" />
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Início" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="TrialStartedAtText" Grid.Column="1" />
+                                    <TextBlock Grid.Row="1" Text="Validade" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="TrialExpiresAtText" Grid.Row="1" Grid.Column="1" Margin="0,7,0,0" />
+                                    <TextBlock Grid.Row="2" Text="Tempo restante" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="TrialRemainingText" Grid.Row="2" Grid.Column="1" Margin="0,7,0,0" FontWeight="SemiBold" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="PaidLicensePanel" Style="{StaticResource CardStyle}" Margin="0,0,0,14" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Licença ativada" Style="{StaticResource SectionTitleStyle}" />
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Cliente" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="LicenseCustomerText" Grid.Column="1" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1" Text="E-mail" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="LicenseEmailText" Grid.Row="1" Grid.Column="1" Margin="0,7,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2" Text="Chave" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="ActiveLicenseKeyText" Grid.Row="2" Grid.Column="1" Margin="0,7,0,0" FontFamily="Consolas" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="3" Text="Plano" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="LicensePlanText" Grid.Row="3" Grid.Column="1" Margin="0,7,0,0" />
+                                    <TextBlock Grid.Row="4" Text="Ativada em" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="LicenseActivatedAtText" Grid.Row="4" Grid.Column="1" Margin="0,7,0,0" />
+                                    <TextBlock Grid.Row="5" Text="Validade" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="LicenseExpiresAtText" Grid.Row="5" Grid.Column="1" Margin="0,7,0,0" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Row="6" Text="Dispositivos" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="LicenseDevicesText" Grid.Row="6" Grid.Column="1" Margin="0,7,0,0" />
+                                    <TextBlock Grid.Row="7" Text="Última validação" Margin="0,7,0,0" Style="{StaticResource SecondaryTextStyle}" />
+                                    <TextBlock x:Name="LicenseLastValidationText" Grid.Row="7" Grid.Column="1" Margin="0,7,0,0" />
+                                </Grid>
+                                <WrapPanel Margin="0,14,0,0">
+                                    <Button Content="Gerenciar conta" Click="ManageLicenseAccountButton_OnClick"
+                                            Style="{StaticResource StandardButtonStyle}" Margin="0,0,8,8" />
+                                    <Button x:Name="DeactivateLicenseButton" Content="Desativar neste dispositivo"
+                                            Click="DeactivateLicenseButton_OnClick"
+                                            Style="{StaticResource StandardButtonStyle}" Margin="0,0,0,8" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="TrialOfferPanel" Style="{StaticResource CardStyle}" Margin="0,0,0,14" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock x:Name="TrialOfferTitleText" Text="Período grátis" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock x:Name="TrialOfferDescriptionText" Margin="0,5,0,10" TextWrapping="Wrap"
+                                           Style="{StaticResource SecondaryTextStyle}"
+                                           Text="O período de avaliação começa somente quando você clicar no botão abaixo." />
+                                <Button x:Name="StartTrialButton" Content="Iniciar período grátis"
+                                        HorizontalAlignment="Left"
+                                        Click="StartTrialButton_OnClick"
+                                        Style="{StaticResource PrimaryButtonStyle}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="LicenseActivationPanel" Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Ativar GuiaPlay" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock Margin="0,5,0,10" TextWrapping="Wrap"
+                                           Style="{StaticResource SecondaryTextStyle}"
+                                           Text="Se você já comprou uma licença, informe a chave GPL abaixo." />
+                                <TextBox x:Name="LicenseKeyTextBox" MinHeight="38" MaxLength="64"
+                                         CharacterCasing="Upper" FontFamily="Consolas"
+                                         VerticalContentAlignment="Center"
+                                         ToolTip="Exemplo: GPL-XXXXX-XXXXX-XXXXX-XXXXX" />
+                                <WrapPanel Margin="0,10,0,0">
+                                    <Button x:Name="ActivateLicenseButton" Content="Ativar programa"
+                                            Click="ActivateLicenseButton_OnClick"
+                                            Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,8" />
+                                    <Button Content="Comprar licença"
+                                            Click="BuyLicenseButton_OnClick"
+                                            Style="{StaticResource StandardButtonStyle}" Margin="0,0,0,8" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using GuiaPlay.App.Services;
 using GuiaPlay.Core;
 using Microsoft.Win32;
@@ -11,12 +12,15 @@ public partial class App : Application
 {
     private AppSettingsStore? _settingsStore;
     private SingleInstanceCoordinator? _singleInstance;
+    private DispatcherTimer? _licensingValidationTimer;
+    private DispatcherTimer? _licensingBoundaryTimer;
 
     public AppSettings Settings { get; private set; } = AppSettings.Default;
     public PlaylistStore? PlaylistStore { get; private set; }
     public PlaylistDocument Playlist { get; set; } = PlaylistDocument.Empty;
     internal UpdateManager? UpdateManager { get; private set; }
     internal WindowsIntegrationService? WindowsIntegration { get; private set; }
+    internal LicensingManager? Licensing { get; private set; }
     public AppearancePreference Appearance => Settings.Appearance;
     public AccentColorPreference AccentColor => Settings.AccentColor;
     public string? StartupSettingsWarning { get; private set; }
@@ -114,6 +118,8 @@ public partial class App : Application
 
         UpdateManager = new UpdateManager(this);
         WindowsIntegration = CreateWindowsIntegrationService();
+        Licensing = new LicensingManager(Path.GetDirectoryName(settingsPath)!);
+        Licensing.StateChanged += LicensingManager_OnStateChanged;
 
         ApplyAppearance(Settings.Appearance, Settings.AccentColor, persist: false);
         SystemEvents.UserPreferenceChanged += SystemEvents_OnUserPreferenceChanged;
@@ -143,6 +149,30 @@ public partial class App : Application
         MainWindow = window;
         window.Loaded += async (_, _) =>
         {
+            var licensing = Licensing;
+            if (licensing is null)
+            {
+                window.ApplyLicensingState(LicensingSnapshot.Unlicensed(
+                    "licensing_unavailable",
+                    "O serviço de licenças não pôde ser inicializado."));
+                await window.OpenLicenseSettingsAsync();
+                return;
+            }
+
+            var licenseSnapshot = await licensing.InitializeAsync();
+            window.ApplyLicensingState(licenseSnapshot);
+            StartLicensingValidationTimer(licensing);
+
+            if (!licenseSnapshot.HasAccess)
+            {
+                await window.OpenLicenseSettingsAsync();
+                window.ApplyLicensingState(licensing.Current);
+                if (!licensing.Current.HasAccess)
+                {
+                    return;
+                }
+            }
+
             var launchRequest = await LaunchArgumentParser.ParseAsync(
                 launchArguments,
                 TimeSpan.FromSeconds(4));
@@ -159,9 +189,102 @@ public partial class App : Application
         window.Show();
     }
 
+
+
+    private void LicensingManager_OnStateChanged(object? sender, EventArgs e)
+    {
+        if (sender is not LicensingManager licensing)
+        {
+            return;
+        }
+
+        _ = Dispatcher.BeginInvoke(() => ScheduleLicensingBoundaryCheck(licensing));
+    }
+
+    private void ScheduleLicensingBoundaryCheck(LicensingManager licensing)
+    {
+        _licensingBoundaryTimer?.Stop();
+        _licensingBoundaryTimer = null;
+
+        var snapshot = licensing.Current;
+        if (!snapshot.HasAccess)
+        {
+            return;
+        }
+
+        DateTimeOffset? boundary = snapshot.OfflineUntil;
+        if (!snapshot.Lifetime && snapshot.ExpiresAt is { } expiresAt &&
+            (boundary is null || expiresAt < boundary))
+        {
+            boundary = expiresAt;
+        }
+
+        if (boundary is null)
+        {
+            return;
+        }
+
+        var delay = boundary.Value.ToUniversalTime() - DateTimeOffset.UtcNow;
+        if (delay <= TimeSpan.Zero)
+        {
+            delay = TimeSpan.FromMilliseconds(1);
+        }
+
+        _licensingBoundaryTimer = new DispatcherTimer(
+            delay,
+            DispatcherPriority.Send,
+            async (_, _) =>
+            {
+                _licensingBoundaryTimer?.Stop();
+                _licensingBoundaryTimer = null;
+                try
+                {
+                    await licensing.InitializeAsync();
+                }
+                catch (Exception exception)
+                {
+                    FileLogger.Error("Falha inesperada ao verificar o limite temporal da licença.", exception);
+                }
+            },
+            Dispatcher);
+        _licensingBoundaryTimer.Start();
+    }
+
+    private void StartLicensingValidationTimer(LicensingManager licensing)
+    {
+        if (_licensingValidationTimer is not null)
+        {
+            return;
+        }
+
+        _licensingValidationTimer = new DispatcherTimer(
+            TimeSpan.FromHours(1),
+            DispatcherPriority.Background,
+            async (_, _) =>
+            {
+                try
+                {
+                    await licensing.InitializeAsync();
+                }
+                catch (Exception exception)
+                {
+                    FileLogger.Error("Falha inesperada na revalidação periódica da licença.", exception);
+                }
+            },
+            Dispatcher);
+        _licensingValidationTimer.Start();
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         SystemEvents.UserPreferenceChanged -= SystemEvents_OnUserPreferenceChanged;
+        _licensingValidationTimer?.Stop();
+        _licensingBoundaryTimer?.Stop();
+        if (Licensing is { } licensing)
+        {
+            licensing.StateChanged -= LicensingManager_OnStateChanged;
+            licensing.Dispose();
+        }
         UpdateManager?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);

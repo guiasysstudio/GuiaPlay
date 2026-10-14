@@ -135,18 +135,64 @@ public sealed class BrandingTests
     }
 
     [Fact]
-    public void M09DiagnosticsAndSoakScriptAvoidAggressiveSamplingAndFakeGpuMetrics()
+    public void M09DiagnosticsInfrastructureAndSoakScriptAvoidAggressiveSamplingAndFakeGpuMetrics()
     {
         var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
         var soak = File.ReadAllText(PathInRepository("scripts/soak-test.ps1"));
 
-        Assert.Contains("Header=\"Diagnóstico\"", settings, StringComparison.Ordinal);
-        Assert.Contains("Copiar diagnóstico", settings, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromSeconds(2)", File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs")), StringComparison.Ordinal);
+        Assert.DoesNotContain("Header=\"Diagnóstico\"", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("Copiar diagnóstico", settings, StringComparison.Ordinal);
+        Assert.Contains("SessionDiagnostics", main, StringComparison.Ordinal);
+        Assert.Contains("ProcessMetricsSampler", main, StringComparison.Ordinal);
+        Assert.Contains("LogDiagnosticSnapshot", main, StringComparison.Ordinal);
         Assert.Contains("[int]$SampleSeconds = 5", soak, StringComparison.Ordinal);
         Assert.Contains("WorkingSetMB", soak, StringComparison.Ordinal);
         Assert.Contains("PrivateMemoryMB", soak, StringComparison.Ordinal);
         Assert.DoesNotContain("GpuPercent", soak, StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    [Fact]
+    public void LicensingTrialIsExplicitAndDoesNotStartOnApplicationInitialization()
+    {
+        var manager = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingManager.cs"));
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+
+        Assert.Contains("public async Task<LicensingSnapshot> StartTrialAsync", manager, StringComparison.Ordinal);
+        Assert.Contains("StartTrialButton", settings, StringComparison.Ordinal);
+        Assert.Contains("Iniciar período grátis", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("allowTrialStart: true", manager, StringComparison.Ordinal);
+        Assert.DoesNotContain("_apiClient.StartTrialAsync(", ExtractInitializeMethod(manager), StringComparison.Ordinal);
+    }
+
+    private static string ExtractInitializeMethod(string source)
+    {
+        const string startMarker = "public async Task<LicensingSnapshot> InitializeAsync";
+        const string endMarker = "public async Task<LicensingSnapshot> RefreshAsync";
+        var start = source.IndexOf(startMarker, StringComparison.Ordinal);
+        var end = source.IndexOf(endMarker, start, StringComparison.Ordinal);
+        return start >= 0 && end > start ? source[start..end] : source;
+    }
+
+    [Fact]
+    public void LicensingAccountButtonTargetsPurchasesAndTrialOfferIsOneTimePerLocalState()
+    {
+        var contracts = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingContracts.cs"));
+        var manager = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingManager.cs"));
+        var persistence = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingPersistence.cs"));
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+
+        Assert.Contains("https://licencas.guiasys.online/conta/compras", contracts, StringComparison.Ordinal);
+        Assert.Contains("LicensingProtocol.AccountUri", settings, StringComparison.Ordinal);
+        Assert.Contains("bool TrialConsumed = false", persistence, StringComparison.Ordinal);
+        Assert.Contains("!_state.TrialConsumed", manager, StringComparison.Ordinal);
+        Assert.Contains("TrialConsumed = true", manager, StringComparison.Ordinal);
+        Assert.Contains("TrialConsumedSnapshot", manager, StringComparison.Ordinal);
+        Assert.Contains("Período grátis já utilizado", settings, StringComparison.Ordinal);
+        Assert.Contains("Período grátis já utilizado", main, StringComparison.Ordinal);
+        Assert.Contains("\"trial_consumed\"", contracts, StringComparison.Ordinal);
     }
 
     [Fact]

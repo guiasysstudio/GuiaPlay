@@ -29,8 +29,8 @@ public partial class ScreenConfigurationWindow : Window
     private readonly IReadOnlyList<ScreenConfigurationItem> _items;
     private readonly UpdateManager _updateManager;
     private readonly WindowsIntegrationService _windowsIntegration;
-    private readonly Func<DiagnosticSnapshot> _diagnosticSnapshot;
-    private readonly DispatcherTimer _diagnosticTimer;
+    private readonly LicensingManager _licensingManager;
+    private readonly DispatcherTimer _licenseTimer;
     private readonly bool _playbackActive;
     private readonly bool _screensEditable;
     private readonly AudioOutputPreference _savedAudioOutput;
@@ -39,6 +39,7 @@ public partial class ScreenConfigurationWindow : Window
     private readonly ObservableCollection<EqualizerBandItem> _equalizerBands = [];
     private readonly IReadOnlyList<SettingsEqualizerPresetChoice> _equalizerPresets;
     private bool _loadingEqualizer;
+    private bool _licenseOperationBusy;
     private CancellationTokenSource? _downloadCancellation;
     private readonly SettingsAppearanceChoice[] _appearanceChoices =
     [
@@ -55,15 +56,16 @@ public partial class ScreenConfigurationWindow : Window
         LibVlcEqualizerCatalog equalizerCatalog,
         UpdateManager updateManager,
         WindowsIntegrationService windowsIntegration,
-        Func<DiagnosticSnapshot> diagnosticSnapshot,
+        LicensingManager licensingManager,
         bool openUpdates,
+        bool openLicense,
         bool playbackActive,
         bool operatorRecoveryRequired)
     {
         InitializeComponent();
         _updateManager = updateManager;
         _windowsIntegration = windowsIntegration;
-        _diagnosticSnapshot = diagnosticSnapshot;
+        _licensingManager = licensingManager;
         _playbackActive = playbackActive;
         _screensEditable = SettingsAccessPolicy.CanConfigureScreens(playbackActive, operatorRecoveryRequired);
         _savedAudioOutput = settings.AudioOutput;
@@ -128,30 +130,34 @@ public partial class ScreenConfigurationWindow : Window
         AboutReleaseDateText.Text = $"Data da versão: {ProductInfo.ReleaseDate:dd/MM/yyyy}";
         CheckUpdatesAutomaticallyCheckBox.IsChecked = settings.CheckUpdatesAutomatically;
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
-        SettingsTabs.SelectedItem = openUpdates
-            ? UpdatesTab
-            : _screensEditable && monitors.Count > 0
-                ? ScreensTab
-                : DiagnosticsTab;
+        SettingsTabs.SelectedItem = openLicense
+            ? UserTab
+            : openUpdates
+                ? UpdatesTab
+                : _screensEditable && monitors.Count > 0
+                    ? ScreensTab
+                    : AppearanceTab;
         ScreensTab.IsEnabled = _screensEditable;
         ScreensNavigationButton.IsEnabled = _screensEditable;
         SynchronizeNavigationSelection();
         _updateManager.StateChanged += UpdateManager_OnStateChanged;
-        _diagnosticTimer = new DispatcherTimer(
-            TimeSpan.FromSeconds(2),
+        _licensingManager.StateChanged += LicensingManager_OnStateChanged;
+        _licenseTimer = new DispatcherTimer(
+            TimeSpan.FromMinutes(1),
             DispatcherPriority.Background,
-            (_, _) => RefreshDiagnostics(),
+            (_, _) => RefreshLicenseUi(),
             Dispatcher);
-        _diagnosticTimer.Start();
+        _licenseTimer.Start();
         Closing += ScreenConfigurationWindow_OnClosing;
         Closed += (_, _) =>
         {
-            _diagnosticTimer.Stop();
+            _licenseTimer.Stop();
             _updateManager.StateChanged -= UpdateManager_OnStateChanged;
+            _licensingManager.StateChanged -= LicensingManager_OnStateChanged;
         };
         RefreshUpdateUi();
         RefreshWindowsIntegrationUi();
-        RefreshDiagnostics();
+        RefreshLicenseUi();
     }
 
     internal ScreenConfigurationResult? Result { get; private set; }
@@ -165,7 +171,7 @@ public partial class ScreenConfigurationWindow : Window
             _ when ReferenceEquals(sender, AudioNavigationButton) => AudioTab,
             _ when ReferenceEquals(sender, UpdatesNavigationButton) => UpdatesTab,
             _ when ReferenceEquals(sender, WindowsNavigationButton) => WindowsIntegrationTab,
-            _ when ReferenceEquals(sender, DiagnosticsNavigationButton) => DiagnosticsTab,
+            _ when ReferenceEquals(sender, UserNavigationButton) => UserTab,
             _ when ReferenceEquals(sender, AboutNavigationButton) => AboutTab,
             _ => SettingsTabs.SelectedItem
         };
@@ -186,7 +192,7 @@ public partial class ScreenConfigurationWindow : Window
         AudioNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, AudioTab);
         UpdatesNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, UpdatesTab);
         WindowsNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, WindowsIntegrationTab);
-        DiagnosticsNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, DiagnosticsTab);
+        UserNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, UserTab);
         AboutNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, AboutTab);
     }
 
@@ -340,6 +346,221 @@ public partial class ScreenConfigurationWindow : Window
         }
     }
 
+
+    private async void StartTrialButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        SetLicenseBusy(true);
+        try
+        {
+            await _licensingManager.StartTrialAsync();
+        }
+        finally
+        {
+            SetLicenseBusy(false);
+            RefreshLicenseUi();
+        }
+    }
+
+    private async void RefreshLicenseButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        SetLicenseBusy(true);
+        try
+        {
+            await _licensingManager.RefreshAsync();
+        }
+        finally
+        {
+            SetLicenseBusy(false);
+            RefreshLicenseUi();
+        }
+    }
+
+    private async void ActivateLicenseButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        SetLicenseBusy(true);
+        try
+        {
+            var snapshot = await _licensingManager.ActivateAsync(LicenseKeyTextBox.Text);
+            if (snapshot.HasAccess && snapshot.AccessKind == LicensingAccessKind.License)
+            {
+                LicenseKeyTextBox.Clear();
+            }
+        }
+        finally
+        {
+            SetLicenseBusy(false);
+            RefreshLicenseUi();
+        }
+    }
+
+    private async void DeactivateLicenseButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var confirmation = MessageBox.Show(
+            this,
+            "Deseja desativar a licença do GuiaPlay neste computador? A vaga deste dispositivo será liberada.",
+            "GuiaPlay — desativar licença",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        SetLicenseBusy(true);
+        try
+        {
+            await _licensingManager.DeactivateAsync();
+        }
+        finally
+        {
+            SetLicenseBusy(false);
+            RefreshLicenseUi();
+        }
+    }
+
+    private void BuyLicenseButton_OnClick(object sender, RoutedEventArgs e) =>
+        OpenLicensingPortal(LicensingProtocol.PurchaseUri);
+
+    private void ManageLicenseAccountButton_OnClick(object sender, RoutedEventArgs e) =>
+        OpenLicensingPortal(LicensingProtocol.AccountUri);
+
+    private void OpenLicensingPortal(Uri destination)
+    {
+        var result = SafeProcessLauncher.TryOpenShell(destination.AbsoluteUri);
+        if (!result.Succeeded)
+        {
+            LicenseMessageText.Text = $"Não foi possível abrir o site de licenças: {result.Error}";
+        }
+    }
+
+    private void LicensingManager_OnStateChanged(object? sender, EventArgs e) =>
+        _ = Dispatcher.BeginInvoke(RefreshLicenseUi);
+
+    private void SetLicenseBusy(bool busy)
+    {
+        _licenseOperationBusy = busy;
+        RefreshLicenseButton.IsEnabled = !busy;
+        StartTrialButton.IsEnabled = !busy;
+        ActivateLicenseButton.IsEnabled = !busy;
+        DeactivateLicenseButton.IsEnabled = !busy;
+        LicenseKeyTextBox.IsEnabled = !busy;
+        if (busy)
+        {
+            LicenseMessageText.Text = "Comunicando com o serviço de licenças…";
+        }
+    }
+
+    private void RefreshLicenseUi()
+    {
+        if (LicenseStatusText is null)
+        {
+            return;
+        }
+
+        var snapshot = _licensingManager.Current;
+        TrialLicensePanel.Visibility = snapshot.HasAccess && snapshot.AccessKind == LicensingAccessKind.Trial
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        PaidLicensePanel.Visibility = snapshot.HasAccess && snapshot.AccessKind == LicensingAccessKind.License
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        TrialOfferPanel.Visibility = !snapshot.HasAccess && _licensingManager.TrialAvailable
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        LicenseActivationPanel.Visibility = snapshot.HasAccess && snapshot.AccessKind == LicensingAccessKind.License
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        if (_licensingManager.TrialAvailable)
+        {
+            var days = Math.Max(1, _licensingManager.TrialOfferDays);
+            TrialOfferTitleText.Text = "Período grátis";
+            TrialOfferDescriptionText.Text =
+                $"O período de {days} dia(s) começa somente quando você clicar em iniciar. Se você já comprou uma licença, pode ativá-la diretamente sem iniciar o teste grátis.";
+            StartTrialButton.Content = "Iniciar período grátis";
+        }
+
+        LicenseStatusText.Text = snapshot.HasAccess
+            ? snapshot.AccessKind == LicensingAccessKind.License
+                ? "Licença ativa"
+                : "Avaliação ativa"
+            : snapshot.Status == "checking"
+                ? "Verificando…"
+                : snapshot.ErrorCode == "trial_consumed" || _licensingManager.TrialConsumed
+                    ? "Período grátis já utilizado"
+                    : snapshot.ErrorCode is null
+                        ? "Escolha como continuar"
+                        : "Não foi possível validar";
+
+        var offlineText = snapshot.UsingOfflineAuthorization
+            ? " Autorização offline assinada em uso."
+            : string.Empty;
+        var errorSuffix = string.IsNullOrWhiteSpace(snapshot.ErrorCode) ||
+                          snapshot.ErrorCode == "trial_consumed"
+            ? string.Empty
+            : $" (código: {snapshot.ErrorCode})";
+        LicenseMessageText.Text = (snapshot.Message ?? string.Empty) + errorSuffix + offlineText;
+
+        if (snapshot.AccessKind == LicensingAccessKind.Trial)
+        {
+            TrialStartedAtText.Text = FormatDate(snapshot.StartedAt);
+            TrialExpiresAtText.Text = FormatDate(snapshot.ExpiresAt);
+            TrialRemainingText.Text = FormatRemaining(snapshot.ExpiresAt);
+        }
+
+        if (snapshot.AccessKind == LicensingAccessKind.License)
+        {
+            LicenseCustomerText.Text = snapshot.CustomerName ?? "—";
+            LicenseEmailText.Text = snapshot.CustomerEmail ?? "—";
+            ActiveLicenseKeyText.Text = snapshot.LicenseKey ?? "—";
+            LicensePlanText.Text = snapshot.PlanName ?? "—";
+            LicenseActivatedAtText.Text = FormatDate(snapshot.ActivatedAt);
+            LicenseExpiresAtText.Text = snapshot.Lifetime ? "Vitalícia" : FormatDate(snapshot.ExpiresAt);
+            LicenseDevicesText.Text = snapshot.MaxDevices is { } maxDevices
+                ? $"Até {maxDevices} dispositivo(s)"
+                : "—";
+            LicenseLastValidationText.Text = FormatDate(snapshot.LastOnlineValidationUtc);
+        }
+
+        if (!_licenseOperationBusy)
+        {
+            RefreshLicenseButton.IsEnabled = true;
+            StartTrialButton.IsEnabled = true;
+            ActivateLicenseButton.IsEnabled = true;
+            DeactivateLicenseButton.IsEnabled = true;
+            LicenseKeyTextBox.IsEnabled = true;
+        }
+    }
+
+    private static string FormatDate(DateTimeOffset? value) =>
+        value?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—";
+
+    private static string FormatRemaining(DateTimeOffset? expiresAt)
+    {
+        if (expiresAt is null)
+        {
+            return "—";
+        }
+
+        var remaining = expiresAt.Value.ToUniversalTime() - DateTimeOffset.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+        {
+            return "Expirado";
+        }
+
+        if (remaining.TotalDays >= 1)
+        {
+            return $"{(int)remaining.TotalDays} dia(s), {remaining.Hours} hora(s)";
+        }
+
+        if (remaining.TotalHours >= 1)
+        {
+            return $"{(int)remaining.TotalHours} hora(s), {remaining.Minutes} minuto(s)";
+        }
+
+        return $"{Math.Max(1, remaining.Minutes)} minuto(s)";
+    }
+
     private void ConfigureWindowsIntegrationButton_OnClick(object sender, RoutedEventArgs e)
     {
         try
@@ -372,31 +593,6 @@ public partial class ScreenConfigurationWindow : Window
         }
     }
 
-    private void RefreshDiagnostics()
-    {
-        try
-        {
-            DiagnosticText.Text = DiagnosticReportFormatter.Format(_diagnosticSnapshot());
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            DiagnosticText.Text = $"Diagnóstico temporariamente indisponível: {exception.Message}";
-        }
-    }
-
-    private void CopyDiagnosticsButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            RefreshDiagnostics();
-            Clipboard.SetText(DiagnosticText.Text);
-            DiagnosticCopyStatusText.Text = "Diagnóstico copiado para a área de transferência.";
-        }
-        catch (Exception exception) when (exception is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
-        {
-            DiagnosticCopyStatusText.Text = $"Não foi possível copiar o diagnóstico: {exception.Message}";
-        }
-    }
 
     private void RefreshWindowsIntegrationUi()
     {
