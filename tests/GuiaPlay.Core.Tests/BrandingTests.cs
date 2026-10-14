@@ -176,13 +176,16 @@ public sealed class BrandingTests
     }
 
     [Fact]
-    public void LicensingCheckDoesNotFlashActivationOverlay()
+    public void LicensingStartupUsesValidProtectedCacheBeforeShowingActivationState()
     {
+        var manager = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingManager.cs"));
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
 
-        Assert.Contains("snapshot.HasAccess || snapshot.Status == \"checking\"", main, StringComparison.Ordinal);
-        Assert.Contains("? Visibility.Collapsed", main, StringComparison.Ordinal);
-        Assert.Contains(": Visibility.Visible", main, StringComparison.Ordinal);
+        Assert.Contains("Current = BuildCachedStartupSnapshot();", manager, StringComparison.Ordinal);
+        Assert.Contains("private LicensingSnapshot BuildCachedStartupSnapshot()", manager, StringComparison.Ordinal);
+        Assert.Contains("var verification = VerifyLocal(configuration, accessKind, now);", manager, StringComparison.Ordinal);
+        Assert.Contains("if (!verification.IsValid)", manager, StringComparison.Ordinal);
+        Assert.Contains("LicenseBlockedOverlay.Visibility = snapshot.HasAccess ? Visibility.Collapsed : Visibility.Visible;", main, StringComparison.Ordinal);
     }
 
     [Fact]
