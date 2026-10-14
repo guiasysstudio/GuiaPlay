@@ -80,12 +80,6 @@ public sealed class LicensingManager : IDisposable
             }
             catch (LicensingApiException exception)
             {
-                if (exception.ErrorCode is "trial_expired" or "trial_converted")
-                {
-                    _state = _state with { TrialConsumed = true };
-                    _ = _stateStore.Save(_state);
-                }
-
                 return PublishOperationError(
                     exception.ErrorCode,
                     exception.Message,
@@ -120,6 +114,12 @@ public sealed class LicensingManager : IDisposable
             }
             catch (LicensingApiException exception)
             {
+                if (exception.ErrorCode is "trial_expired" or "trial_converted")
+                {
+                    _state = _state with { TrialConsumed = true };
+                    _ = _stateStore.Save(_state);
+                }
+
                 return PublishOperationError(
                     exception.ErrorCode,
                     exception.Message,
