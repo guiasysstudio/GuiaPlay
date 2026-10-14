@@ -347,6 +347,20 @@ public partial class ScreenConfigurationWindow : Window
     }
 
 
+    private async void StartTrialButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        SetLicenseBusy(true);
+        try
+        {
+            await _licensingManager.StartTrialAsync();
+        }
+        finally
+        {
+            SetLicenseBusy(false);
+            RefreshLicenseUi();
+        }
+    }
+
     private async void RefreshLicenseButton_OnClick(object sender, RoutedEventArgs e)
     {
         SetLicenseBusy(true);
@@ -426,6 +440,7 @@ public partial class ScreenConfigurationWindow : Window
     {
         _licenseOperationBusy = busy;
         RefreshLicenseButton.IsEnabled = !busy;
+        StartTrialButton.IsEnabled = !busy;
         ActivateLicenseButton.IsEnabled = !busy;
         DeactivateLicenseButton.IsEnabled = !busy;
         LicenseKeyTextBox.IsEnabled = !busy;
@@ -449,9 +464,21 @@ public partial class ScreenConfigurationWindow : Window
         PaidLicensePanel.Visibility = snapshot.HasAccess && snapshot.AccessKind == LicensingAccessKind.License
             ? Visibility.Visible
             : Visibility.Collapsed;
+        TrialOfferPanel.Visibility = !snapshot.HasAccess && _licensingManager.TrialAvailable
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         LicenseActivationPanel.Visibility = snapshot.HasAccess && snapshot.AccessKind == LicensingAccessKind.License
             ? Visibility.Collapsed
             : Visibility.Visible;
+
+        if (_licensingManager.TrialAvailable)
+        {
+            var days = Math.Max(1, _licensingManager.TrialOfferDays);
+            TrialOfferTitleText.Text = $"Teste grátis por {days} dia(s)";
+            TrialOfferDescriptionText.Text =
+                $"O período de {days} dia(s) começa somente quando você clicar em iniciar. Se você já comprou uma licença, pode ativá-la diretamente sem iniciar o teste grátis.";
+            StartTrialButton.Content = $"Iniciar {days} dia(s) grátis";
+        }
 
         LicenseStatusText.Text = snapshot.HasAccess
             ? snapshot.AccessKind == LicensingAccessKind.License
@@ -459,12 +486,17 @@ public partial class ScreenConfigurationWindow : Window
                 : "Avaliação ativa"
             : snapshot.Status == "checking"
                 ? "Verificando…"
-                : "Ativação necessária";
+                : snapshot.ErrorCode is null
+                    ? "Escolha como continuar"
+                    : "Não foi possível validar";
 
         var offlineText = snapshot.UsingOfflineAuthorization
             ? " Autorização offline assinada em uso."
             : string.Empty;
-        LicenseMessageText.Text = (snapshot.Message ?? string.Empty) + offlineText;
+        var errorSuffix = string.IsNullOrWhiteSpace(snapshot.ErrorCode)
+            ? string.Empty
+            : $" (código: {snapshot.ErrorCode})";
+        LicenseMessageText.Text = (snapshot.Message ?? string.Empty) + errorSuffix + offlineText;
 
         if (snapshot.AccessKind == LicensingAccessKind.Trial)
         {
@@ -490,6 +522,7 @@ public partial class ScreenConfigurationWindow : Window
         if (!_licenseOperationBusy)
         {
             RefreshLicenseButton.IsEnabled = true;
+            StartTrialButton.IsEnabled = true;
             ActivateLicenseButton.IsEnabled = true;
             DeactivateLicenseButton.IsEnabled = true;
             LicenseKeyTextBox.IsEnabled = true;
