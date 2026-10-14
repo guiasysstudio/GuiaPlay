@@ -12,6 +12,7 @@ public static class LicensingProtocol
 
     public static Uri ApiBaseUri { get; } = new("https://licencas.guiasys.online");
     public static Uri PurchaseUri { get; } = new("https://licencas.guiasys.online/");
+    public static Uri AccountUri { get; } = new("https://licencas.guiasys.online/conta/compras");
 }
 
 public enum LicensingAccessKind
