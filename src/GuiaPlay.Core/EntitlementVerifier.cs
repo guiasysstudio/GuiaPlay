@@ -106,7 +106,7 @@ public static class EntitlementVerifier
                     return Invalid("clock_rollback", serverTime, expiresAt, offlineUntil);
                 }
 
-                if (expiresAt is { } expires && nowUtc > expires)
+                if (expiresAt is { } expires && nowUtc >= expires)
                 {
                     return Invalid(
                         expectedAccessKind == LicensingAccessKind.Trial ? "trial_expired" : "expired",
@@ -115,7 +115,7 @@ public static class EntitlementVerifier
                         offlineUntil);
                 }
 
-                if (nowUtc > offlineUntil)
+                if (nowUtc >= offlineUntil)
                 {
                     return Invalid("offline_window_expired", serverTime, expiresAt, offlineUntil);
                 }
