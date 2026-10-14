@@ -31,6 +31,8 @@ public sealed class LicensingManager : IDisposable
 
     public LicensingSnapshot Current { get; private set; } = LicensingSnapshot.Checking;
     public string DeviceId => _device.DeviceId;
+    public bool TrialAvailable => _state.ProjectConfig?.Trial.Enabled == true;
+    public int TrialOfferDays => Math.Max(0, _state.ProjectConfig?.Trial.Days ?? 0);
 
     public event EventHandler? StateChanged;
 
@@ -39,7 +41,7 @@ public sealed class LicensingManager : IDisposable
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            return await EvaluateAsync(forceOnlineValidation: false, allowTrialStart: true, cancellationToken);
+            return await EvaluateAsync(forceOnlineValidation: false, cancellationToken);
         }
         finally
         {
@@ -52,7 +54,78 @@ public sealed class LicensingManager : IDisposable
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            return await EvaluateAsync(forceOnlineValidation: true, allowTrialStart: true, cancellationToken);
+            return await EvaluateAsync(forceOnlineValidation: true, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+
+    public async Task<LicensingSnapshot> StartTrialAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            ProjectLicensingConfiguration configuration;
+            try
+            {
+                configuration = await _apiClient.GetProjectConfigAsync(cancellationToken);
+                ValidateConfiguration(configuration);
+                _state = _state with { ProjectConfig = configuration };
+                _ = _stateStore.Save(_state);
+            }
+            catch (LicensingApiException exception)
+            {
+                return PublishOperationError(
+                    exception.ErrorCode,
+                    exception.Message,
+                    LicensingAccessKind.Trial,
+                    null);
+            }
+            catch (InvalidDataException exception)
+            {
+                return PublishOperationError(
+                    "invalid_response",
+                    exception.Message,
+                    LicensingAccessKind.Trial,
+                    null);
+            }
+
+            if (!configuration.Trial.Enabled || configuration.Trial.Days <= 0)
+            {
+                return PublishOperationError(
+                    "trial_unavailable",
+                    LicensingErrorMessages.For("trial_unavailable"),
+                    LicensingAccessKind.Trial,
+                    null);
+            }
+
+            try
+            {
+                var view = await _apiClient.StartTrialAsync(
+                    _device,
+                    NewRequestId(),
+                    cancellationToken);
+                return AcceptOnline(configuration, view, null);
+            }
+            catch (LicensingApiException exception)
+            {
+                return PublishOperationError(
+                    exception.ErrorCode,
+                    exception.Message,
+                    LicensingAccessKind.Trial,
+                    null);
+            }
+            catch (InvalidDataException exception)
+            {
+                return PublishOperationError(
+                    "invalid_response",
+                    exception.Message,
+                    LicensingAccessKind.Trial,
+                    null);
+            }
         }
         finally
         {
@@ -87,7 +160,7 @@ public sealed class LicensingManager : IDisposable
             {
                 return PublishOperationError(
                     exception.ErrorCode,
-                    LicensingErrorMessages.For(exception.ErrorCode),
+                    exception.Message,
                     LicensingAccessKind.License,
                     normalizedKey);
             }
@@ -113,7 +186,7 @@ public sealed class LicensingManager : IDisposable
             {
                 return PublishOperationError(
                     exception.ErrorCode,
-                    LicensingErrorMessages.For(exception.ErrorCode),
+                    exception.Message,
                     LicensingAccessKind.License,
                     normalizedKey);
             }
@@ -157,7 +230,7 @@ public sealed class LicensingManager : IDisposable
             {
                 return PublishOperationError(
                     exception.ErrorCode,
-                    LicensingErrorMessages.For(exception.ErrorCode),
+                    exception.Message,
                     LicensingAccessKind.License,
                     key);
             }
@@ -184,7 +257,6 @@ public sealed class LicensingManager : IDisposable
 
     private async Task<LicensingSnapshot> EvaluateAsync(
         bool forceOnlineValidation,
-        bool allowTrialStart,
         CancellationToken cancellationToken)
     {
         var configuration = _state.ProjectConfig;
@@ -248,44 +320,10 @@ public sealed class LicensingManager : IDisposable
                 cancellationToken);
         }
 
-        if (!allowTrialStart)
-        {
-            return Publish(LicensingSnapshot.Unlicensed());
-        }
-
-        if (!configuration.Trial.Enabled)
-        {
-            return Publish(Denied(
-                LicensingAccessKind.None,
-                "trial_unavailable",
-                LicensingErrorMessages.For("trial_unavailable"),
-                null));
-        }
-
-        try
-        {
-            var view = await _apiClient.StartTrialAsync(
-                _device,
-                NewRequestId(),
-                cancellationToken);
-            return AcceptOnline(configuration, view, null);
-        }
-        catch (LicensingApiException exception)
-        {
-            return Publish(Denied(
-                LicensingAccessKind.Trial,
-                exception.ErrorCode,
-                LicensingErrorMessages.For(exception.ErrorCode),
-                null));
-        }
-        catch (InvalidDataException)
-        {
-            return Publish(Denied(
-                LicensingAccessKind.Trial,
-                "invalid_response",
-                "O servidor retornou uma autorização de avaliação inválida.",
-                null));
-        }
+        var offerMessage = configuration.Trial.Enabled && configuration.Trial.Days > 0
+            ? $"Escolha entre iniciar a avaliação gratuita de {configuration.Trial.Days} dia(s) ou ativar uma licença."
+            : "Informe uma chave de licença para ativar o GuiaPlay.";
+        return Publish(LicensingSnapshot.Unlicensed(null, offerMessage));
     }
 
     private async Task<LicensingSnapshot> EvaluateExistingAsync(
