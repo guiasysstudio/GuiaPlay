@@ -2189,9 +2189,13 @@ public partial class MainWindow : Window
         }
 
         _isClosing = true;
-        if (Application.Current is App { UpdateManager: { } updateManager } app)
+        if (Application.Current is App app)
         {
-            updateManager.StateChanged -= UpdateManager_OnStateChanged;
+            if (app.UpdateManager is { } updateManager)
+            {
+                updateManager.StateChanged -= UpdateManager_OnStateChanged;
+            }
+
             if (app.Licensing is { } licensing)
             {
                 licensing.StateChanged -= LicensingManager_OnStateChanged;
