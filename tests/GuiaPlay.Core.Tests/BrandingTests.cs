@@ -182,12 +182,17 @@ public sealed class BrandingTests
         var manager = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingManager.cs"));
         var persistence = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingPersistence.cs"));
         var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
 
         Assert.Contains("https://licencas.guiasys.online/conta/compras", contracts, StringComparison.Ordinal);
         Assert.Contains("LicensingProtocol.AccountUri", settings, StringComparison.Ordinal);
         Assert.Contains("bool TrialConsumed = false", persistence, StringComparison.Ordinal);
         Assert.Contains("!_state.TrialConsumed", manager, StringComparison.Ordinal);
         Assert.Contains("TrialConsumed = true", manager, StringComparison.Ordinal);
+        Assert.Contains("TrialConsumedSnapshot", manager, StringComparison.Ordinal);
+        Assert.Contains("Período grátis já utilizado", settings, StringComparison.Ordinal);
+        Assert.Contains("Período grátis já utilizado", main, StringComparison.Ordinal);
+        Assert.Contains("\"trial_consumed\"", contracts, StringComparison.Ordinal);
     }
 
     [Fact]
