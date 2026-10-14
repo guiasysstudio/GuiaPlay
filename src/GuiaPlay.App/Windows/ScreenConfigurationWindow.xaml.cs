@@ -419,14 +419,14 @@ public partial class ScreenConfigurationWindow : Window
     }
 
     private void BuyLicenseButton_OnClick(object sender, RoutedEventArgs e) =>
-        OpenLicensingPortal();
+        OpenLicensingPortal(LicensingProtocol.PurchaseUri);
 
     private void ManageLicenseAccountButton_OnClick(object sender, RoutedEventArgs e) =>
-        OpenLicensingPortal();
+        OpenLicensingPortal(LicensingProtocol.AccountUri);
 
-    private void OpenLicensingPortal()
+    private void OpenLicensingPortal(Uri destination)
     {
-        var result = SafeProcessLauncher.TryOpenShell(LicensingProtocol.PurchaseUri.AbsoluteUri);
+        var result = SafeProcessLauncher.TryOpenShell(destination.AbsoluteUri);
         if (!result.Succeeded)
         {
             LicenseMessageText.Text = $"Não foi possível abrir o site de licenças: {result.Error}";
