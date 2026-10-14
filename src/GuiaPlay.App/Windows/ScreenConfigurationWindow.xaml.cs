@@ -486,14 +486,17 @@ public partial class ScreenConfigurationWindow : Window
                 : "Avaliação ativa"
             : snapshot.Status == "checking"
                 ? "Verificando…"
-                : snapshot.ErrorCode is null
-                    ? "Escolha como continuar"
-                    : "Não foi possível validar";
+                : snapshot.ErrorCode == "trial_consumed" || _licensingManager.TrialConsumed
+                    ? "Período grátis já utilizado"
+                    : snapshot.ErrorCode is null
+                        ? "Escolha como continuar"
+                        : "Não foi possível validar";
 
         var offlineText = snapshot.UsingOfflineAuthorization
             ? " Autorização offline assinada em uso."
             : string.Empty;
-        var errorSuffix = string.IsNullOrWhiteSpace(snapshot.ErrorCode)
+        var errorSuffix = string.IsNullOrWhiteSpace(snapshot.ErrorCode) ||
+                          snapshot.ErrorCode == "trial_consumed"
             ? string.Empty
             : $" (código: {snapshot.ErrorCode})";
         LicenseMessageText.Text = (snapshot.Message ?? string.Empty) + errorSuffix + offlineText;
