@@ -2085,10 +2085,7 @@ public partial class MainWindow : Window
         _licensingAllowsAccess = snapshot.HasAccess;
         LicensedWorkspace.IsEnabled = snapshot.HasAccess;
         OperationalControlPanel.IsEnabled = snapshot.HasAccess;
-        LicenseBlockedOverlay.Visibility =
-            snapshot.HasAccess || snapshot.Status == "checking"
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+        LicenseBlockedOverlay.Visibility = snapshot.HasAccess ? Visibility.Collapsed : Visibility.Visible;
         LicenseBlockedTitleText.Text = snapshot.Status == "checking"
             ? "Verificando licença…"
             : snapshot.ErrorCode == "trial_consumed"
