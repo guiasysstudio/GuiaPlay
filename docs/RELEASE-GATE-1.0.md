@@ -48,6 +48,7 @@ Marcar cada item somente no relatório da execução que produziu os artefatos. 
 - [ ] equalizador validado por audição
 - [ ] playback prolongado
 - [ ] indicador de update no startup
+- [ ] update real `0.10.2-prototipo → 1.0.0`
 - [ ] update real `0.10.3-prototipo → 1.0.0`
 - [ ] preset Save
 - [ ] preset Load
