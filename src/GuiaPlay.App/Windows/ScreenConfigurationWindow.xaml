@@ -127,12 +127,7 @@
                                  Click="SettingsNavigationButton_OnClick">
                         <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource WindowIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
                     </RadioButton>
-                    <RadioButton x:Name="DiagnosticsNavigationButton" GroupName="SettingsNavigation" Content="Diagnóstico"
-                                 AutomationProperties.Name="Diagnóstico" Style="{StaticResource SettingsNavigationButtonStyle}"
-                                 Click="SettingsNavigationButton_OnClick">
-                        <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource PulseIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
-                    </RadioButton>
-                    <RadioButton x:Name="AboutNavigationButton" GroupName="SettingsNavigation" Content="Sobre"
+<RadioButton x:Name="AboutNavigationButton" GroupName="SettingsNavigation" Content="Sobre"
                                  AutomationProperties.Name="Sobre" Style="{StaticResource SettingsNavigationButtonStyle}"
                                  Click="SettingsNavigationButton_OnClick">
                         <RadioButton.ContentTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Path Data="{StaticResource InfoIconGeometry}" Style="{StaticResource SettingsNavigationIconStyle}" /><TextBlock Text="{Binding}" VerticalAlignment="Center" /></StackPanel></DataTemplate></RadioButton.ContentTemplate>
@@ -447,28 +442,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem x:Name="DiagnosticsTab" Header="Diagnóstico">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="18" MaxWidth="620" HorizontalAlignment="Left">
-                        <TextBlock Text="Diagnóstico da sessão" Style="{StaticResource SettingsPageTitleStyle}" />
-                        <TextBlock Margin="0,7,0,14" TextWrapping="Wrap"
-                                   Style="{StaticResource SecondaryTextStyle}"
-                                   Text="Snapshot leve para suporte e testes. Atualizado a cada dois segundos; não inclui caminhos completos, conteúdo de mídia, tokens ou métrica estimada de GPU." />
-                        <Border Padding="12" CornerRadius="6"
-                                Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
-                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
-                            <TextBlock x:Name="DiagnosticText" FontFamily="Consolas" FontSize="12"
-                                       TextWrapping="Wrap" />
-                        </Border>
-                        <Button Content="Copiar diagnóstico" HorizontalAlignment="Left" Margin="0,14,0,0"
-                                Click="CopyDiagnosticsButton_OnClick" Style="{StaticResource PrimaryButtonStyle}" />
-                        <TextBlock x:Name="DiagnosticCopyStatusText" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   Style="{StaticResource SecondaryTextStyle}" />
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <TabItem x:Name="AboutTab" Header="Sobre">
+<TabItem x:Name="AboutTab" Header="Sobre">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="22" MaxWidth="580" HorizontalAlignment="Left">
                         <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
