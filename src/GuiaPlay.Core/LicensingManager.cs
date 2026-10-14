@@ -27,6 +27,7 @@ public sealed class LicensingManager : IDisposable
             Environment.MachineName,
             "Windows",
             ProductInfo.Version);
+        Current = BuildCachedStartupSnapshot();
     }
 
     public LicensingSnapshot Current { get; private set; } = LicensingSnapshot.Checking;
@@ -340,6 +341,58 @@ public sealed class LicensingManager : IDisposable
             ? $"Escolha entre iniciar a avaliação gratuita de {configuration.Trial.Days} dia(s) ou ativar uma licença."
             : "Informe uma chave de licença para ativar o GuiaPlay.";
         return Publish(LicensingSnapshot.Unlicensed(null, offerMessage));
+    }
+
+    private LicensingSnapshot BuildCachedStartupSnapshot()
+    {
+        var configuration = _state.ProjectConfig;
+        if (configuration is null)
+        {
+            return LicensingSnapshot.Checking;
+        }
+
+        try
+        {
+            ValidateConfiguration(configuration);
+        }
+        catch (InvalidDataException)
+        {
+            return LicensingSnapshot.Checking;
+        }
+
+        LicensingAccessKind accessKind;
+        if (_state.AccessKind == LicensingAccessKind.License &&
+            !string.IsNullOrWhiteSpace(_state.LicenseKey) &&
+            !string.IsNullOrWhiteSpace(_state.EntitlementToken) &&
+            _state.ServerView is { AccessKind: LicensingAccessKind.License } licenseView &&
+            string.Equals(licenseView.Status, "active", StringComparison.Ordinal))
+        {
+            accessKind = LicensingAccessKind.License;
+        }
+        else if (_state.AccessKind == LicensingAccessKind.Trial &&
+                 !string.IsNullOrWhiteSpace(_state.EntitlementToken) &&
+                 _state.ServerView is { AccessKind: LicensingAccessKind.Trial } trialView &&
+                 string.Equals(trialView.Status, "active", StringComparison.Ordinal))
+        {
+            accessKind = LicensingAccessKind.Trial;
+        }
+        else
+        {
+            return LicensingSnapshot.Checking;
+        }
+
+        var now = _timeProvider.GetUtcNow();
+        var verification = VerifyLocal(configuration, accessKind, now);
+        if (!verification.IsValid)
+        {
+            return LicensingSnapshot.Checking;
+        }
+
+        return BuildSnapshot(
+            _state.ServerView!,
+            _state.LicenseKey,
+            usingOfflineAuthorization: false,
+            message: null);
     }
 
     private async Task<LicensingSnapshot> EvaluateExistingAsync(
