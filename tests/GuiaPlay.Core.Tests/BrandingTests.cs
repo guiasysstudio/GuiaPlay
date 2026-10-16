@@ -197,7 +197,7 @@ public sealed class BrandingTests
         var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
 
-        Assert.Contains("https://licencas.guiasys.online/conta/compras", contracts, StringComparison.Ordinal);
+        Assert.Contains("https://licencas.guiasys.com.br/conta/compras", contracts, StringComparison.Ordinal);
         Assert.Contains("LicensingProtocol.AccountUri", settings, StringComparison.Ordinal);
         Assert.Contains("bool TrialConsumed = false", persistence, StringComparison.Ordinal);
         Assert.Contains("!_state.TrialConsumed", manager, StringComparison.Ordinal);
@@ -215,10 +215,23 @@ public sealed class BrandingTests
         var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
         var settingsCode = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
 
-        Assert.Contains("https://www.guiasys.online/", product, StringComparison.Ordinal);
+        Assert.Contains("https://www.guiasys.com.br/", product, StringComparison.Ordinal);
         Assert.Contains("Abrir página do GuiaSys Studio", settings, StringComparison.Ordinal);
         Assert.Contains("ProductInfo.StudioPageUri.AbsoluteUri", settingsCode, StringComparison.Ordinal);
         Assert.DoesNotContain("ProductInfo.ProjectPageUri.AbsoluteUri", settingsCode, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LicensingAndStudioUrlsUseGuiasysComBr()
+    {
+        var contracts = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/LicensingContracts.cs"));
+        var product = File.ReadAllText(PathInRepository("src/GuiaPlay.Core/ProductInfo.cs"));
+
+        Assert.Contains("https://licencas.guiasys.com.br", contracts, StringComparison.Ordinal);
+        Assert.Contains("https://licencas.guiasys.com.br/conta/compras", contracts, StringComparison.Ordinal);
+        Assert.Contains("https://www.guiasys.com.br/", product, StringComparison.Ordinal);
+        Assert.DoesNotContain("guiasys.online", contracts, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("guiasys.online", product, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
