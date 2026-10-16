@@ -19,7 +19,7 @@ public static class ProductInfo
     public static string RepositoryOwner { get; } = Metadata("RepositoryOwner") ?? "guiasysstudio";
     public static string RepositoryName { get; } = Metadata("RepositoryName") ?? "GuiaPlay";
     public static Uri ProjectPageUri { get; } = new($"https://github.com/{RepositoryOwner}/{RepositoryName}");
-    public static Uri StudioPageUri { get; } = new("https://www.guiasys.online/");
+    public static Uri StudioPageUri { get; } = new("https://www.guiasys.com.br/");
 
     private static string? Metadata(string key) => Assembly
         .GetCustomAttributes<AssemblyMetadataAttribute>()

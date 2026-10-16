@@ -10,9 +10,9 @@ public static class LicensingProtocol
     public const string ProjectId = "prj_04d2013877c14fdc8d85";
     public const string LicensePrefix = "GPL";
 
-    public static Uri ApiBaseUri { get; } = new("https://licencas.guiasys.online");
-    public static Uri PurchaseUri { get; } = new("https://licencas.guiasys.online/");
-    public static Uri AccountUri { get; } = new("https://licencas.guiasys.online/conta/compras");
+    public static Uri ApiBaseUri { get; } = new("https://licencas.guiasys.com.br");
+    public static Uri PurchaseUri { get; } = new("https://licencas.guiasys.com.br/");
+    public static Uri AccountUri { get; } = new("https://licencas.guiasys.com.br/conta/compras");
 }
 
 public enum LicensingAccessKind
