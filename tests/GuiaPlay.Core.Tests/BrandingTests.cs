@@ -410,6 +410,25 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void GP_I11_StartupPlaylistMetadataMustNeverStartNativeLibVlcOrShellCom()
+    {
+        // Crash reproduction: prior GUI startup spun up a LibVLC parser and
+        // called Shell/GDI thumbnail APIs on a thread-pool thread. That worker
+        // was completely independent of the deferred playback engine.
+        var service = File.ReadAllText(
+            PathInRepository("src/GuiaPlay.App/Services/MediaGridMetadataService.cs"));
+        Assert.Contains("new FileInfo(path)", service, StringComparison.Ordinal);
+        Assert.Contains("MaximumInspectedRows = 150", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("new LibVLC(", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("LibVLCSharp", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("SHCreateItemFromParsingName", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReleaseComObject", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateBitmapSourceFromHBitmap", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("DllImport(", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("Marshal.", service, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GP_I12_ApprovedLayoutKeepsPanoramicPreviewsAndFullWidthMediaActions()
     {
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
