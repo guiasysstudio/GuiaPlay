@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     private bool _suppressAutoAdvance;
     private Guid? _loadedPlaylistItemId;
     private long _loadedPlaylistRevision;
+    private long _mediaLoadRequestId;
     private PlaylistPlaybackMode _playbackMode = PlaylistPlaybackMode.Manual;
     private PlaylistRepeatMode _repeatMode = PlaylistRepeatMode.Off;
     private bool _shufflePlayback;
@@ -259,8 +260,10 @@ public partial class MainWindow : Window
         string path,
         bool playImmediately,
         MediaProbeStatus? verifiedProbe = null,
-        Guid? playlistItemId = null)
+        Guid? playlistItemId = null,
+        bool fromAutomaticSequence = false)
     {
+        var requestId = ++_mediaLoadRequestId;
         if (!_licensingAllowsAccess)
         {
             StatusText.Text = "Ative o GuiaPlay ou valide a avaliação gratuita antes de abrir uma mídia.";
@@ -276,6 +279,14 @@ public partial class MainWindow : Window
 
         StatusText.Text = "Verificando disponibilidade da mídia…";
         var probe = verifiedProbe ?? await MediaFileProbe.ProbeAsync(path, TimeSpan.FromSeconds(4));
+        if (requestId != _mediaLoadRequestId || _isClosing ||
+            (fromAutomaticSequence &&
+                (_playbackMode != PlaylistPlaybackMode.Sequential ||
+                 _playlistRevision != _loadedPlaylistRevision)))
+        {
+            return MediaLoadOutcome.Cancelled;
+        }
+
         if (probe != MediaProbeStatus.Available)
         {
             StatusText.Text = probe switch
@@ -369,7 +380,10 @@ public partial class MainWindow : Window
             SetControlsBusy(false);
         }
 
-        if (playImmediately && _coordinator.CanPlay(SelectedOutputCount()))
+        if (playImmediately && _coordinator.CanPlay(SelectedOutputCount()) &&
+            (!fromAutomaticSequence ||
+                (_playbackMode == PlaylistPlaybackMode.Sequential &&
+                 requestId == _mediaLoadRequestId && !_isClosing)))
         {
             await StartOrResumePlaybackAsync();
         }
@@ -1878,7 +1892,8 @@ public partial class MainWindow : Window
         try
         {
             var result = await LoadMediaAsync(
-                item.Item.OriginalPath, playImmediately: true, playlistItemId: targetId);
+                item.Item.OriginalPath, playImmediately: true,
+                playlistItemId: targetId, fromAutomaticSequence: true);
             if (result != MediaLoadOutcome.Loaded ||
                 _coordinator.Status is not (PlaybackStatus.Preparing or PlaybackStatus.Playing))
             {
