@@ -15,7 +15,7 @@ Reconstruir o espaço de trabalho do operador segundo o **Modelo 1 aprovado**: c
 - Preservar LibVLC, única sessão/relógio, janelas públicas, roteamento de áudio, bloqueios de operador/saídas, pause em perda de tela/dispositivo, lifecycle e saída limpa.
 - Preservar GuiaSys Licensing GSL-v1 (trial, status, licença, cache offline seguro), updater Stable (manifesto, RID e rollback), configuração/presets existentes e associação opcional ao Windows.
 - Funcionalidade nova nunca deve alterar arquivos de mídia originais ou apagar dados/presets de usuários.
-- Validar **Windows x64 e x86** e resoluções pequenas (mínimo 1366×768 para teste físico), escalas de DPI 100%, 125%, 150%; alto contraste e tabulação/navegação por teclado.
+- Preparar a validação futura de **Windows x64 e x86** e resoluções pequenas (mínimo 1366×768 para teste físico), escalas de DPI 100%, 125%, 150%; alto contraste e tabulação/navegação por teclado.
 - Sem atualização de schema sem migração bidirecionalmente segura no sentido de preservação de dados; não assumir que versões antigas conseguem ler dados novos.
 - Não afirmar teste físico concluído sem execução no Windows real; builds/testes automatizados separados do smoke manual.
 
@@ -35,7 +35,7 @@ Reconstruir o espaço de trabalho do operador segundo o **Modelo 1 aprovado**: c
 | Parte | Nome | Entregável / gate |
 |---|---|---|
 | **GP-I00** | Auditoria e baseline | Branch isolada, contrato visual e funcional, linha de base preservada. |
-| **GP-I01** | Estrutura visual | Janela, cabeçalho, identidade, navegação com ações reais, estado licença/atualização; composição responsiva. |
+| **GP-I01** | Estrutura visual | **Implementação registrada**: cabeçalho funcional, versão, licença, navegação e shell de três colunas; validação local conjunta após GP-I10. |
 | **GP-I02** | Biblioteca lateral | Playlists e pastas, criação/abrir/salvar/excluir com confirmação; estados vazios coerentes. |
 | **GP-I03** | Grade profissional de mídias | Colunas nº, miniatura/nome, duração, tipo, resolução, data e menu; busca, seleção, ações e ordenação por arraste/setas, usando a ordem real da playlist. |
 | **GP-I04** | Importação de diretórios | Menu Adicionar: arquivos, pasta e subpastas; seleção/cancelamento, duplicatas, erros, preservação dos originais e persistência. |
@@ -70,12 +70,13 @@ O **controle remoto Android/LAN** é projeto futuro separado, após conclusão e
 - A interface dos controles será unificada, mas os recursos só serão habilitados quando o backend do YouTube realmente suportá-los (ex.: seek e duração podem variar).
 - Se a reprodução oficial em saídas públicas simultâneas não puder cumprir os requisitos sem violar regras, registrar bloqueio e solicitar decisão de produto — não implementar um atalho não conforme.
 
-## Gates em cada parte
+## Regra de execução revisada (decisão de 16/10/2026)
 
-1. Escopo pequeno e diff revisável; nenhum instalador/release; changelog técnico com caminhos alterados.
-2. Build Debug e Release + testes existentes e novos quando o ambiente Windows estiver disponível.
-3. Smoke GUI local com o usuário: playback vídeo/áudio, operador + projetor, saída de áudio, seek, volume, playlist/preset, licença/trial e atualização apenas **consulta** (sem auto-update durante teste).
-4. Regressão de configurações antigas, reconexão de monitores, arquivos ausentes e arquivos grandes; relatório honesto do que não foi testado.
+- Implementar as **onze partes GP-I00 a GP-I10 primeiro**, em sequência, na branch de desenvolvimento; o usuário executará os testes integrados no VS Code **apenas depois de GP-I10**.
+- Manter revisão estática por alteração e fazer commits pequenos para evitar corromper o projeto. Revisão estática não significa afirmar que o software foi compilado ou que testes passaram.
+- Não enviar comandos de teste local ao usuário por etapa, salvo solicitação específica. Entregar os comandos completos de restore, build, test, run e roteiro de smoke após todas as partes.
+- Se a etapa de teste final revelar problemas, criar etapas **GP-I11+** de correção antes de pensar em instalador ou Release.
+- A validação do próprio YouTube (restrições de incorporação, APIs e direitos) permanece um gate de viabilidade **técnica** durante GP-I08, pois não é correto implementar reprodução irregular até o teste final.
 
 ## Fluxo do VS Code (não gera instalador)
 
