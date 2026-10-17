@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     private readonly Action _renderFrameCallback;
     private IReadOnlyList<MonitorInfo> _monitors = [];
     private WriteableBitmap? _bitmap;
+    private ImageSource? _stillImage;
     private long _frameGeneration;
     private int _renderPending;
     private bool _isDraggingProgress;
@@ -364,6 +365,62 @@ public partial class MainWindow : Window
         CloseYouTubeWindow();
         _loadedPlaylistItemId = null;
         _audioReconfigurationRequired = false;
+
+        // Still images use the built-in Windows imaging decoder. Do not start
+        // LibVLC or load its native DLLs merely to display a JPG/PNG.
+        if (kind == MediaKind.Image)
+        {
+            try
+            {
+                SetControlsBusy(true);
+                CloseOutputWindows();
+                if (_engineInstance is not null) await _engineInstance.StopAsync();
+                var info = new FileInfo(path);
+                if (info.Length > 80L * 1024 * 1024)
+                    throw new InvalidDataException("Imagem muito grande para a prévia segura (limite: 80 MB).");
+                var still = new BitmapImage();
+                still.BeginInit();
+                still.CacheOption = BitmapCacheOption.OnLoad;
+                still.DecodePixelWidth = 2560;
+                still.UriSource = new Uri(info.FullName, UriKind.Absolute);
+                still.EndInit();
+                still.Freeze();
+                _stillImage = still;
+                _bitmap = null;
+                _loadedPlaylistItemId = playlistItemId;
+                _loadedPlaylistRevision = _playlistRevision;
+                PreviewImage.Source = still;
+                PreviewEmptyState.Visibility = Visibility.Collapsed;
+                ProgramImage.Source = null;
+                FileNameText.Text = info.Name;
+                FileNameText.ToolTip = info.FullName;
+                ProgressSlider.Value = 0;
+                ProgressSlider.Maximum = 1;
+                UpdateTimeLabels(0, 0);
+                UpdateTransportArtwork(kind, path);
+                RefreshPlaybackControls();
+                StatusText.Text = "Imagem pronta. Reproduzir envia a imagem às telas públicas selecionadas.";
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+                InvalidDataException or NotSupportedException or System.Runtime.InteropServices.COMException or
+                System.IO.FileFormatException)
+            {
+                _coordinator.PlaybackFailed(_coordinator.Generation);
+                FileLogger.Error("Imagem não pôde ser aberta.", exception);
+                StatusText.Text = "Falha ao carregar imagem: " + Path.GetFileName(path);
+                return MediaLoadOutcome.DecodeFailed;
+            }
+            finally
+            {
+                SetControlsBusy(false);
+            }
+
+            if (playImmediately && _licensingAllowsAccess && _coordinator.CanPlay(SelectedOutputCount()))
+                await StartOrResumePlaybackAsync();
+            return MediaLoadOutcome.Loaded;
+        }
+
+        _stillImage = null;
         try
         {
             SetControlsBusy(true);
