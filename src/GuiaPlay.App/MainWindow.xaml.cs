@@ -47,6 +47,9 @@ public partial class MainWindow : Window
     private readonly PlaylistPresetStore _playlistPresetStore;
     private readonly PlaylistCatalog _playlistCatalog;
     private readonly Dictionary<string, OutputWindow> _outputWindows = new(StringComparer.OrdinalIgnoreCase);
+    private YouTubeOutputWindow? _youtubeWindow;
+    private YouTubeVideoReference? _youtubeReference;
+    private YouTubePlaybackSnapshot? _youtubeSnapshot;
     private readonly List<IdentifierWindow> _identifierWindows = [];
     private OperatorPreviewWindow? _fullscreenPreviewWindow;
     private readonly DispatcherTimer _monitorTimer;
@@ -832,6 +835,9 @@ public partial class MainWindow : Window
         addFolder.Click += AddFolderButton_OnClick;
         menu.Items.Add(addFiles);
         menu.Items.Add(addFolder);
+        var addYouTube = new MenuItem { Header = "Adicionar link do YouTube…" };
+        addYouTube.Click += AddYouTubeLinkButton_OnClick;
+        menu.Items.Add(addYouTube);
         menu.IsOpen = true;
     }
 
@@ -873,6 +879,54 @@ public partial class MainWindow : Window
         }
 
         await ImportFolderAsync(picker.FolderName);
+    }
+
+    private void AddYouTubeLinkButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
+        {
+            return;
+        }
+
+        var dialog = new YouTubeLinkPromptWindow { Owner = this };
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        if (Application.Current is not App app || app.PlaylistStore is null)
+        {
+            StatusText.Text = "O armazenamento da playlist ainda não está disponível.";
+            return;
+        }
+
+        var catalog = new PlaylistCatalog(_playlistCatalog.Snapshot);
+        var groupId = SelectedPlaylistGroup()?.Id ??
+            catalog.Snapshot.Groups.FirstOrDefault()?.Id ??
+            catalog.CreateGroup("YouTube").Id;
+        try
+        {
+            catalog.AddYouTubeItem(groupId, dialog.Reference, dialog.DisplayName);
+        }
+        catch (ArgumentException exception)
+        {
+            StatusText.Text = exception.Message;
+            return;
+        }
+
+        var saved = app.PlaylistStore.Save(catalog.Snapshot);
+        if (!saved.Succeeded)
+        {
+            StatusText.Text = "Não foi possível salvar o link na playlist.";
+            FileLogger.Error($"Falha ao salvar link YouTube: {saved.Error}");
+            return;
+        }
+
+        _playlistCatalog.ApplyPersistedChanges(catalog.Snapshot);
+        app.Playlist = _playlistCatalog.Snapshot;
+        RebuildPlaylistTree();
+        RefreshActivePlaylistMarkers();
+        StatusText.Text = "Link YouTube salvo. Para reproduzir, selecione somente uma tela pública.";
     }
 
     private void CancelFolderImportButton_OnClick(object sender, RoutedEventArgs e) =>
@@ -1023,6 +1077,12 @@ public partial class MainWindow : Window
     {
         if (!_licensingAllowsAccess || _controlsBusy)
         {
+            return;
+        }
+
+        if (item.Item.Kind == MediaKind.YouTube)
+        {
+            await LoadYouTubeItemAsync(item);
             return;
         }
 
