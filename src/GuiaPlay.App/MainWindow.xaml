@@ -795,7 +795,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0" x:Name="AddMediaMenuButton"
-                                        Click="AddMediaMenuButton_OnClick" Margin="0,0,6,0"
+                                        Click="AddMediaMenuButton_OnClick" Margin="0,0,6,0" Height="41"
                                         Style="{StaticResource CompactPrimaryButtonStyle}"
                                         ToolTip="Adicionar arquivo, pasta completa ou link do YouTube"
                                         AutomationProperties.Name="Adicionar mídias">
@@ -834,13 +834,29 @@
                                            VerticalAlignment="Center" HorizontalAlignment="Right"
                                            Text="0 mídias" Margin="5,0,9,0" FontSize="11"
                                            Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
-                                <TextBox x:Name="MediaSearchBox" Grid.Column="7"
-                                         VerticalContentAlignment="Center" Margin="0,0,5,0"
-                                         Height="40" MinWidth="160"
-                                         TextChanged="MediaSearchBox_OnTextChanged"
-                                         ToolTip="Buscar mídia por nome, grupo ou caminho (Ctrl + F)"
-                                         AutomationProperties.Name="Buscar na playlist" />
-                                <Button Grid.Column="8" Content="Limpar"
+                                <Border Grid.Column="7" CornerRadius="7" Margin="0,0,7,0"
+                                        Height="41" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                                        BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
+                                    <Grid Margin="8,0">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <Path Data="{StaticResource GPSearch}" Width="19" Height="19"
+                                              Stretch="Uniform" Fill="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                              VerticalAlignment="Center"/>
+                                        <Grid Grid.Column="1">
+                                            <TextBox x:Name="MediaSearchBox" Height="37" VerticalContentAlignment="Center"
+                                                     Background="Transparent" BorderThickness="0" Padding="5,0"
+                                                     MinWidth="120" FontSize="12"
+                                                     TextChanged="MediaSearchBox_OnTextChanged"
+                                                     ToolTip="Buscar por nome, pasta e caminho (Ctrl + F)"
+                                                     AutomationProperties.Name="Buscar na playlist"/>
+                                            <TextBlock x:Name="MediaSearchHint" Text="Buscar na playlist..."
+                                                       IsHitTestVisible="False" FontSize="12" Margin="8,0,0,0"
+                                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                                <Button Grid.Column="8" Content="Limpar" Height="41"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Limpar pesquisa de mídia"
                                         Click="ClearMediaSearchButton_OnClick" />
