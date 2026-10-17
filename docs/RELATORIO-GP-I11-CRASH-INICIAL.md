@@ -104,3 +104,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gp-i11-native-dump.p
 **Proibido:** mexer em `main`, restaurar/remover licencia, apagar dados, desabilitar protecoes de acesso comercial, executar instalador, publicar release ou atribuir causa raiz sem stack/isolamento.
 
 **Status:** identificacao da causa nativa **pendente da execucao da matriz na maquina com o crash**. A correção final deve ser proposta como alteracao do componente confirmado e revalidada fisicamente.
+
+
+## GP-I11.3 — componente nativo oculto encontrado na carga de metadados
+
+Apos as quatro falhas reproduzidas, a revisao profunda da diferenca com a versao estavel identificou um defeito arquitetural **independente** do motor de reproducao: `MediaGridMetadataService.InspectCoreAsync` criava `new LibVLC("--no-video-title-show")` logo no inicio da tarefa em background, **mesmo com a playlist vazia ou sem qualquer arquivo local aberto**. Essa inicializacao contornava o carregamento sob demanda aplicado ao `LibVlcPlaybackEngine`. O mesmo servico usava `SHCreateItemFromParsingName`, `IShellItemImageFactory`, `CreateBitmapSourceFromHBitmap`, `DeleteObject` e `Marshal.ReleaseComObject` no worker de ThreadPool, expondo o processo inteiro a erros de uma biblioteca nativa ou a liberacao de COM/GDI com ciclo de vida inadequado.
+
+**Correcao de arquitetura:** o `MediaGridMetadataService.cs` foi reescrito para fazer apenas metadados de sistema de arquivos em background com .NET gerenciado, sem `LibVLC`, COM ou GDI. A duracao, resolucao e miniaturas que **nao forem comprovadas de maneira segura** agora aparecem como `—`/fallback, em vez de provocar um crash ou retornar dados inventados. O nome, tipo, grupos, pesquisa, reordenacao, datas locais e fluxos de reproduzir continuam vinculados a dados reais. Teste de regressao impede reintroduzir chamadas nativas nesse worker.
+
+**Consequencia de produto:** o design de referencia continua incluindo miniaturas e metadados de video. Para restabelecer esse recurso de forma robusta, implementar futuramente sondagem/thumbnail em **processo auxiliar isolado**, com limite de tempo/memoria, cancelamento, comunicacao validada e queda do worker sem encerrar a GUI. Nao recriar simplesmente outro parser `LibVLC` dentro da janela.
+
+**Evidencia/limite:** essa chamada nativa em background e um defeito real demonstrado no codigo e compatível com os APPCRASH apresentados, mas **a eliminacao do 0xC0000005 no computador do operador ainda necessita teste fisico**. Se continuar, capturar a stack nativa com `tools/gp-i11-native-dump.ps1` para encontrar outro caminho, sem desabilitar licenca ou alterar Windows. A DPAPI/licenca comercial da main foi explicitamente preservada; foi revertida uma tentativa de troca do mecanismo de criptografia por nao haver evidencia contra o DPAPI e para evitar risco aos dados de licenca.
