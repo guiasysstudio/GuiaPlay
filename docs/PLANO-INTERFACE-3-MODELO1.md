@@ -6,6 +6,26 @@ Data-base: 2026-10-16. Referência de produto: GuiaPlay 1.0.3 Stable, branch `ma
 
 Reconstruir o espaço de trabalho do operador segundo o **Modelo 1 aprovado**: cabeçalho/navegação; status de licença; coluna de playlists e pastas; prévia do operador e monitor do programa; seleção de saídas e áudio; barra de ações; tabela de mídias; transporte inferior.
 
+## GP-I12 — Correção visual e estabilidade: imagem aprovada e evidências
+
+**Referência inequívoca:** imagem horizontal enviada pelo usuário em 17/10/2026, 1536 × 1024 px, com cabeçalho integrado, azul elétrico/navy, painel esquerdo de playlists e pastas, duas prévias lado a lado, seletor direito de monitores/áudio, **tabela de mídias expandida por toda a área central+direita** e uma barra inferior contínua de transporte. A aparência aprovada é obrigatória como alvo visual: não entregar novamente a antiga distribuição com a tabela comprimida dentro do cartão central. Na execução real, conteúdo/capa/durações dependem de dados importados; os exemplos da imagem não devem ser inseridos artificialmente.
+
+**Mudanças já aplicadas:**
+- `MainWindow.xaml`: coluna esquerda permanece fixa e ocupa toda a altura da área de trabalho; faixa panorâmica de prévias ocupa a primeira linha da região central; a tabela de mídia utiliza `Grid.Column=2`, `Grid.ColumnSpan=3`, `Grid.Row=1`, logo **atravessa a coluna central e a lateral direita** abaixo das prévias, como na imagem.
+- Barra de ações acima da tabela com Adicionar (menu de arquivos/pasta/YouTube), Nova Playlist, Salvar, Remover (seleção real da grade), setas de reordenação, pesquisa e limpar; nenhuma ação é meramente cenográfica. `MainWindow.xaml.cs` foi ajustado para habilitar Remover apenas com item real selecionado e licença válida, preservando arquivos originais.
+- Coluna de monitores/áudio passou a 286 DIP para se aproximar das proporções do desenho.
+- Removido texto antigo que anunciava importação de pastas como uma função futura.
+
+**Pendências explícitas (sem alegar equivalência pixel-perfect prematuramente):**
+- Cabeçalho atualmente utiliza moldura padrão do Windows. A imagem mostra controles personalizados de janela; implementação posterior exige validação separada de maximizar/minimizar, arrastar, DPI, acessibilidade e redimensionar, **sem introduzir nova falha nativa antes de resolver GP-I11**.
+- Barra inferior ainda contém controles existentes adicionais (parar, modo manual/sequencial, repetição, identificação); comprimi-la ou reorganizá-la nao pode ocultar funcionalidades.
+- Cores de destaque existentes dependem de `AppSettings` e escolha do usuário. O alvo do screenshot é a opção **azul e escuro**, sem substituir preferências salvas.
+- Verificação visual real no PC do usuário, quando o crash for corrigido; `dotnet build` nao prova fidelidade visual.
+
+**GP-I11: falha de inicialização continua aberta.** Matriz Windows fornecida pelo usuário em 17/10: A (sem updater), B (sem DisplayConfig), C (sem polling) e D (todas as três opções isoladas) resultaram em `0xC0000005` / `ntdll.dll`. Esses módulos isolados não explicam sozinhos a falha. Foi adicionada instrumentação Debug nas fases de licenciamento e criação de janela, e captura **opcional** de stack nativa com `tools/gp-i11-native-dump.ps1`. Nao remover licenciamento e nao adivinhar origem do erro sem dump/stack. Mesmo que CI seja verde, janela estável no PC do usuário continua pendente.
+
+---
+
 **Regra inegociável:** nenhum controle decorativo na interface entregue. Cada botão, campo, indicador e atalho visível deve ter comportamento real, estado habilitado/desabilitado coerente, descrição acessível e teste adequado. Controles que dependam de funcionalidades futuras não serão exibidos como se já estivessem funcionais. A imagem é referência visual; não é especificação pixel-perfect de dimensões.
 
 ## Proteção do produto atual
