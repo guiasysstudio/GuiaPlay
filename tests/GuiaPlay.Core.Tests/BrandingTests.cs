@@ -246,7 +246,11 @@ public sealed class BrandingTests
         Assert.Contains("x:Name=\"StopButton\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"VolumeSlider\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PlaylistTree\"", main, StringComparison.Ordinal);
-        Assert.Contains("MinWidth=\"840\"", main, StringComparison.Ordinal);
+        // Model 1 widened the workspace for three functional panes.
+        Assert.Contains("MinWidth=\"980\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"LicensedWorkspace\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"ProgramImage\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"SidebarOutputsList\"", main, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -371,8 +375,12 @@ public sealed class BrandingTests
         Assert.Contains("Background=\"{DynamicResource GuiaPlaySurfaceSecondaryBrush}\" Padding=\"8,6\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"CompactTransportButtonStyle\"", main, StringComparison.Ordinal);
         Assert.Contains("<Setter Property=\"MinHeight\" Value=\"30\" />", main, StringComparison.Ordinal);
-        Assert.Contains("<ColumnDefinition Width=\"54*\" MinWidth=\"390\" />", main, StringComparison.Ordinal);
-        Assert.Contains("<ColumnDefinition Width=\"46*\" MinWidth=\"310\" />", main, StringComparison.Ordinal);
+        // GP-I10: The approved 3-panel UI supersedes M10.3's two-column layout.
+        Assert.Contains("<ColumnDefinition Width=\"300\" MinWidth=\"265\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"*\" MinWidth=\"345\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"246\" MinWidth=\"220\" />", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PreviewProgressSlider\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"MediaGrid\"", main, StringComparison.Ordinal);
         Assert.Contains("SavePlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
         Assert.Contains("LoadPlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"OutputChipStyle\"", main, StringComparison.Ordinal);
