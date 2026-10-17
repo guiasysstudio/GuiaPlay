@@ -470,6 +470,50 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void GP_I14_XamlIsWellFormedAndUniqueControlsSurviveLayoutCleanup()
+    {
+        var source = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var document = XDocument.Parse(source);
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var names = document.Descendants()
+            .Select(element => (string?)element.Attribute(x + "Name"))
+            .Where(name => name is not null)
+            .ToArray();
+
+        Assert.Equal(names.Length, names.Distinct(StringComparer.Ordinal).Count());
+        foreach (var control in new[]
+        {
+            "SidebarOutputsList", "IdentifyButton", "AudioDeviceNameText",
+            "PlayButton", "PauseButton", "StopButton", "VolumeSlider",
+            "ShufflePlaylistCheckBox", "RepeatModeButton", "FullscreenPreviewButton",
+            "OpenButton", "PlaybackModeCombo", "HeaderSettingsButton"
+        })
+        {
+            Assert.Contains(control, names);
+        }
+    }
+
+    [Fact]
+    public void GP_I14_ReferenceLayoutHasNoDuplicatedAudioVideoOrTransportControls()
+    {
+        var xaml = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+
+        Assert.DoesNotContain("x:Name=\"ConfigureScreensButton\"", xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Name=\"SideVolumeUpIcon\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PlaylistOptionsMenuButton\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"MainPlayPauseButton_OnClick\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"MainPauseGlyph\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"GPPlaybackToggle\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Click=\"FullscreenPreviewButton_OnClick\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("HeaderSettingsButton.IsEnabled", code, StringComparison.Ordinal);
+        Assert.Contains("PauseButton_OnClick(sender, e);", code, StringComparison.Ordinal);
+        Assert.Contains("var openDirect = new MenuItem", code, StringComparison.Ordinal);
+        Assert.Contains("menu.Items.Add(sequential);", code, StringComparison.Ordinal);
+        Assert.Contains("PlayButton.IsEnabled = PlayButton.IsEnabled || PauseButton.IsEnabled;", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GP_I11_LicensingSettingsMustNotInitializeNativeLibVlc()
     {
         // A startup-only license prompt used to construct LibVLC because the
