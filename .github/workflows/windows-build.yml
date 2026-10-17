@@ -30,8 +30,41 @@ jobs:
       - name: Restore
         run: dotnet restore GuiaPlay.slnx
 
-      - name: Build
+      - name: Build Debug
+        run: dotnet build GuiaPlay.slnx -c Debug --no-restore
+
+      - name: Test Debug
+        run: dotnet test GuiaPlay.slnx -c Debug --no-build --no-restore
+
+      - name: Build Release
         run: dotnet build GuiaPlay.slnx -c Release --no-restore
 
-      - name: Test
+      - name: Test Release
         run: dotnet test GuiaPlay.slnx -c Release --no-build --no-restore
+
+      # Smoke folders only: no installer, tag, release, artifact upload or deployment.
+      - name: Restore win-x64
+        run: dotnet restore src/GuiaPlay.App/GuiaPlay.App.csproj -r win-x64 -p:PlatformTarget=x64
+
+      - name: Publish smoke win-x64
+        run: dotnet publish src/GuiaPlay.App/GuiaPlay.App.csproj -c Release -r win-x64 --self-contained false --no-restore -p:PlatformTarget=x64 -p:PublishSingleFile=false -o artifacts/gp-i10/win-x64
+
+      - name: Restore win-x86
+        run: dotnet restore src/GuiaPlay.App/GuiaPlay.App.csproj -r win-x86 -p:PlatformTarget=x86
+
+      - name: Publish smoke win-x86
+        run: dotnet publish src/GuiaPlay.App/GuiaPlay.App.csproj -c Release -r win-x86 --self-contained false --no-restore -p:PlatformTarget=x86 -p:PublishSingleFile=false -o artifacts/gp-i10/win-x86
+
+      - name: Check binaries and official IFrame assets
+        shell: pwsh
+        run: |
+          foreach ($arch in @('win-x64', 'win-x86')) {
+            $root = Join-Path 'artifacts/gp-i10' $arch
+            if (-not (Test-Path (Join-Path $root 'GuiaPlay.exe'))) {
+              throw "GuiaPlay.exe não foi publicado para $arch."
+            }
+            if (-not (Test-Path (Join-Path $root 'Assets/YouTube/player.html'))) {
+              throw "Recurso YouTube IFrame não foi publicado para $arch."
+            }
+          }
+          Write-Host 'Pastas smoke x64/x86 validadas; nenhum instalador gerado.'
