@@ -22,7 +22,8 @@ internal static class FileLogger
         {
             Directory.CreateDirectory(DirectoryPath);
             Log.RotateIfNeeded();
-            Info($"GuiaPlay {GuiaPlay.Core.ProductInfo.Version} iniciado.");
+            Info($"GuiaPlay {GuiaPlay.Core.ProductInfo.Version} iniciado; pid={Environment.ProcessId}; " +
+                 $"process={Environment.ProcessPath ?? "indisponivel"}");
         }
         catch
         {
