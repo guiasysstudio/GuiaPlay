@@ -28,7 +28,7 @@ public sealed record PlaylistPreset(
     DateTimeOffset UpdatedAt,
     PlaylistDocument Playlist)
 {
-    public const int CurrentSchema = 1;
+    public const int CurrentSchema = 2;
 }
 
 public sealed record PlaylistPresetListResult(
@@ -295,7 +295,7 @@ public sealed class PlaylistPresetStore
                 throw new JsonException("a raiz não é um objeto JSON.");
             }
 
-            if (!TryReadInt32(root, "schema", out var schema) || schema != PlaylistPreset.CurrentSchema)
+            if (!TryReadInt32(root, "schema", out var schema) || schema is not (1 or 2))
             {
                 throw new JsonException("o schema é ausente ou incompatível.");
             }
@@ -360,6 +360,16 @@ public sealed class PlaylistPresetStore
             {
                 stream.Write(bytes);
                 stream.Flush(flushToDisk: true);
+            }
+
+            if (File.Exists(path) && !File.Exists(path + ".pre-youtube-v1.bak"))
+            {
+                using var previous = JsonDocument.Parse(File.ReadAllText(path));
+                if (previous.RootElement.TryGetProperty("schema", out var schema) &&
+                    schema.TryGetInt32(out var version) && version == 1)
+                {
+                    File.Copy(path, path + ".pre-youtube-v1.bak");
+                }
             }
 
             File.Move(temporaryPath, path, overwrite: true);
