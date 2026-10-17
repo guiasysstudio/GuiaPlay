@@ -1348,6 +1348,11 @@ public partial class MainWindow : Window
 
     private async Task ImportDroppedFilesAsync(IEnumerable<string> paths, object? target)
     {
+        if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
+        {
+            return;
+        }
+
         var receivedPaths = paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToArray();
         if (receivedPaths.Length == 0)
         {
@@ -1355,16 +1360,64 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Explorer drops may contain folders mixed with loose media files.
+        // Enumerate types off the dispatcher; folders use the same safe scanner as Add > Pasta.
+        var folders = await Task.Run(() => receivedPaths.Where(Directory.Exists).ToArray());
+        foreach (var folder in folders)
+        {
+            await ImportFolderAsync(folder);
+            if (_isClosing || !_licensingAllowsAccess)
+            {
+                return;
+            }
+        }
+
+        var folderPaths = new HashSet<string>(folders, StringComparer.OrdinalIgnoreCase);
+        var existingPaths = new HashSet<string>(
+            _playlistCatalog.Snapshot.Groups.SelectMany(group => group.Items)
+                .Select(item => item.OriginalPath),
+            StringComparer.OrdinalIgnoreCase);
+        var uniquePaths = new List<string>();
+        var duplicates = 0;
+        foreach (var path in receivedPaths.Where(path => !folderPaths.Contains(path)))
+        {
+            try
+            {
+                var normalized = Path.GetFullPath(path);
+                if (!existingPaths.Add(normalized))
+                {
+                    duplicates++;
+                    continue;
+                }
+
+                uniquePaths.Add(normalized);
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                // Invalid paths are rejected later by the existing media probe.
+                uniquePaths.Add(path);
+            }
+        }
+
+        if (uniquePaths.Count == 0)
+        {
+            if (duplicates > 0)
+            {
+                StatusText.Text = $"{duplicates} mídia(s) duplicada(s) ignorada(s).";
+            }
+
+            return;
+        }
+
         var targetGroupId = ResolveDropGroup(target)?.Id;
         var cancellationToken = _playlistAvailabilityCancellation?.Token ?? CancellationToken.None;
+        var revision = _playlistRevision;
         IReadOnlyList<MediaProbeResult> probes;
         try
         {
             StatusText.Text = "Verificando arquivos recebidos…";
             probes = await MediaFileProbe.ProbeManyAsync(
-                receivedPaths,
-                TimeSpan.FromSeconds(3),
-                cancellationToken);
+                uniquePaths, TimeSpan.FromSeconds(3), cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -1372,27 +1425,51 @@ public partial class MainWindow : Window
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            FileLogger.Error("Falha ao verificar os arquivos arrastados para a playlist.", exception);
-            StatusText.Text = "Não foi possível verificar os arquivos recebidos; consulte o log.";
+            FileLogger.Error("Falha ao verificar os arquivos importados.", exception);
+            StatusText.Text = "Não foi possível verificar arquivos; consulte o log.";
             return;
         }
 
-        var result = _playlistCatalog.ImportProbedItems(targetGroupId, "Mídias", probes);
+        if (_isClosing || !_licensingAllowsAccess || revision != _playlistRevision || _controlsBusy)
+        {
+            StatusText.Text = "A lista mudou durante a importação; operação descartada.";
+            return;
+        }
+
+        // Stage on an independent catalog. Failed persistence leaves the live
+        // catalog and the saved working playlist untouched.
+        var staged = new PlaylistCatalog(_playlistCatalog.Snapshot);
+        var result = staged.ImportProbedItems(targetGroupId, "Mídias", probes);
         if (result.Added.Count == 0 || result.TargetGroup is not { } targetGroup)
         {
             StatusText.Text = probes.Any(probe => probe.Status == MediaProbeStatus.TimedOut)
-                ? "Nenhum arquivo foi adicionado; ao menos um caminho não respondeu no tempo esperado."
+                ? "Nenhum arquivo adicionado; ao menos um caminho não respondeu."
                 : "Nenhum arquivo de mídia disponível e reconhecido foi adicionado.";
             return;
         }
 
-        var message = $"{result.Added.Count} referência(s) adicionada(s) a {targetGroup.Name}.";
-        if (result.Rejected.Count > 0)
+        if (Application.Current is not App app || app.PlaylistStore is null)
         {
-            message += $" {result.Rejected.Count} arquivo(s) ignorado(s).";
+            StatusText.Text = "O armazenamento da playlist não está disponível.";
+            return;
         }
 
-        SavePlaylistAndRefresh(message);
+        var stagedDocument = staged.Snapshot;
+        var saved = app.PlaylistStore.Save(stagedDocument);
+        if (!saved.Succeeded)
+        {
+            FileLogger.Error($"Falha ao persistir arquivos recebidos: {saved.Error}");
+            StatusText.Text = "Não foi possível salvar os arquivos importados; lista anterior preservada.";
+            return;
+        }
+
+        _playlistCatalog.ApplyPersistedChanges(stagedDocument);
+        app.Playlist = _playlistCatalog.Snapshot;
+        RebuildPlaylistTree();
+        RefreshActivePlaylistMarkers();
+        var ignored = result.Rejected.Count + duplicates;
+        StatusText.Text = $"{result.Added.Count} mídia(s) em {targetGroup.Name}. " +
+                          $"{ignored} arquivo(s) ignorado(s); mídias originais preservadas.";
     }
 
     private bool MovePlaylistGroup(PlaylistGroupNode source, object? target)
