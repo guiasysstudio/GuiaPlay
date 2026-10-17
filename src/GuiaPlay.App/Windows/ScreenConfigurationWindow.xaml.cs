@@ -62,7 +62,8 @@ public partial class ScreenConfigurationWindow : Window
         bool playbackActive,
         bool operatorRecoveryRequired,
         bool openAbout = false,
-        bool openAudio = false)
+        bool openAudio = false,
+        bool openMonitors = false)
     {
         InitializeComponent();
         _updateManager = updateManager;
@@ -132,7 +133,9 @@ public partial class ScreenConfigurationWindow : Window
         AboutReleaseDateText.Text = $"Data da versão: {ProductInfo.ReleaseDate:dd/MM/yyyy}";
         CheckUpdatesAutomaticallyCheckBox.IsChecked = settings.CheckUpdatesAutomatically;
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
-        SettingsTabs.SelectedItem = openAbout
+        SettingsTabs.SelectedItem = openMonitors
+            ? ScreensTab
+            : openAbout
             ? AboutTab
             : openLicense
                 ? UserTab
@@ -145,6 +148,27 @@ public partial class ScreenConfigurationWindow : Window
                             : AppearanceTab;
         ScreensTab.IsEnabled = _screensEditable;
         ScreensNavigationButton.IsEnabled = _screensEditable;
+
+        // Main navigation owns Monitores and Sobre. Settings must not show
+        // legacy Telas/Sobre entries; the Monitores entry opens only its editor.
+        ScreensNavigationButton.Visibility = Visibility.Collapsed;
+        AboutNavigationButton.Visibility = Visibility.Collapsed;
+        if (openMonitors)
+        {
+            Title = "Monitores — GuiaPlay";
+            SettingsHeadingText.Text = "Monitores";
+            SettingsSidebar.Visibility = Visibility.Collapsed;
+            SettingsWorkspace.ColumnDefinitions[0].Width = new GridLength(0);
+            SettingsWorkspace.ColumnDefinitions[1].Width = new GridLength(0);
+            ScreensTab.IsEnabled = true; // show the monitor inventory even if locked for playback
+            ScreensNavigationButton.IsEnabled = true;
+            SettingsTabs.SelectedItem = ScreensTab;
+        }
+        else if (!openAbout && !openLicense && !openUpdates && !openAudio)
+        {
+            SettingsTabs.SelectedItem = AppearanceTab;
+        }
+
         SynchronizeNavigationSelection();
         _updateManager.StateChanged += UpdateManager_OnStateChanged;
         _licensingManager.StateChanged += LicensingManager_OnStateChanged;
