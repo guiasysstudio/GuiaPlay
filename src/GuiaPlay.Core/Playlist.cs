@@ -148,7 +148,7 @@ public sealed class PlaylistStore(string filePath)
                 File.Move(temporaryPath, _filePath, overwrite: true);
                 return PlaylistSaveResult.Success;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException or JsonException)
             {
                 return new PlaylistSaveResult(false, exception.Message);
             }
