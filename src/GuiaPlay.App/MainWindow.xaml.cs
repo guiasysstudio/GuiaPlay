@@ -280,7 +280,7 @@ public partial class MainWindow : Window
 
         StatusText.Text = "Verificando disponibilidade da mídia…";
         var probe = verifiedProbe ?? await MediaFileProbe.ProbeAsync(path, TimeSpan.FromSeconds(4));
-        if (requestId != _mediaLoadRequestId || _isClosing ||
+        if (requestId != _mediaLoadRequestId || _isClosing || !_licensingAllowsAccess ||
             (fromAutomaticSequence &&
                 (_playbackMode != PlaylistPlaybackMode.Sequential ||
                  _playlistRevision != _loadedPlaylistRevision)))
@@ -381,7 +381,8 @@ public partial class MainWindow : Window
             SetControlsBusy(false);
         }
 
-        if (playImmediately && _coordinator.CanPlay(SelectedOutputCount()) &&
+        if (playImmediately && _licensingAllowsAccess &&
+            _coordinator.CanPlay(SelectedOutputCount()) &&
             (!fromAutomaticSequence ||
                 (_playbackMode == PlaylistPlaybackMode.Sequential &&
                  requestId == _mediaLoadRequestId && !_isClosing)))
@@ -1958,6 +1959,11 @@ public partial class MainWindow : Window
 
     private async Task StartOrResumePlaybackAsync()
     {
+        if (_isClosing || !_licensingAllowsAccess || _controlsBusy)
+        {
+            return;
+        }
+
         var selected = _outputChoices.Where(choice => choice.IsSelected).Select(choice => choice.Monitor).ToArray();
         if (!_coordinator.CanPlay(selected.Length))
         {
