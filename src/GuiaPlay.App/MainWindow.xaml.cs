@@ -2902,8 +2902,98 @@ public partial class MainWindow : Window
         _ = dialog.ShowDialog();
     }
 
-    private async void ChangeAudioOutputButton_OnClick(object sender, RoutedEventArgs e) =>
-        await OpenSettingsAsync(openUpdates: false, openLicense: false, openAudio: true);
+    // Audio card is a selector, NOT a shortcut to the settings window.
+    // Native LibVLC devices become enumerable after a local file initializes
+    // the engine. Never initialize native code merely to open this menu.
+    private void ChangeAudioOutputButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var app = Application.Current as App;
+        if (app is null) return;
+
+        if (_engineInstance is not null)
+        {
+            RefreshAudioDevices(force: true);
+        }
+
+        var current = app.Settings.AudioOutput;
+        var activePlayback = _coordinator.IsActive || _youtubeWindow is not null;
+        var menu = new ContextMenu
+        {
+            PlacementTarget = ChangeAudioOutputButton,
+            Placement = PlacementMode.Bottom
+        };
+
+        var choices = new List<(AudioOutputPreference Output, string Label)>
+        {
+            (AudioOutputPreference.Default, "Padrão do Windows")
+        };
+        choices.AddRange(_audioDevices.Select(device =>
+            (new AudioOutputPreference(AudioOutputMode.Explicit,
+                device.Module, device.DeviceId, device.DisplayName),
+                device.DisplayName + " (" + device.Module + ")")));
+
+        foreach (var choice in choices)
+        {
+            var item = new MenuItem
+            {
+                Header = choice.Label,
+                IsCheckable = true,
+                IsChecked = choice.Output.Mode == current.Mode &&
+                    string.Equals(choice.Output.Module, current.Module, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(choice.Output.DeviceId, current.DeviceId, StringComparison.OrdinalIgnoreCase),
+                IsEnabled = !activePlayback
+            };
+            item.Click += (_, _) =>
+            {
+                if (!app.UpdateSettings(settings => settings with { AudioOutput = choice.Output },
+                        out var error))
+                {
+                    MessageBox.Show(this, error ?? "Não foi possível salvar a saída de áudio.",
+                        "GuiaPlay — áudio", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                _audioPreferenceAvailable = true;
+                _audioReconfigurationRequired = false;
+                RefreshAudioPanel();
+                StatusText.Text = $"Saída de áudio selecionada: {choice.Label}.";
+            };
+            menu.Items.Add(item);
+        }
+
+        if (current.IsExplicit && !choices.Any(choice =>
+                choice.Output.Module == current.Module && choice.Output.DeviceId == current.DeviceId))
+        {
+            menu.Items.Add(new MenuItem
+            {
+                Header = (current.DisplayName ?? "Dispositivo salvo") + " — não detectado",
+                IsEnabled = false,
+                IsCheckable = true,
+                IsChecked = true
+            });
+        }
+
+        if (activePlayback)
+        {
+            menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Pare a reprodução para alterar a saída.",
+                IsEnabled = false
+            });
+        }
+        else if (_engineInstance is null)
+        {
+            menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Outros dispositivos aparecem após carregar uma mídia local.",
+                IsEnabled = false
+            });
+        }
+
+        menu.IsOpen = true;
+    }
 
     private async void ConfigureScreensButton_OnClick(object sender, RoutedEventArgs e) =>
         await OpenSettingsAsync(openUpdates: false, openLicense: false);
