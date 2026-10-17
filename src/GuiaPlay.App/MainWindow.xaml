@@ -1043,7 +1043,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="350"/>
                     <ColumnDefinition Width="*" MinWidth="370"/>
-                    <ColumnDefinition Width="360"/>
+                    <ColumnDefinition Width="412"/>
                 </Grid.ColumnDefinitions>
                 <!-- Identity and actual progress of current media. -->
                 <Grid Grid.Column="0" VerticalAlignment="Center">
@@ -1168,6 +1168,30 @@
                         <Path Data="{StaticResource GPFullscreenCornerGeometry}" Width="24" Height="24"
                               Stretch="Uniform" Fill="{DynamicResource GuiaPlayTextPrimaryBrush}"/>
                     </Button>
+                    <!-- Secondary cover art in the reference always mirrors the loaded media. -->
+                    <Border Width="48" Height="58" Margin="10,0,0,0" CornerRadius="5"
+                            BorderThickness="1" BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
+                            Background="{DynamicResource GuiaPlayControlSurfaceBrush}" ClipToBounds="True"
+                            VerticalAlignment="Center">
+                        <Grid>
+                            <Image Source="{Binding Source, ElementName=TransportThumbnailImage}" Stretch="UniformToFill"/>
+                            <Path Data="{StaticResource GPVideo}" Width="22" Height="22" Stretch="Uniform"
+                                  Fill="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Source, ElementName=TransportThumbnailImage}"
+                                                         Value="{x:Null}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </Grid>
+                    </Border>
                 </StackPanel>
                 <!-- Existing workflow handles remain alive but outside the visual reference. -->
                 <StackPanel Grid.Column="1" Visibility="Collapsed" IsHitTestVisible="False">
