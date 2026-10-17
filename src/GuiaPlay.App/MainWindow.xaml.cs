@@ -2807,7 +2807,7 @@ public partial class MainWindow : Window
         }
 
         var action = OperatorShortcutPolicy.Resolve(
-            ToOperatorShortcutKey(e.Key == Key.System ? e.SystemKey : e.Key),
+            (e.Key == Key.System ? e.SystemKey : e.Key).ToString(),
             modifiers, textEditing, nativeSpace, e.IsRepeat,
             (Application.Current as App)?.Settings.ShortcutAssignments);
         if (action == OperatorShortcutAction.None)
