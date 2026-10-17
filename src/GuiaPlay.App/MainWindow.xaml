@@ -71,6 +71,48 @@
             <Setter Property="MinWidth" Value="0" />
             <Setter Property="Padding" Value="10,4" />
         </Style>
+        <!-- GP-I16: operator-grade raised action, rather than the default WPF pushbutton. -->
+        <Style x:Key="GPAddMediaButtonStyle" TargetType="Button" BasedOn="{StaticResource CompactPrimaryButtonStyle}">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#FF1599FF" Offset="0"/>
+                        <GradientStop Color="#FF1263EC" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ActionSurface" Background="{TemplateBinding Background}"
+                                BorderThickness="1" BorderBrush="#FF57B9FF" CornerRadius="9"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#FF006BFA" BlurRadius="13" ShadowDepth="3" Opacity="0.33"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ActionSurface" Property="BorderBrush" Value="#FFC3EEFF"/>
+                                <Setter TargetName="ActionSurface" Property="Background" Value="#FF187DFA"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ActionSurface" Property="Background" Value="#FF064DBB"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ActionSurface" Property="Opacity" Value="0.43"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="PlaylistCommandButtonStyle" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
             <Setter Property="MinHeight" Value="30" />
             <Setter Property="MinWidth" Value="30" />
@@ -114,8 +156,15 @@
             </Setter.Value></Setter>
         </Style>
         <Style x:Key="GPPlayTransport" TargetType="Button" BasedOn="{StaticResource GPRoundTransport}">
-            <Setter Property="Height" Value="86"/><Setter Property="Width" Value="86"/>
-            <Setter Property="Padding" Value="21"/><Setter Property="Background" Value="{DynamicResource GuiaPlayAccentBrush}"/>
+            <Setter Property="Height" Value="90"/><Setter Property="Width" Value="90"/>
+            <Setter Property="Padding" Value="21"/><Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#FF158FFF" Offset="0"/>
+                        <GradientStop Color="#FF0762EC" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
             <Setter Property="BorderBrush" Value="#FFC6E5FF"/><Setter Property="BorderThickness" Value="3"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Template"><Setter.Value>
@@ -128,7 +177,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hero" Property="Opacity" Value="0.87"/></Trigger>
-                        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Hero" Property="Opacity" Value="0.48"/></Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Hero" Property="Opacity" Value="0.82"/></Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value></Setter>
@@ -811,7 +860,7 @@
                                         Click="AddMediaMenuButton_OnClick" Margin="0,0,9,0" Height="45"
                                         Padding="13,7" FontSize="14" FontWeight="SemiBold"
                                         Foreground="{DynamicResource GuiaPlayAccentForegroundBrush}"
-                                        Style="{StaticResource CompactPrimaryButtonStyle}"
+                                        Style="{StaticResource GPAddMediaButtonStyle}"
                                         ToolTip="Adicionar arquivo, pasta completa ou link do YouTube"
                                         AutomationProperties.Name="Adicionar mídias">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -1069,12 +1118,12 @@
         <Border x:Name="OperationalControlPanel" Grid.Row="2"
                 Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
                 BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="0,1,0,0"
-                Margin="0,10,0,0" Padding="17,8,17,8" MinHeight="111">
+                Margin="0,8,0,0" Padding="15,8,15,8" MinHeight="136">
             <!-- Scale the ENTIRE transport composition together on narrow screens.
                  No horizontal scrolling/cropped Play button, and no control overlaps. -->
             <Viewbox Stretch="Uniform" StretchDirection="DownOnly"
                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SnapsToDevicePixels="True">
-              <Grid Width="1485" Height="94">
+              <Grid Width="1580" Height="114">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="350"/>
                     <ColumnDefinition Width="*" MinWidth="370"/>
@@ -1114,20 +1163,23 @@
                     </StackPanel>
                 </Grid>
                 <!-- PLAY and PAUSE share a single central circle. STOP occupies the old pause slot. -->
-                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Disabled"
-                              HorizontalScrollBarVisibility="Auto" VerticalAlignment="Center" Focusable="False">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button x:Name="PreviousMediaButton" Click="PreviousMediaButton_OnClick" IsEnabled="False"
+                <Grid Grid.Column="1" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="PreviousMediaButton" Click="PreviousMediaButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Mídia anterior (F8)">
                                         <Path Data="{StaticResource GPSkipPrevious}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                        <Button x:Name="BackFiveButton" Click="BackFiveButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="BackFiveButton" Click="BackFiveButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Voltar cinco segundos">
                                         <Path Data="{StaticResource GPBackFive}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                        <Button x:Name="PlayButton" Click="MainPlayPauseButton_OnClick"
+                        <Button Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="PlayButton" Click="MainPlayPauseButton_OnClick"
                                 Style="{StaticResource GPPlayTransport}" IsEnabled="False"
                                 ToolTip="Reproduzir (F5 / Espaço)" AutomationProperties.Name="Reproduzir ou pausar">
                             <Grid>
@@ -1138,23 +1190,22 @@
                                 <TextBlock x:Name="PlayButtonText" Text="Reproduzir" Visibility="Collapsed"/>
                             </Grid>
                         </Button>
-                        <Button x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Parar reprodução (F7)">
                                         <Path Data="{StaticResource StopIconGeometry}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                        <Button x:Name="ForwardFiveButton" Click="ForwardFiveButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="ForwardFiveButton" Click="ForwardFiveButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Avançar cinco segundos">
                                         <Path Data="{StaticResource GPForwardFive}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                        <Button x:Name="NextMediaButton" Click="NextMediaButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="5" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="NextMediaButton" Click="NextMediaButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Próxima mídia (F9)">
                                         <Path Data="{StaticResource GPSkipNext}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                    </StackPanel>
-                </ScrollViewer>
+                </Grid>
                 <!-- Sole volume control and operational modes, aligned with transport. -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                             VerticalAlignment="Center">
