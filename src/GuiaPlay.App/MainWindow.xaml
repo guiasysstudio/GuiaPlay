@@ -270,37 +270,119 @@
                         <RowDefinition Height="44*" />
                         <RowDefinition Height="56*" />
                     </Grid.RowDefinitions>
+                    <!-- GP-I05: Operator and Program use one actual shared frame source.
+                         Program is a transmission mirror, not a capture of the physical monitor. -->
                     <Grid Margin="2,0,2,10">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="PRÉVIA (OPERADOR)" FontSize="15" FontWeight="SemiBold" />
+                            <TextBlock Text="PRÉVIA E PROGRAMA" FontSize="15" FontWeight="SemiBold" />
                             <TextBlock x:Name="FileNameText" Text="Nenhuma mídia carregada"
-                                       FontSize="13" FontWeight="Medium" TextTrimming="CharacterEllipsis"
+                                       FontSize="12" TextTrimming="CharacterEllipsis"
                                        Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
                                        Margin="0,3,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                         </StackPanel>
-                        <Border Grid.Column="1" Padding="9,4" CornerRadius="12"
-                                Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
+                        <Border Grid.Column="1" Padding="8,4" VerticalAlignment="Top"
+                                CornerRadius="11" Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
                                 BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}" BorderThickness="1">
-                            <TextBlock Text="PRÉVIA" FontSize="10" FontWeight="SemiBold" />
+                            <TextBlock x:Name="PreviewLiveStateText" Text="AGUARDANDO"
+                                       FontSize="10" FontWeight="SemiBold" />
                         </Border>
                     </Grid>
-                    <Border Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True" MinHeight="120" Margin="0,0,0,10">
-                        <Grid>
-                            <Image x:Name="PreviewImage" Stretch="Uniform" />
-                            <StackPanel x:Name="PreviewEmptyState" Margin="28" HorizontalAlignment="Center"
-                                        VerticalAlignment="Center" MaxWidth="330">
-                                <Path Data="{StaticResource VideoIconGeometry}" Width="34" Height="34" Stretch="Uniform"
-                                      Fill="#FF8F98A6" HorizontalAlignment="Center" Margin="0,0,0,10" />
-                                <TextBlock x:Name="PreviewPlaceholder" Text="Nenhuma mídia carregada" Foreground="#FFE2E5EA"
-                                           FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"
-                                           HorizontalAlignment="Center" TextAlignment="Center" />
-                                <TextBlock x:Name="PreviewEmptyHint" Text="Abra uma mídia ou escolha um item da playlist" Foreground="#FF9FA7B3"
-                                           FontSize="12" Margin="0,5,0,0" TextWrapping="Wrap"
-                                           HorizontalAlignment="Center" TextAlignment="Center" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
+                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="9" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" CornerRadius="8"
+                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1"
+                                Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="5">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Grid Margin="4,1,4,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="PRÉVIA DO OPERADOR" FontSize="11" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="LOCAL" FontSize="9"
+                                               Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                                <Border Grid.Row="1" Background="Black" CornerRadius="6" ClipToBounds="True"
+                                        MinHeight="110">
+                                    <Grid>
+                                        <Image x:Name="PreviewImage" Stretch="Uniform" />
+                                        <StackPanel x:Name="PreviewEmptyState" Margin="12"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                    MaxWidth="220">
+                                            <Path Data="{StaticResource VideoIconGeometry}" Width="26" Height="26"
+                                                  Stretch="Uniform" Fill="#FF8F98A6"
+                                                  HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                            <TextBlock x:Name="PreviewPlaceholder" Text="Nenhuma mídia carregada"
+                                                       Foreground="#FFE2E5EA" FontWeight="SemiBold"
+                                                       FontSize="12" TextWrapping="Wrap" TextAlignment="Center" />
+                                            <TextBlock x:Name="PreviewEmptyHint" Text="Abra uma mídia ou selecione na playlist"
+                                                       Foreground="#FF9FA7B3" FontSize="10"
+                                                       Margin="0,4,0,0" TextWrapping="Wrap" TextAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Column="2" CornerRadius="8"
+                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1"
+                                Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="5">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Grid Margin="4,1,4,5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="PROGRAMA / TELA PÚBLICA" FontSize="11"
+                                               FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="ProgramStatusBadgeText" Grid.Column="1"
+                                               Text="SEM SAÍDA" FontSize="9"
+                                               Margin="5,0,0,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource GuiaPlayAccentBrush}" />
+                                </Grid>
+                                <Border Grid.Row="1" Background="Black" CornerRadius="6"
+                                        ClipToBounds="True" MinHeight="110">
+                                    <Grid>
+                                        <Image x:Name="ProgramImage" Stretch="Uniform" Visibility="Collapsed"
+                                               ToolTip="Espelho do quadro entregue pelo GuiaPlay às janelas públicas; não é captura física do monitor" />
+                                        <StackPanel x:Name="ProgramEmptyState" Margin="12"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                    MaxWidth="220">
+                                            <Path Data="{StaticResource DisplayIconGeometry}" Width="26" Height="26"
+                                                  Stretch="Uniform" Fill="#FF8F98A6"
+                                                  HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                            <TextBlock x:Name="ProgramPlaceholderText"
+                                                       Text="Nenhuma saída pública ativa"
+                                                       Foreground="#FFE2E5EA" FontSize="12"
+                                                       FontWeight="SemiBold" TextWrapping="Wrap"
+                                                       TextAlignment="Center" />
+                                            <TextBlock x:Name="ProgramDetailsText"
+                                                       Text="Escolha uma tela e inicie um vídeo"
+                                                       Foreground="#FF9FA7B3" FontSize="10"
+                                                       Margin="0,4,0,0" TextWrapping="Wrap"
+                                                       TextAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </Grid>
                     <!-- GP-I03: playback-order grid linked to the existing playlist catalog. -->
                     <Border Grid.Row="2" CornerRadius="8" BorderThickness="1"
                             Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
@@ -687,44 +769,126 @@
                     </Grid>
                 </Border>
             </Grid>
-            <!-- The same physical output choices shown by the operator controls; no mock monitors. -->
+            <!-- GP-I05: actual monitor topology, active output windows and configured audio. -->
             <Border Grid.Column="4" Style="{StaticResource CardStyle}"
-                    Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="11">
+                    Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="10">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <StackPanel>
-                        <TextBlock Text="SAÍDA DE VÍDEO" FontWeight="SemiBold" FontSize="14" />
-                        <TextBlock Text="Telas públicas conectadas" Margin="0,5,0,12"
-                                   FontSize="11" Style="{StaticResource SecondaryTextStyle}" />
+                    <StackPanel Margin="0,0,0,7">
+                        <TextBlock Text="TELAS E ÁUDIO" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock x:Name="OperatorPanelText" Text="Operador: detectando…"
+                                   TextTrimming="CharacterEllipsis" FontSize="10" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                        <TextBlock x:Name="OperatorStatusText" Text="Aguardando monitor do operador"
+                                   TextWrapping="Wrap" FontSize="10" Margin="0,3,0,0"
+                                   Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
                     </StackPanel>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl x:Name="SidebarOutputsList" Margin="0,0,2,0">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><StackPanel Orientation="Vertical" /></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                              Content="{Binding ShortLabel}"
-                                              ToolTip="{Binding Label}"
-                                              Margin="0,0,0,8" Padding="8,6"
-                                              Style="{StaticResource OutputChipStyle}" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    <Button Grid.Row="2" Content="Identificar telas" Margin="0,12,0,8"
-                            Style="{StaticResource CompactTransportButtonStyle}"
-                            Click="IdentifyButton_OnClick" />
-                    <Button Grid.Row="3" Content="Configurar monitores"
-                            Style="{StaticResource CompactTransportButtonStyle}"
-                            Click="HeaderMonitorsButton_OnClick" />
+                    <Grid Grid.Row="1" Margin="0,0,0,7">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="SAÍDAS PÚBLICAS" FontWeight="SemiBold" FontSize="11" />
+                        <TextBlock x:Name="OutputSelectedCountText" Grid.Column="1"
+                                   Text="0 selecionadas" FontSize="10"
+                                   Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                    </Grid>
+                    <Border Grid.Row="2" CornerRadius="7" BorderThickness="1"
+                            BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
+                            Background="{DynamicResource GuiaPlayControlSurfaceBrush}" Padding="5">
+                        <Grid>
+                            <ItemsControl x:Name="SidebarOutputsList" Margin="0,0,2,0"
+                                          VerticalAlignment="Top">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Vertical" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                  Content="{Binding ShortLabel}"
+                                                  ToolTip="{Binding Label}"
+                                                  AutomationProperties.Name="{Binding ShortLabel}"
+                                                  Margin="0,0,0,7" Padding="7,6"
+                                                  Style="{StaticResource OutputChipStyle}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock x:Name="NoPublicMonitorsText"
+                                       Text="Nenhuma tela pública disponível. Conecte outro monitor."
+                                       TextWrapping="Wrap" TextAlignment="Center" Margin="8"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsHitTestVisible="False"
+                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Row="3" Margin="0,8,0,9">
+                        <TextBlock Text="EM EXIBIÇÃO AGORA" FontWeight="SemiBold" FontSize="10" />
+                        <TextBlock x:Name="ActiveOutputsText" Text="Nenhuma"
+                                   TextWrapping="Wrap" Margin="0,4,0,3" FontSize="11"
+                                   Foreground="{DynamicResource GuiaPlayAccentBrush}" />
+                        <TextBlock x:Name="MonitorWarning" TextWrapping="Wrap" FontSize="10"
+                                   Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                    </StackPanel>
+                    <Border Grid.Row="4" CornerRadius="7" BorderThickness="1" Padding="9"
+                            BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
+                            Background="{DynamicResource GuiaPlayControlSurfaceBrush}">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="SAÍDA DE ÁUDIO" FontSize="11" FontWeight="SemiBold" />
+                                <TextBlock x:Name="AudioAvailabilityText" Grid.Column="1"
+                                           Text="Verificando" FontSize="10"
+                                           Foreground="{DynamicResource GuiaPlayAccentBrush}" />
+                            </Grid>
+                            <TextBlock x:Name="AudioDeviceNameText" Text="Padrão do Windows"
+                                       FontSize="12" FontWeight="Medium"
+                                       TextWrapping="Wrap" Margin="0,6,0,0" />
+                            <TextBlock x:Name="AudioWarningText" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                       FontSize="10" Margin="0,4,0,7" />
+                            <Button Content="Selecionar dispositivo de áudio…"
+                                    Style="{StaticResource CompactTransportButtonStyle}"
+                                    ToolTip="Abrir configurações de áudio; a rota não muda durante a reprodução"
+                                    AutomationProperties.Name="Selecionar saída de áudio"
+                                    Click="ChangeAudioOutputButton_OnClick" />
+                            <Grid Margin="0,9,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Volume" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=VolumeText}"
+                                           FontSize="11" VerticalAlignment="Center" />
+                            </Grid>
+                            <Slider Minimum="0" Maximum="100" Margin="0,4,0,4"
+                                    Value="{Binding Value, ElementName=VolumeSlider, Mode=TwoWay}"
+                                    ToolTip="Volume sincronizado com os controles inferiores" />
+                            <Button Content="{Binding Text, ElementName=MuteButtonText}"
+                                    Style="{StaticResource CompactTransportButtonStyle}"
+                                    ToolTip="Ativar ou desativar áudio"
+                                    Click="MuteButton_OnClick" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Grid.Row="5" Margin="0,9,0,0">
+                        <Button Content="Identificar telas" Margin="0,0,0,5"
+                                Style="{StaticResource CompactTransportButtonStyle}"
+                                Click="IdentifyButton_OnClick" />
+                        <Button Content="Configurar monitores"
+                                Style="{StaticResource CompactTransportButtonStyle}"
+                                Click="HeaderMonitorsButton_OnClick" />
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>
@@ -808,10 +972,7 @@
                     </ScrollViewer>
                     <Button x:Name="IdentifyButton" Grid.Column="3" Content="Identificar telas" Style="{StaticResource CompactTransportButtonStyle}" Click="IdentifyButton_OnClick" />
                 </Grid>
-                <TextBlock x:Name="OperatorStatusText" Visibility="Collapsed" />
-                <TextBlock x:Name="MonitorWarning" Visibility="Collapsed" />
-                <TextBlock x:Name="AudioWarningText" Visibility="Collapsed" />
-                <TextBlock x:Name="ActiveOutputsText" Visibility="Collapsed" />
+
             </Grid>
         </Border>
     </Grid>
