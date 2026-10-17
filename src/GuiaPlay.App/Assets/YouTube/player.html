@@ -75,7 +75,9 @@
         playerVars: {
           controls: 1,
           playsinline: 1,
-          autoplay: autoplayRequested ? 1 : 0,
+          // Secondary screens must be muted before any start command.
+          // They start only after onReady() first calls mute().
+          autoplay: autoplayRequested && !initiallyMuted ? 1 : 0,
           origin: location.origin
           // Preserve the actual player and comply with browser autoplay policy.
         },
