@@ -1,32 +1,74 @@
-# GP-YT-04 — YouTube em múltiplas telas públicas
+# GP-YT05 — Início do espelhamento seguro do YouTube
 
-Implementação experimental, branch `feat/gp-interface-3-modelo1`. Não publicar na versão estável sem testar em Windows com 2, 3 e 4 monitores físicos.
+Data: 17/10/2026. Branch: `feat/gp-interface-3-modelo1`.
+Status: **etapa 1: detecção + pré-validação sem escrita, autoplay com fallback**.
 
-## Fluxo
+## Problema confirmado nos testes reais
+O operador consegue reproduzir YouTube em uma ou duas telas públicas, mas
+players independentes do WebView2 ficam fora de sincronia (buffering, anúncios,
+latência). Além disso, a política de autoplay do navegador pode impedir o
+início automático com som.
 
-- Adicionar um link **somente cadastra**, sem iniciar reprodução.
-- Selecionar 1 ou mais telas públicas e clicar em **Reproduzir** (ou dar dois cliques no vídeo).
-- É criado **um player oficial do YouTube por monitor físico selecionado**, cada janela preenchendo sua tela pública.
-- A primeira tela marcada é o player primário de referência e tem áudio conforme volume/mute do GuiaPlay. Os outros players são silenciados, evitando eco.
-- Play, pause, seek e stop são transmitidos a todas as saídas. Verificação de posição a cada 2 s com correção quando diferença >= 1,8 s e duração disponível. **Não é sincronização de quadros**.
-- O YouTube recebe uma tentativa de autoplay somente depois do clique Reproduzir do GuiaPlay. O navegador ou YouTube podem bloquear reprodução com som; o evento `onAutoplayBlocked` precisa ser exibido, nunca ocultado.
-- Nenhum player é oculto ou duplicado na tela do operador. Não se captura, extrai nem retransmite áudio/vídeo, anúncios ou quadros do YouTube.
-- Um único player com autoplay por tela física, conforme regras do YouTube.
+## Nova direção
+- **Vídeos locais:** não alterar LibVLC, pipeline de quadros, quantidade de
+  saídas nem transporte do operador.
+- **YouTube:** um único player oficial visível em uma tela lógica, reproduzido
+  por dois ou mais dispositivos físicos **quando o Windows já estiver em
+  modo de duplicação das saídas públicas**.
+- O painel do operador permanece estendido/independente.
+- Não capturar nem retransmitir os quadros do YouTube.
+- Não usar `SetDisplayConfig(SDC_APPLY)` antes de passar pelos testes de
+  topologia, restauração e recuperação de falhas no hardware real.
 
-## Limitações explícitas
+## Implementado nesta etapa
+1. `MonitorService.GetActiveCloneGroups()`: usa apenas
+   `QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)` e identificadores de origem/
+   destino para descobrir grupos já duplicados. Um grupo tem uma tela
+   lógica (GDI) e mais de um destino físico.
+2. `MonitorService.ValidateProposedPublicClone(...)`: cria uma cópia da
+   topologia atual e chama **somente** `SetDisplayConfig(SDC_VALIDATE |
+   SDC_USE_SUPPLIED_DISPLAY_CONFIG | SDC_ALLOW_CHANGES)`. Avalia a clonagem
+   das saídas selecionadas mantendo a origem do operador separada;
+   validação não muda monitores nem comprova recuperação pós-crash.
+   Recusa fontes não identificáveis e adaptadores públicos distintos.
+3. Botão **Espelhar** na seção Saída de vídeo: consulta duplicações já
+   ativas; se duas ou mais saídas públicas estiverem selecionadas, exibe
+   resultado da pré-validação. Permite abrir `ms-settings:display` para
+   configuração manual do Windows. **Não altera a topologia sozinho.**
+4. Com duplicação já configurada, o GuiaPlay reconhece quantas telas
+   físicas compartilham a origem e mantém **um player YouTube oficial**
+   para cada tela lógica escolhida, sem duplicar players para os
+   dispositivos físicos espelhados.
+5. Autoplay após o comando Reproduzir: tenta iniciar com som. Se
+   `onAutoplayBlocked` ocorrer, faz **uma única** nova tentativa sem som,
+   mantendo mensagem no painel. Se o navegador bloquear também a
+   tentativa silenciosa, exige clique direto no player. Sem browser flags
+   de bypass nem promessas de áudio automático garantido.
 
-- A API do YouTube não fornece uma fonte única de quadros para o app distribuir como o LibVLC. Players independentes podem sofrer buffering, diferenças de tempo, propagandas diferentes e bloqueios de autoplay/embedding.
-- A correção periódica é **best-effort**, não substitui vídeo com sincronização de frame. Reproduzir o mesmo YouTube em 4 players também gera 4 downloads e aumenta uso de CPU/RAM/rede.
-- Para múltiplos monitores mostrando **exatamente os mesmos quadros**, a alternativa é duplicar uma saída no Windows ou usar um divisor/distribuidor de vídeo externo (HDMI/DP), com só um player real.
-- Se uma tela pública ativa se desconectar ou uma das janelas for fechada, a sessão conjunta é encerrada por segurança.
+## Importante: o que AINDA NÃO está implementado
+- Trocar automaticamente a topologia do Windows e depois restaurá-la.
+- Recuperar topologia original depois de queda do aplicativo, troca de
+  cabos, resolução ou perda do monitor do operador.
+- Garantir autoplay com áudio ou sincronizar players independentes.
+- Migração para a versão estável ou instalador de produção.
 
-## Gate físico de validação
+## Testes físicos obrigatórios
+1. Na versão Debug, marcar os projetores 2 e 3 e clicar **Espelhar**.
+   Anotar a mensagem de pré-validação; confirmar que não mudou nada.
+2. Se a pré-validação for adequada, abrir Configurações do Windows e
+   configurar MANUALMENTE duplicação entre as telas 2 e 3; manter o
+   operador independente. A identificação numérica pode mudar.
+3. Voltar ao GuiaPlay, reconfigurar o operador se necessário, selecionar
+   a única tela lógica do grupo duplicado e reproduzir YouTube.
+   Confirmar mesmas imagens nos dois projetores, um único player.
+4. Testar Play/Pause/Stop e autoplay; se ficar sem áudio, capturar
+   mensagens `GP-YT05` no log e verificar se clique manual no player
+   permite desmutar. Não tentar forçar restrições do navegador.
+5. Verificar vídeos locais MP4 em todas as saídas depois de restaurar o
+   modo estendido normal e verificar licenciamento intacto.
 
-1. Conferir `dotnet build`, `dotnet test` Debug/Release e publish smoke x64/x86.
-2. Com um monitor público: verificar que a reprodução anterior continua funcionando.
-3. Com 2, 3 e 4 saídas selecionadas (operador separado): conferir uma janela oficial em cada saída, nenhuma flutuante no operador.
-4. Testar autoplay com som (pode ser bloqueado), mensagens de erro por tela, pausa/continuar, seek e parar todas as saídas.
-5. Testar comportamento com bloqueio por idade, vídeo privado, anúncios, buffering lento, monitor desconectado e nova seleção de tela durante reprodução.
-6. Testar ao menos 20 minutos: estabilidade, áudio apenas na tela primária, posicionamento dos monitores, logs sem falhas críticas.
-
-**Não afirmar sincronismo perfeito nem autoplay garantido.** Os testes automatizados de compilação não comprovam reprodução real do YouTube.
+**Próximo gate:** apenas após obter o resultado da pré-validação e
+confirmar o hardware permitir duplicação seletiva, estudar a troca
+automática com snapshot durável, confirmação humana, timeout de
+restauração e rollback após crash. Não usar `SDC_TOPOLOGY_CLONE`
+global, pois isso pode duplicar também a tela do operador.
