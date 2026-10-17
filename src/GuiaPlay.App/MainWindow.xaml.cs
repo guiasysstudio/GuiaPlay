@@ -847,7 +847,7 @@ public partial class MainWindow : Window
         FolderImportStatusText.Visibility = Visibility.Visible;
         FolderImportStatusText.Text = "Lendo pasta e subpastas…";
         StatusText.Text = "Procurando vídeos e músicas na pasta selecionada…";
-        SetControlsBusy(true);
+        // Folder inspection runs in the background; do not disable live transport controls.
 
         try
         {
@@ -947,7 +947,7 @@ public partial class MainWindow : Window
             _folderImportActive = false;
             _folderImportCancellation = null;
             CancelFolderImportButton.Visibility = Visibility.Collapsed;
-            SetControlsBusy(false);
+            // Playback and monitor controls remain usable during folder inspection.
         }
     }
 
