@@ -2962,8 +2962,17 @@ public partial class MainWindow : Window
             return false;
         }
 
-        var duration = _engine.Length;
+        var duration = _youtubeWindow is null
+            ? _engine.Length : _youtubeSnapshot?.DurationMilliseconds ?? 0;
         var target = Math.Clamp(targetMilliseconds, 0, duration);
+        if (_youtubeWindow is { } youtube)
+        {
+            youtube.Command("seek", target / 1000d);
+            ProgressSlider.Maximum = Math.Max(1, duration);
+            ProgressSlider.Value = target;
+            UpdateTimeLabels(target, duration);
+            return true;
+        }
         ProgressSlider.Maximum = Math.Max(1, duration);
         ProgressSlider.Value = target;
         _engine.Seek(target);
