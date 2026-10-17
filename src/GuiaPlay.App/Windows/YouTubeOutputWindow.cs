@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using GuiaPlay.App.Models;
 using GuiaPlay.App.Services;
 using GuiaPlay.Core;
@@ -36,10 +37,22 @@ internal sealed class YouTubeOutputWindow : Window
     private long _elapsed;
     private long _duration;
     private int? _error;
+    private readonly DispatcherTimer _startupTimer = new() { Interval = TimeSpan.FromSeconds(25) };
 
     public YouTubeOutputWindow(MonitorInfo monitor)
     {
         Monitor = monitor;
+        _startupTimer.Tick += (_, _) =>
+        {
+            _startupTimer.Stop();
+            if (!_closed && !_ready)
+            {
+                _state = "ERRO";
+                StateChanged?.Invoke(this, new YouTubePlaybackSnapshot(
+                    _state, false, 0, 0, null,
+                    "O YouTube não respondeu dentro do prazo. Verifique a conexão e o player público."));
+            }
+        };
         Title = "GuiaPlay — YouTube (player oficial)";
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
@@ -59,6 +72,7 @@ internal sealed class YouTubeOutputWindow : Window
         Closed += (_, _) =>
         {
             _closed = true;
+            _startupTimer.Stop();
             if (_browser.CoreWebView2 is { } core)
             {
                 core.WebMessageReceived -= Browser_WebMessageReceived;
@@ -155,6 +169,7 @@ internal sealed class YouTubeOutputWindow : Window
             }
         };
         core.WebMessageReceived += Browser_WebMessageReceived;
+        _startupTimer.Start();
         core.Navigate(HostOrigin + "/player.html?videoId=" +
             Uri.EscapeDataString(video.VideoId));
     }
@@ -210,6 +225,7 @@ internal sealed class YouTubeOutputWindow : Window
             {
                 case "ready":
                     _ready = true;
+                    _startupTimer.Stop();
                     _state = "PRONTO";
                     break;
                 case "position":
@@ -250,6 +266,7 @@ internal sealed class YouTubeOutputWindow : Window
                     message = "O YouTube bloqueou o início por comando; clique em Reproduzir diretamente no player público.";
                     break;
                 case "error":
+                    _startupTimer.Stop();
                     _state = "ERRO";
                     if (root.TryGetProperty("code", out var error) &&
                         error.ValueKind == JsonValueKind.Number && error.TryGetInt32(out var err))
