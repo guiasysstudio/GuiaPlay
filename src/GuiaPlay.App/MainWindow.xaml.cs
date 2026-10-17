@@ -3804,6 +3804,17 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_youtubeWindow is { } youtube)
+        {
+            var current = _youtubeSnapshot?.State ?? "CARREGANDO";
+            PlayButton.IsEnabled = youtube.Ready && current is not "ERRO" and not "REPRODUZINDO";
+            PauseButton.IsEnabled = youtube.Ready && current == "REPRODUZINDO";
+            StopButton.IsEnabled = true;
+            PlayButtonText.Text = current == "PAUSADO" ? "Continuar" : "Reproduzir";
+            RefreshPlaylistTransport();
+            return;
+        }
+
         var status = _coordinator.Status;
         var mayStart = status is PlaybackStatus.Ready or PlaybackStatus.Stopped or PlaybackStatus.Ended or PlaybackStatus.Error or PlaybackStatus.Paused;
         PlayButton.IsEnabled = mayStart && _coordinator.CanPlay(SelectedOutputCount());
