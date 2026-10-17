@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     private readonly PlaylistCatalog _playlistCatalog;
     private readonly Dictionary<string, OutputWindow> _outputWindows = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<IdentifierWindow> _identifierWindows = [];
+    private OperatorPreviewWindow? _fullscreenPreviewWindow;
     private readonly DispatcherTimer _monitorTimer;
     private readonly DispatcherTimer _settingsSaveTimer;
     private readonly ReconnectAuthorization _reconnectAuthorization = new();
@@ -1748,6 +1749,39 @@ public partial class MainWindow : Window
         await LoadMediaAsync(item.Item.OriginalPath, playImmediately: false, playlistItemId: target);
     }
 
+    private void FullscreenPreviewButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_fullscreenPreviewWindow is { } alreadyOpen)
+        {
+            alreadyOpen.Close();
+            return;
+        }
+
+        if (!_licensingAllowsAccess || _controlsBusy ||
+            _operatorMonitor is not { } operatorMonitor || _operatorRequiresConfiguration)
+        {
+            StatusText.Text = "Configure a tela do operador antes de abrir a prévia em tela cheia.";
+            return;
+        }
+
+        var window = new OperatorPreviewWindow(operatorMonitor, PreviewImage) { Owner = this };
+        _fullscreenPreviewWindow = window;
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_fullscreenPreviewWindow, window))
+            {
+                _fullscreenPreviewWindow = null;
+            }
+
+            if (!_isClosing)
+            {
+                _ = Activate();
+            }
+        };
+        window.Show();
+        StatusText.Text = "Prévia ampliada no monitor do operador. Esc ou F11 retorna à mesa de controle.";
+    }
+
     private void BackFiveButton_OnClick(object sender, RoutedEventArgs e) =>
         SeekRelative(-5_000);
 
@@ -1803,6 +1837,8 @@ public partial class MainWindow : Window
         };
         var eligible = _licensingAllowsAccess && !_controlsBusy &&
                        !_automaticAdvanceInProgress;
+        FullscreenPreviewButton.IsEnabled = _licensingAllowsAccess && !_controlsBusy &&
+                                           _operatorMonitor is not null && !_operatorRequiresConfiguration;
         var playlist = _playlistCatalog.Snapshot;
         var previous = PlaylistPlaybackNavigation.Previous(playlist, _loadedPlaylistItemId);
         var next = PlaylistPlaybackNavigation.Next(
@@ -3438,6 +3474,8 @@ public partial class MainWindow : Window
         }
 
         _isClosing = true;
+        _fullscreenPreviewWindow?.Close();
+        _fullscreenPreviewWindow = null;
         if (Application.Current is App app)
         {
             if (app.UpdateManager is { } updateManager)
