@@ -1378,6 +1378,7 @@ public partial class MainWindow : Window
     {
         var row = SelectedMediaRow();
         var canMove = row is not null && _licensingAllowsAccess && !_controlsBusy;
+        MediaRemoveSelectedButton.IsEnabled = canMove;
         var items = canMove
             ? _playlistCatalog.Snapshot.Groups.FirstOrDefault(group => group.Id == row!.GroupId)?.Items
             : null;
@@ -1385,6 +1386,9 @@ public partial class MainWindow : Window
         MediaMoveUpButton.IsEnabled = canMove && index > 0;
         MediaMoveDownButton.IsEnabled = canMove && index >= 0 && index < (items?.Count ?? 0) - 1;
     }
+
+    private void RemoveSelectedMediaButton_OnClick(object sender, RoutedEventArgs e) =>
+        RemoveMediaGridRow(SelectedMediaRow());
 
     private void MediaMoveUpButton_OnClick(object sender, RoutedEventArgs e) =>
         MoveMediaGridRow(SelectedMediaRow(), -1);
