@@ -2890,6 +2890,7 @@ public partial class MainWindow : Window
             _engine.Volume = state.Volume;
         }
 
+        _youtubeWindow?.Command("volume", state.Volume);
         if (_settingsInitialized)
         {
             ScheduleSettingsSave();
