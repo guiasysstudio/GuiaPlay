@@ -971,6 +971,28 @@
                                             <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
                                             <Setter Property="Padding" Value="8,7" />
                                             <Setter Property="VerticalContentAlignment" Value="Center" />
+                                            <!-- The Windows DataGrid theme otherwise paints an opaque
+                                                 WHITE highlight over our dark row; explicitly own
+                                                 the cell template so foreground stays readable. -->
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="DataGridCell">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter VerticalAlignment="Center"
+                                                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBrush}"/>
+                                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
                                             <Style.Triggers>
                                                 <Trigger Property="IsSelected" Value="True">
                                                     <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
