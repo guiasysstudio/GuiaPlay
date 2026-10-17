@@ -3964,6 +3964,7 @@ public partial class MainWindow : Window
         _isClosing = true;
         _fullscreenPreviewWindow?.Close();
         _fullscreenPreviewWindow = null;
+        CloseYouTubeWindow();
         if (Application.Current is App app)
         {
             if (app.UpdateManager is { } updateManager)
