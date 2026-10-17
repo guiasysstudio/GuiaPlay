@@ -33,8 +33,8 @@ public sealed class FolderMediaImportTests : IDisposable
         Assert.Equal(["01 - Vídeos", "02 - Louvor"], result.Candidates.Select(item => item.RelativeFolder).ToArray());
         Assert.Equal(MediaKind.Video, result.Candidates[0].Kind);
         Assert.Equal(MediaKind.Audio, result.Candidates[1].Kind);
-        Assert.Equal([1, 2, 3], File.ReadAllBytes(video));
-        Assert.Equal([4, 5], File.ReadAllBytes(song));
+        Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(video));
+        Assert.Equal(new byte[] { 4, 5 }, File.ReadAllBytes(song));
     }
 
     [Fact]
@@ -71,6 +71,31 @@ public sealed class FolderMediaImportTests : IDisposable
         Assert.Equal(0, repeated.Added);
         Assert.Equal(2, repeated.SkippedDuplicates);
         Assert.Equal(0, repeated.GroupsCreated);
+    }
+
+    [Fact]
+    public async Task TwoRootsWithSameNameGetSeparateGroupsAndRemainIdempotent()
+    {
+        var leftRoot = Path.Combine(_root, "A", "Evento");
+        var rightRoot = Path.Combine(_root, "B", "Evento");
+        Directory.CreateDirectory(leftRoot);
+        Directory.CreateDirectory(rightRoot);
+        File.WriteAllText(Path.Combine(leftRoot, "primeira.mp3"), "A");
+        File.WriteAllText(Path.Combine(rightRoot, "segunda.mp3"), "B");
+
+        var left = await FolderMediaScanner.ScanAsync(leftRoot);
+        var right = await FolderMediaScanner.ScanAsync(rightRoot);
+        var withLeft = FolderMediaPlaylistMerge.Merge(PlaylistDocument.Empty, left);
+        var withBoth = FolderMediaPlaylistMerge.Merge(withLeft.Playlist, right);
+
+        Assert.Equal(2, withBoth.Playlist.Groups.Count);
+        Assert.NotEqual(withBoth.Playlist.Groups[0].Name, withBoth.Playlist.Groups[1].Name);
+        Assert.True(PlaylistGroupName.IsValid(withBoth.Playlist.Groups[1].Name));
+        Assert.Equal(2, withBoth.Playlist.Groups.SelectMany(group => group.Items).Count());
+
+        var repeated = FolderMediaPlaylistMerge.Merge(withBoth.Playlist, right);
+        Assert.Equal(0, repeated.Added);
+        Assert.Equal(1, repeated.SkippedDuplicates);
     }
 
     [Fact]
