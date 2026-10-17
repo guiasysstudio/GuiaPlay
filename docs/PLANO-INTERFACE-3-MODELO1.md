@@ -36,7 +36,7 @@ Reconstruir o espaço de trabalho do operador segundo o **Modelo 1 aprovado**: c
 |---|---|---|
 | **GP-I00** | Auditoria e baseline | Branch isolada, contrato visual e funcional, linha de base preservada. |
 | **GP-I01** | Estrutura visual | **Implementação registrada**: cabeçalho funcional, versão, licença, navegação e shell de três colunas; validação local conjunta após GP-I10. |
-| **GP-I02** | Biblioteca lateral | Playlists e pastas, criação/abrir/salvar/excluir com confirmação; estados vazios coerentes. |
+| **GP-I02** | Biblioteca lateral | **Implementação registrada:** presets reais na biblioteca, contadores/estado ativo, Nova/Salvar/Abrir/Excluir, confirmação de alterações, e árvore de grupos virtuais; importação física de pastas permanece no GP-I04. Testes de execução reservados ao GP-I10. |
 | **GP-I03** | Grade profissional de mídias | Colunas nº, miniatura/nome, duração, tipo, resolução, data e menu; busca, seleção, ações e ordenação por arraste/setas, usando a ordem real da playlist. |
 | **GP-I04** | Importação de diretórios | Menu Adicionar: arquivos, pasta e subpastas; seleção/cancelamento, duplicatas, erros, preservação dos originais e persistência. |
 | **GP-I05** | Prévia, programa, telas e áudio | Operador e Programa com o mesmo estado real de reprodução; seleção pública e dispositivo de áudio; nunca autorizar monitor do operador como saída. |
