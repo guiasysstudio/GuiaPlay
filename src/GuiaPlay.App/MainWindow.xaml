@@ -1125,9 +1125,9 @@
                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SnapsToDevicePixels="True">
               <Grid Width="1580" Height="114">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="350"/>
+                    <ColumnDefinition Width="390"/>
                     <ColumnDefinition Width="*" MinWidth="370"/>
-                    <ColumnDefinition Width="412"/>
+                    <ColumnDefinition Width="410"/>
                 </Grid.ColumnDefinitions>
                 <!-- Identity and actual progress of current media. -->
                 <Grid Grid.Column="0" VerticalAlignment="Center">
@@ -1168,18 +1168,19 @@
                         <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="PreviousMediaButton" Click="PreviousMediaButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="PreviousMediaButton" Click="PreviousMediaButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Mídia anterior (F8)">
                                         <Path Data="{StaticResource GPSkipPrevious}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                        <Button Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="BackFiveButton" Click="BackFiveButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="BackFiveButton" Click="BackFiveButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Voltar cinco segundos">
                                         <Path Data="{StaticResource GPBackFive}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                        <Button Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="PlayButton" Click="MainPlayPauseButton_OnClick"
+                        <Button Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="PlayButton" Click="MainPlayPauseButton_OnClick"
                                 Style="{StaticResource GPPlayTransport}" IsEnabled="False"
                                 ToolTip="Reproduzir (F5 / Espaço)" AutomationProperties.Name="Reproduzir ou pausar">
                             <Grid>
@@ -1190,17 +1191,17 @@
                                 <TextBlock x:Name="PlayButtonText" Text="Reproduzir" Visibility="Collapsed"/>
                             </Grid>
                         </Button>
-                        <Button Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Parar reprodução (F7)">
                                         <Path Data="{StaticResource StopIconGeometry}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                        <Button Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="ForwardFiveButton" Click="ForwardFiveButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="5" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="ForwardFiveButton" Click="ForwardFiveButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Avançar cinco segundos">
                                         <Path Data="{StaticResource GPForwardFive}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
-                        <Button Grid.Column="5" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="NextMediaButton" Click="NextMediaButton_OnClick" IsEnabled="False"
+                        <Button Grid.Column="6" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="NextMediaButton" Click="NextMediaButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Próxima mídia (F9)">
                                         <Path Data="{StaticResource GPSkipNext}" Width="24" Height="24"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
