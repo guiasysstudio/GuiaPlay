@@ -249,7 +249,8 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
                 var key = ParseEnum(entry["key"], OperatorShortcutKey.None);
                 var modifiers = ParseEnum(entry["modifiers"], OperatorShortcutModifiers.None);
                 if (action == OperatorShortcutAction.None) continue;
-                customShortcuts.Add(new OperatorShortcutAssignment(action, key, modifiers));
+                var capturedKey = ReadString(entry["capturedKey"]);
+                customShortcuts.Add(new OperatorShortcutAssignment(action, key, modifiers, capturedKey));
             }
         }
         if (!OperatorShortcutPolicy.TryValidateAssignments(customShortcuts, out _))
@@ -287,7 +288,8 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
             {
                 ["action"] = shortcut.Action.ToString(),
                 ["key"] = shortcut.Key.ToString(),
-                ["modifiers"] = shortcut.Modifiers.ToString()
+                ["modifiers"] = shortcut.Modifiers.ToString(),
+                ["capturedKey"] = shortcut.CapturedKey
             });
         }
         _root["shortcuts"] = shortcutArray;
