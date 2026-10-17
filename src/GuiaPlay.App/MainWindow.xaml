@@ -144,8 +144,8 @@
         </Style>
         <Style x:Key="GPRoundTransport" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
             <Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="0"/>
-            <Setter Property="Width" Value="42"/><Setter Property="Height" Value="42"/>
-            <Setter Property="Margin" Value="2,0"/><Setter Property="Padding" Value="9"/>
+            <Setter Property="Width" Value="32"/><Setter Property="Height" Value="32"/>
+            <Setter Property="Margin" Value="1,0"/><Setter Property="Padding" Value="6"/>
             <Setter Property="Background" Value="{DynamicResource GuiaPlayControlSurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource GuiaPlayDividerBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -167,8 +167,8 @@
             </Setter.Value></Setter>
         </Style>
         <Style x:Key="GPPlayTransport" TargetType="Button" BasedOn="{StaticResource GPRoundTransport}">
-            <Setter Property="Height" Value="64"/><Setter Property="Width" Value="64"/>
-            <Setter Property="Padding" Value="12"/><Setter Property="Background">
+            <Setter Property="Height" Value="48"/><Setter Property="Width" Value="48"/>
+            <Setter Property="Padding" Value="8"/><Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                         <GradientStop Color="#FF158FFF" Offset="0"/>
@@ -183,7 +183,7 @@
                     <Border x:Name="Hero" Background="{TemplateBinding Background}" CornerRadius="90"
                             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                             Padding="{TemplateBinding Padding}">
-                        <Border.Effect><DropShadowEffect Color="#FF147FFF" BlurRadius="12" ShadowDepth="0" Opacity="0.66"/></Border.Effect>
+                        <Border.Effect><DropShadowEffect Color="#FF147FFF" BlurRadius="9" ShadowDepth="0" Opacity="0.58"/></Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
