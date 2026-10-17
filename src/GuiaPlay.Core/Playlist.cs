@@ -13,7 +13,8 @@ public sealed record PlaylistGroup(
     Guid Id,
     string Name,
     int Order,
-    IReadOnlyList<PlaylistItem> Items);
+    IReadOnlyList<PlaylistItem> Items,
+    string? SourceDirectory = null);
 
 public sealed record PlaylistDocument(int SchemaVersion, IReadOnlyList<PlaylistGroup> Groups)
 {
@@ -191,6 +192,32 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
     {
         var normalized = NormalizeName(name);
         var group = new PlaylistGroup(Guid.NewGuid(), normalized, _groups.Count, []);
+        _groups.Add(group);
+        MarkChanged();
+        return group;
+    }
+
+    /// <summary>
+    /// References an actual Windows directory without moving or copying it.
+    /// Unlike a virtual group, a linked group remembers its source path.
+    /// </summary>
+    public PlaylistGroup CreateLinkedGroup(string folderPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(folderPath);
+        var fullPath = Path.GetFullPath(folderPath);
+        if (!Directory.Exists(fullPath))
+            throw new DirectoryNotFoundException("A pasta selecionada não existe.");
+        var info = new DirectoryInfo(fullPath);
+        if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
+            throw new IOException("Atalhos, junções e links de diretórios não são aceitos.");
+        var existing = _groups.FirstOrDefault(group =>
+            string.Equals(group.SourceDirectory, fullPath, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+            return existing;
+
+        var baseName = info.Name.Length == 0 ? info.FullName : info.Name;
+        var groupName = baseName.Length <= 80 ? baseName : baseName[..80];
+        var group = new PlaylistGroup(Guid.NewGuid(), groupName, _groups.Count, [], fullPath);
         _groups.Add(group);
         MarkChanged();
         return group;
