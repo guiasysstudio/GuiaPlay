@@ -3851,6 +3851,7 @@ public partial class MainWindow : Window
         if (!snapshot.HasAccess)
         {
             _fullscreenPreviewWindow?.Close();
+            CloseYouTubeWindow();
         }
 
         if (!snapshot.HasAccess && previouslyAllowed && _coordinator.IsActive)
