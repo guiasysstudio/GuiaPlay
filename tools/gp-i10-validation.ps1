@@ -60,11 +60,17 @@ try {
     if (-not $SkipPublish) {
         foreach ($runtime in @('win-x64', 'win-x86')) {
             $output = Join-Path $target $runtime
-            Run-Checked "Restaurar pacote $runtime" @('restore', $app, '--runtime', $runtime)
+            # Directory.Build.props defaults both RuntimeIdentifier and PlatformTarget
+            # to x64. Explicitly override BOTH to avoid labeling an x64 executable x86.
+            $architecture = if ($runtime -eq 'win-x86') { 'x86' } else { 'x64' }
+            Run-Checked "Restaurar pacote $runtime" @(
+                'restore', $app, '--runtime', $runtime,
+                "-p:PlatformTarget=$architecture")
             Run-Checked "Publicar pasta de testes $runtime" @(
                 'publish', $app, '--configuration', 'Release', '--runtime', $runtime,
                 '--self-contained', 'false', '--no-restore',
                 '--output', $output,
+                "-p:PlatformTarget=$architecture",
                 '-p:PublishSingleFile=false')
             if (-not (Test-Path (Join-Path $output 'GuiaPlay.exe'))) {
                 throw "Binário GuiaPlay.exe não encontrado no pacote $runtime."
