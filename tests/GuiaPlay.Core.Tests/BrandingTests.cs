@@ -472,6 +472,59 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void GP_I16_PlaylistAndFolderActionsAreContextualAndSafe()
+    {
+        var xaml = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+        var document = XDocument.Parse(xaml);
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        var list = document.Descendants().Single(node =>
+            (string?)node.Attribute(x + "Name") == "SavedPlaylistsList");
+        var tree = document.Descendants().Single(node =>
+            (string?)node.Attribute(x + "Name") == "PlaylistTree");
+
+        Assert.Equal("SavedPlaylistsList_OnPreviewMouseRightButtonDown",
+            (string?)list.Attribute("PreviewMouseRightButtonDown"));
+        Assert.Equal("PlaylistTree_OnPreviewMouseRightButtonDown",
+            (string?)tree.Attribute("PreviewMouseRightButtonDown"));
+        Assert.DoesNotContain("Content=\"Nova pasta / grupo\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Content=\"+\" ToolTip=\"Criar nova playlist vazia\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("MenuItem { Header = \"Salvar playlist de trabalho…\" }", code, StringComparison.Ordinal);
+        Assert.Contains("MenuItem { Header = \"Excluir pasta / grupo…\" }", code, StringComparison.Ordinal);
+        Assert.Contains("MenuItem { Header = \"Remover mídia do grupo…\" }", code, StringComparison.Ordinal);
+        Assert.Contains("Mídia removida da playlist; arquivo original preservado.", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GP_I16_BothVideoSurfacesUseUnstretched16By9AndFooterIsNotClipped()
+    {
+        var xaml = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var document = XDocument.Parse(xaml);
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        foreach (var name in new[] { "PreviewImage", "ProgramImage" })
+        {
+            var image = document.Descendants().Single(node => (string?)node.Attribute(x + "Name") == name);
+            var frame = image.Parent;
+            Assert.NotNull(frame);
+            Assert.Equal("Grid", frame!.Name.LocalName);
+            Assert.Equal("1600", (string?)frame.Attribute("Width"));
+            Assert.Equal("900", (string?)frame.Attribute("Height"));
+            Assert.Equal("Viewbox", frame.Parent!.Name.LocalName);
+            Assert.Equal("Uniform", (string?)frame.Parent.Attribute("Stretch"));
+        }
+
+        var previewTimeline = document.Descendants().Single(node =>
+            (string?)node.Attribute(x + "Name") == "PreviewProgressSlider");
+        Assert.Equal("Collapsed", (string?)previewTimeline.Parent!.Attribute("Visibility"));
+
+        Assert.Contains("Grid Width=\"1580\" Height=\"114\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("MinHeight=\"136\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("GPAddMediaButtonStyle", xaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GP_I15_OfficialSvgContoursArePreservedAsWpfDrawingResources()
     {
         var xaml = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
