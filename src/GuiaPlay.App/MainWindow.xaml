@@ -144,8 +144,8 @@
         </Style>
         <Style x:Key="GPRoundTransport" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
             <Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="0"/>
-            <Setter Property="Width" Value="32"/><Setter Property="Height" Value="32"/>
-            <Setter Property="Margin" Value="1,0"/><Setter Property="Padding" Value="6"/>
+            <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="1,0"/><Setter Property="Padding" Value="4"/>
             <Setter Property="Background" Value="{DynamicResource GuiaPlayControlSurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource GuiaPlayDividerBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -167,8 +167,8 @@
             </Setter.Value></Setter>
         </Style>
         <Style x:Key="GPPlayTransport" TargetType="Button" BasedOn="{StaticResource GPRoundTransport}">
-            <Setter Property="Height" Value="48"/><Setter Property="Width" Value="48"/>
-            <Setter Property="Padding" Value="8"/><Setter Property="Background">
+            <Setter Property="Height" Value="36"/><Setter Property="Width" Value="36"/>
+            <Setter Property="Padding" Value="5"/><Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                         <GradientStop Color="#FF158FFF" Offset="0"/>
@@ -183,7 +183,7 @@
                     <Border x:Name="Hero" Background="{TemplateBinding Background}" CornerRadius="90"
                             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                             Padding="{TemplateBinding Padding}">
-                        <Border.Effect><DropShadowEffect Color="#FF147FFF" BlurRadius="9" ShadowDepth="0" Opacity="0.58"/></Border.Effect>
+                        <Border.Effect><DropShadowEffect Color="#FF147FFF" BlurRadius="4" ShadowDepth="0" Opacity="0.50"/></Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -1125,14 +1125,21 @@
             </StackPanel>
         </Border>
 
-        <!-- GP-I20: full-width seek on top, compact transport and media title below. -->
+        <!-- GP-I21: transparent, isolated timeline row prevents the thumb from clipping or covering playback buttons. -->
         <Border x:Name="OperationalControlPanel" Grid.Row="2"
                 Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
                 BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="0,1,0,0"
                 Margin="0,5,0,0" Padding="8,4,8,4" Height="80" MinHeight="0">
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="22"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <Grid Grid.Row="0" Margin="4,0,4,0" VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="34"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <!-- Dedicated invisible seek card: its own 34-DIP row, internal 3-DIP
+                     safety padding for the full circular WPF slider thumb. -->
+                <Border Grid.Row="0" Background="Transparent" Padding="5,3,5,3"
+                        ClipToBounds="False" SnapsToDevicePixels="True">
+                    <Grid VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="57"/>
                         <ColumnDefinition Width="*"/>
@@ -1142,7 +1149,7 @@
                                FontSize="11" VerticalAlignment="Center"
                                Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
                     <Slider x:Name="ProgressSlider" Grid.Column="1"
-                            Minimum="0" Maximum="1" Value="0" Height="19"
+                            Minimum="0" Maximum="1" Value="0" Height="24"
                             Margin="4,0,6,0" VerticalAlignment="Center"
                             Foreground="{DynamicResource GuiaPlayAccentBrush}"
                             ToolTip="Arraste para avançar ou voltar na reprodução"
@@ -1154,8 +1161,12 @@
                     <TextBlock x:Name="RemainingText" Grid.Column="2" Text="00:00"
                                FontSize="11" TextAlignment="Right" VerticalAlignment="Center"
                                Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
-                </Grid>
-                <Grid Grid.Row="1" VerticalAlignment="Center">
+                    </Grid>
+                </Border>
+                <!-- Dedicated transport card: row does not share any layout
+                     columns or hit-testing region with the seek slider. -->
+                <Border Grid.Row="1" Background="Transparent" ClipToBounds="False">
+                    <Grid VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="0.90*" MinWidth="230"/>
                     <ColumnDefinition Width="1.55*" MinWidth="365"/>
@@ -1164,7 +1175,7 @@
                 <!-- Media identity stays below the seek bar. -->
                 <Grid Grid.Column="0" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="43"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Width="36" Height="36" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                    <Border Width="32" Height="32" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
                             CornerRadius="7" BorderThickness="1" ClipToBounds="True"
                             BorderBrush="{DynamicResource GuiaPlayDividerBrush}" VerticalAlignment="Center">
                         <Grid>
@@ -1277,7 +1288,7 @@
                               Stretch="Uniform" Fill="{DynamicResource GuiaPlayTextPrimaryBrush}"/>
                     </Button>
                     <!-- Secondary cover art in the reference always mirrors the loaded media. -->
-                    <Border Width="34" Height="44" Margin="6,0,0,0" CornerRadius="5"
+                    <Border Width="28" Height="32" Margin="6,0,0,0" CornerRadius="5"
                             BorderThickness="1" BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
                             Background="{DynamicResource GuiaPlayControlSurfaceBrush}" ClipToBounds="True"
                             VerticalAlignment="Center">
@@ -1322,7 +1333,8 @@
                     <TextBlock x:Name="NextPlaylistItemText" Text="Próxima: nenhuma"/>
                     <TextBlock x:Name="StatusText" Text="Pronto"/>
                 </StackPanel>
-                </Grid>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
     </Grid>
