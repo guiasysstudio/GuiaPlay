@@ -654,19 +654,38 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="WorkingPlaylistSummaryText" Text="0 grupos · 0 mídias"
-                                       VerticalAlignment="Center" FontSize="10" TextTrimming="CharacterEllipsis"
-                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
-                            <Button Grid.Column="1" Click="AddPlaylistItemButton_OnClick"
-                                    Style="{StaticResource CompactTransportButtonStyle}"
-                                    ToolTip="Adicionar vídeos e áudios ao grupo selecionado" Margin="3,0">
-                                <Path Data="{StaticResource DocumentAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="WorkingPlaylistSummaryText" Text="0 grupos · 0 mídias"
+                                           FontSize="10" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                                <TextBlock x:Name="FolderImportStatusText" Text="Importação de pasta não iniciada"
+                                           FontSize="10" TextTrimming="CharacterEllipsis" Visibility="Collapsed"
+                                           Foreground="{DynamicResource GuiaPlayAccentBrush}" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Click="AddMediaMenuButton_OnClick"
+                                    x:Name="AddMediaMenuButton"
+                                    Style="{StaticResource CompactPrimaryButtonStyle}"
+                                    ToolTip="Adicionar arquivos ou importar uma pasta inteira"
+                                    AutomationProperties.Name="Adicionar mídias ou pasta"
+                                    Margin="3,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource DocumentAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" />
+                                    <TextBlock Text="Adicionar ▾" VerticalAlignment="Center" />
+                                </StackPanel>
                             </Button>
-                            <Button Grid.Column="2" Click="RemovePlaylistItemButton_OnClick"
-                                    Style="{StaticResource CompactTransportButtonStyle}"
-                                    ToolTip="Remover referência à mídia, sem apagar o arquivo" Margin="3,0,0,0">
-                                <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
-                            </Button>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="CancelFolderImportButton" Visibility="Collapsed"
+                                        Content="Cancelar"
+                                        Margin="3,0,4,0"
+                                        Style="{StaticResource CompactTransportButtonStyle}"
+                                        ToolTip="Cancelar leitura de pasta antes de salvar na playlist"
+                                        Click="CancelFolderImportButton_OnClick" />
+                                <Button Click="RemovePlaylistItemButton_OnClick"
+                                        Style="{StaticResource CompactTransportButtonStyle}"
+                                        ToolTip="Remover referência à mídia, sem apagar o arquivo" Margin="3,0,0,0">
+                                    <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                                </Button>
+                            </StackPanel>
                         </Grid>
                     </Grid>
                 </Border>
