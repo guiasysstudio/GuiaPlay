@@ -2140,6 +2140,12 @@ public partial class MainWindow : Window
             _shufflePlayedItems.Clear();
         }
 
+        if (item.Item.Kind == MediaKind.YouTube)
+        {
+            StatusText.Text = "Sequência pausada: YouTube precisa de abertura explícita na saída pública.";
+            return false;
+        }
+
         _automaticAdvanceInProgress = true;
         try
         {
