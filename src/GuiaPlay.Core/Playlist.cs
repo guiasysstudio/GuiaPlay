@@ -133,6 +133,18 @@ public sealed class PlaylistStore(string filePath)
                     stream.Flush(flushToDisk: true);
                 }
 
+                // First write after adopting schema v2 retains the original v1
+                // document for recovery if the user runs an older GuiaPlay.
+                if (File.Exists(_filePath) && !File.Exists(_filePath + ".pre-youtube-v1.bak"))
+                {
+                    using var existing = JsonDocument.Parse(File.ReadAllText(_filePath));
+                    if (existing.RootElement.TryGetProperty("schemaVersion", out var schema) &&
+                        schema.TryGetInt32(out var version) && version <= 1)
+                    {
+                        File.Copy(_filePath, _filePath + ".pre-youtube-v1.bak");
+                    }
+                }
+
                 File.Move(temporaryPath, _filePath, overwrite: true);
                 return PlaylistSaveResult.Success;
             }
