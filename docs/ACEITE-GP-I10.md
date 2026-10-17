@@ -17,10 +17,16 @@ A partir da raiz clonada da branch de desenvolvimento:
 git fetch origin
 git switch feat/gp-interface-3-modelo1
 git pull --ff-only origin feat/gp-interface-3-modelo1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gp-i10-validation.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gp-i10-validation.ps1 -BuildLocalInstallers
 ```
 
-O script compila/testa Debug e Release, publica **somente pastas de smoke** para `win-x64` e `win-x86` e verifica o executável e o HTML do player. Logs são gravados em `artifacts/gp-i10-validation/validation-transcript.txt`. `dotnet publish` **não instala** nem publica um Release. Caso qualquer comando falhe, registrar mensagem completa do terminal sem mascarar o código de saída e interromper o gate.
+O script compila/testa Debug e Release, prepara **pastas de smoke** para `win-x64` e `win-x86`, verifica os recursos do player e, com `-BuildLocalInstallers`, **gera dois instaladores locais de TESTE** usando Inno Setup 6. Logs em `artifacts/gp-i10-validation/validation-transcript.txt`. Instaladores em `artifacts/gp-i10-local-installers/`, com SHA-256. **Não há upload, tag, merge, Release nem publicação.** Se algum comando falhar, interromper o gate.
+
+**Correção GP-I11 — PowerShell:** em Windows PowerShell 5.1, arquivos UTF-8 sem BOM com acentos e aspas não ASCII podem ser interpretados como ANSI, produzindo `TerminatorExpectedAtEndOfString`. Os scripts GP-I10 foram reescritos em ASCII e tiveram sua análise sintática aprovada pelo próprio Windows PowerShell 5.1 no CI.
+
+**Segurança do instalador de teste:** o instalador experimental usa AppId e diretório próprios para cada arquitetura, não substitui o GuiaPlay estável nem registra associações de arquivo. Antes de gerar o instalador, o script faz backup privado de `%LOCALAPPDATA%\GuiaSys\GuiaPlay` quando presente. A aplicação de teste, porém, ainda utiliza o mesmo perfil de dados e o mecanismo de instância única: feche completamente o GuiaPlay estável antes do teste e nunca execute as duas versões ao mesmo tempo. Inno Setup 6 (`ISCC.exe`) é obrigatório apenas para gerar o instalador.
+
+**Importante:** **não** executar `scripts/build-release.ps1` nesta etapa, pois ele exclui `artifacts/` e gera artefatos identificados com a versão estável 1.0.3. Também **não** executar `scripts/publish-release.ps1`.
 
 ## 2. Cenários essenciais — operador / interface
 
