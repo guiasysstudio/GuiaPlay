@@ -4,7 +4,8 @@ public enum MediaKind
 {
     Unknown,
     Video,
-    Audio
+    Audio,
+    YouTube = 3
 }
 
 public static class MediaTypeDetector
