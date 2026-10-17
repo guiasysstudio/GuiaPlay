@@ -114,8 +114,8 @@ internal static class MediaGridMetadataService
 
                     if (MediaTypeDetector.Detect(path) == GuiaPlay.Core.MediaKind.Video)
                     {
-                        var video = media.Tracks?.FirstOrDefault(track => track.TrackType == TrackType.Video);
-                        if (video is not null && video.Data.Video.Width > 0 && video.Data.Video.Height > 0)
+                        var video = media.Tracks.FirstOrDefault(track => track.TrackType == TrackType.Video);
+                        if (video.Data.Video.Width > 0 && video.Data.Video.Height > 0)
                         {
                             resolution = $"{video.Data.Video.Width} × {video.Data.Video.Height}";
                         }
@@ -184,7 +184,17 @@ internal static class MediaGridMetadataService
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private readonly record struct NativeSize(int Width, int Height);
+    private struct NativeSize
+    {
+        public int Width;
+        public int Height;
+
+        public NativeSize(int width, int height)
+        {
+            Width = width;
+            Height = height;
+        }
+    }
 
     [Flags]
     private enum ShellImageFlags : uint
