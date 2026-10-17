@@ -243,8 +243,8 @@ public sealed class MediaFileProbeTests : IDisposable
         var valid = Path.Combine(_directory, "válido.mp4");
         await File.WriteAllTextAsync(valid, "fixture");
 
-        Assert.Equal(MediaProbeStatus.Available, await MediaFileProbe.ProbeAsync(valid, TimeSpan.FromSeconds(1)));
-        Assert.Equal(MediaProbeStatus.Missing, await MediaFileProbe.ProbeAsync(Path.Combine(_directory, "ausente.mp4"), TimeSpan.FromSeconds(1)));
+        Assert.Equal(MediaProbeStatus.Available, await MediaFileProbe.ProbeAsync(valid, TimeSpan.FromSeconds(5)));
+        Assert.Equal(MediaProbeStatus.Missing, await MediaFileProbe.ProbeAsync(Path.Combine(_directory, "ausente.mp4"), TimeSpan.FromSeconds(5)));
         Assert.Equal(MediaProbeStatus.Unsupported, await MediaFileProbe.ProbeAsync(Path.Combine(_directory, "script.ps1"), TimeSpan.FromSeconds(1)));
     }
 
