@@ -70,6 +70,7 @@ public partial class MainWindow : Window
     private PlaylistPlaybackMode _playbackMode = PlaylistPlaybackMode.Manual;
     private PlaylistRepeatMode _repeatMode = PlaylistRepeatMode.Off;
     private bool _shufflePlayback;
+    private readonly HashSet<Guid> _shufflePlayedItems = [];
     private bool _isClosing;
     private bool _allowClose;
     private long _frameCallbacks;
@@ -117,7 +118,11 @@ public partial class MainWindow : Window
         var settings = app?.Settings ?? AppSettings.Default;
         _playlistWorkspace = new PlaylistWorkspace(app?.Playlist ?? PlaylistDocument.Empty);
         _playlistCatalog = _playlistWorkspace.Catalog;
-        _playlistCatalog.Changed += (_, _) => _playlistRevision++;
+        _playlistCatalog.Changed += (_, _) =>
+        {
+            _playlistRevision++;
+            _shufflePlayedItems.Clear();
+        };
         var presetPathOverride = Environment.GetEnvironmentVariable("GUIAPLAY_PLAYLIST_PRESETS_PATH");
         _playlistPresetStore = new PlaylistPresetStore(
             string.IsNullOrWhiteSpace(presetPathOverride)
@@ -320,6 +325,15 @@ public partial class MainWindow : Window
             _engine.Muted = MuteButton.Tag as bool? ?? false;
             _loadedPlaylistItemId = playlistItemId;
             _loadedPlaylistRevision = _playlistRevision;
+            if (!_automaticAdvanceInProgress)
+            {
+                _shufflePlayedItems.Clear();
+            }
+
+            if (playlistItemId is { } playedId)
+            {
+                _shufflePlayedItems.Add(playedId);
+            }
             _bitmap = null;
             PreviewImage.Source = null;
             ProgramImage.Source = null;
@@ -1665,6 +1679,12 @@ public partial class MainWindow : Window
     private void ShufflePlaylistCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {
         _shufflePlayback = ShufflePlaylistCheckBox.IsChecked == true;
+        _shufflePlayedItems.Clear();
+        if (_loadedPlaylistItemId is { } current)
+        {
+            _shufflePlayedItems.Add(current);
+        }
+
         if (_settingsInitialized)
         {
             RefreshPlaylistTransport();
@@ -1692,7 +1712,8 @@ public partial class MainWindow : Window
             ? PlaylistPlaybackNavigation.Previous(playlist, _loadedPlaylistItemId)
             : PlaylistPlaybackNavigation.Next(
                 playlist, _loadedPlaylistItemId, _playbackMode, _repeatMode,
-                _shufflePlayback, automatic: false, randomCandidateIndex: Random.Shared.Next());
+                _shufflePlayback, automatic: false, randomCandidateIndex: Random.Shared.Next(),
+                playedInShuffleCycle: _shufflePlayedItems);
         if (id is not { } target)
         {
             StatusText.Text = previous
@@ -1772,7 +1793,8 @@ public partial class MainWindow : Window
         var previous = PlaylistPlaybackNavigation.Previous(playlist, _loadedPlaylistItemId);
         var next = PlaylistPlaybackNavigation.Next(
             playlist, _loadedPlaylistItemId, _playbackMode, _repeatMode,
-            _shufflePlayback, automatic: false);
+            _shufflePlayback, automatic: false,
+            playedInShuffleCycle: _shufflePlayedItems);
         PreviousMediaButton.IsEnabled = eligible && previous is not null;
         NextMediaButton.IsEnabled = eligible && next is not null;
         RepeatModeButton.IsEnabled = _licensingAllowsAccess && !_controlsBusy;
@@ -1830,7 +1852,8 @@ public partial class MainWindow : Window
         var playlist = _playlistCatalog.Snapshot;
         var nextId = PlaylistPlaybackNavigation.Next(
             playlist, _loadedPlaylistItemId, _playbackMode, _repeatMode,
-            _shufflePlayback, automatic: true, randomCandidateIndex: Random.Shared.Next());
+            _shufflePlayback, automatic: true, randomCandidateIndex: Random.Shared.Next(),
+            playedInShuffleCycle: _shufflePlayedItems);
         if (nextId is not { } targetId)
         {
             return false;
@@ -1841,6 +1864,14 @@ public partial class MainWindow : Window
         if (item is null)
         {
             return false;
+        }
+
+        // When Repeat All wraps a completed random cycle, start a fresh cycle
+        // before recording the next successful load.
+        if (_shufflePlayback && _repeatMode == PlaylistRepeatMode.All &&
+            _shufflePlayedItems.Contains(targetId) && targetId != _loadedPlaylistItemId)
+        {
+            _shufflePlayedItems.Clear();
         }
 
         _automaticAdvanceInProgress = true;
