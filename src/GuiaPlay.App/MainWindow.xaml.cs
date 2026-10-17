@@ -2942,6 +2942,9 @@ public partial class MainWindow : Window
         SpeakerIcon.Visibility = !silent && value > 80 ? Visibility.Visible : Visibility.Collapsed;
         SpeakerLowIcon.Visibility = !silent && value <= 80 ? Visibility.Visible : Visibility.Collapsed;
         SpeakerMuteIcon.Visibility = silent ? Visibility.Visible : Visibility.Collapsed;
+        SideVolumeUpIcon.Visibility = SpeakerIcon.Visibility;
+        SideVolumeDownIcon.Visibility = SpeakerLowIcon.Visibility;
+        SideVolumeMuteIcon.Visibility = SpeakerMuteIcon.Visibility;
         MuteButtonText.Text = silent ? "Ativar som" : "Mudo";
         MuteButton.ToolTip = silent ? "Ativar som" : $"Silenciar áudio ({Math.Round(value)}%)";
     }
