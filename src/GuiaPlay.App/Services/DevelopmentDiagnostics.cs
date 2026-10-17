@@ -4,6 +4,13 @@ namespace GuiaPlay.App.Services;
 // Release build. In particular they do not bypass or modify license checks.
 internal static class DevelopmentDiagnostics
 {
+    public static void Trace(string detail)
+    {
+#if DEBUG
+        FileLogger.Info("GP-I11: " + detail);
+#endif
+    }
+
 #if DEBUG
     public static bool SkipDisplayConfig => IsEnabled("GUIAPLAY_DIAG_SKIP_DISPLAYCONFIG");
     public static bool SkipMonitorPolling => IsEnabled("GUIAPLAY_DIAG_SKIP_MONITOR_POLL");
