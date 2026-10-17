@@ -519,8 +519,9 @@ public sealed class BrandingTests
             (string?)node.Attribute(x + "Name") == "PreviewProgressSlider");
         Assert.Equal("Collapsed", (string?)previewTimeline.Parent!.Attribute("Visibility"));
 
-        Assert.Contains("Grid Width=\"1580\" Height=\"114\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("MinHeight=\"136\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"OperationalControlPanel\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Height=\"80\" MinHeight=\"0\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("ColumnDefinition Width=\"1.55*\" MinWidth=\"365\"", xaml, StringComparison.Ordinal);
         Assert.Contains("GPAddMediaButtonStyle", xaml, StringComparison.Ordinal);
     }
 
@@ -550,6 +551,40 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void GP_I19_CompactFooterResizesNaturallyWithItsHostWindow()
+    {
+        var document = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var panel = document.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "OperationalControlPanel");
+
+        Assert.Equal("80", (string?)panel.Attribute("Height"));
+        Assert.Equal("0", (string?)panel.Attribute("MinHeight"));
+        Assert.DoesNotContain(panel.Descendants(), e => e.Name.LocalName == "Viewbox");
+
+        var widths = panel.Descendants()
+            .Where(e => e.Name.LocalName == "ColumnDefinition")
+            .Select(e => (string?)e.Attribute("Width"))
+            .ToArray();
+        Assert.Contains("0.90*", widths);
+        Assert.Contains("1.55*", widths);
+        Assert.Contains("1.18*", widths);
+
+        var uniqueNames = panel.Descendants()
+            .Select(e => (string?)e.Attribute(x + "Name"))
+            .Where(n => n is not null).ToArray();
+
+        foreach (var name in new[] {
+            "PlayButton", "PauseButton", "StopButton", "PreviousMediaButton",
+            "NextMediaButton", "ProgressSlider", "VolumeSlider", "ShufflePlaylistCheckBox",
+            "RepeatModeButton", "FullscreenPreviewButton"
+        })
+        {
+            Assert.Contains(name, uniqueNames);
+        }
+    }
+
+    [Fact]
     public void GP_I15_ResponsiveCustomWindowRespectsTaskbarAndSeparatesPages()
     {
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
@@ -558,7 +593,8 @@ public sealed class BrandingTests
         var native = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Services/WindowWorkAreaMaximizer.cs"));
         var about = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/AboutWindow.xaml"));
 
-        Assert.Contains("Viewbox Stretch=\"Uniform\" StretchDirection=\"DownOnly\"", main, StringComparison.Ordinal);
+        Assert.DoesNotContain("Grid Width=\"1580\" Height=\"114\"", main, StringComparison.Ordinal);
+        Assert.Contains("ColumnDefinition Width=\"1.55*\" MinWidth=\"365\"", main, StringComparison.Ordinal);
         Assert.Contains("GPVectorSymbol", main, StringComparison.Ordinal);
         Assert.Contains("GPVectorWordmark", main, StringComparison.Ordinal);
         Assert.Contains("WindowWorkAreaMaximizer.Apply(hwnd, lParam)", code, StringComparison.Ordinal);
