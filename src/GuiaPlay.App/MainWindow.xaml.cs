@@ -1522,10 +1522,15 @@ public partial class MainWindow : Window
             return true;
         }
 
-        return row.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
-               row.GroupName.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
-               row.FilePath.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
-               row.Kind.Contains(query, StringComparison.CurrentCultureIgnoreCase);
+        // Incremental filter: search not only the title but group and technical
+        // columns, without treating accent marks as different Portuguese words.
+        var comparer = System.Globalization.CultureInfo.CurrentCulture.CompareInfo;
+        bool Has(string? value) => !string.IsNullOrWhiteSpace(value) &&
+            comparer.IndexOf(value, query,
+                System.Globalization.CompareOptions.IgnoreCase |
+                System.Globalization.CompareOptions.IgnoreNonSpace) >= 0;
+        return Has(row.Name) || Has(row.GroupName) || Has(row.FilePath) ||
+               Has(row.Kind) || Has(row.Duration) || Has(row.Resolution) || Has(row.Date);
     }
 
     private void MediaSearchBox_OnTextChanged(object sender, TextChangedEventArgs e)
