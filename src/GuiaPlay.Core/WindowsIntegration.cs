@@ -87,6 +87,7 @@ public sealed class WindowsIntegrationService
     public const string RemoveCommandLineSwitch = "--remove-windows-integration";
     public const string VideoProgId = "GuiaPlay.Video";
     public const string AudioProgId = "GuiaPlay.Audio";
+    public const string ImageProgId = "GuiaPlay.Image";
     public const string ContextVerbName = "GuiaPlay.Open";
     public const string RegisteredApplicationName = "GuiaPlay";
     public const string RegisteredApplicationsKey = @"Software\RegisteredApplications";
@@ -178,6 +179,7 @@ public sealed class WindowsIntegrationService
 
         RegisterProgId(VideoProgId, "Mídia de vídeo do GuiaPlay");
         RegisterProgId(AudioProgId, "Mídia de áudio do GuiaPlay");
+        RegisterProgId(ImageProgId, "Imagem do GuiaPlay");
 
         _registry.SetString(CapabilitiesKey, "ApplicationName", "GuiaPlay");
         _registry.SetString(CapabilitiesKey, "ApplicationDescription", ApplicationDescription);
@@ -190,6 +192,11 @@ public sealed class WindowsIntegrationService
         foreach (var extension in MediaTypeDetector.SupportedAudioExtensions)
         {
             RegisterAssociation(extension, AudioProgId);
+        }
+
+        foreach (var extension in MediaTypeDetector.SupportedImageExtensions)
+        {
+            RegisterAssociation(extension, ImageProgId);
         }
 
         _registry.SetString(RegisteredApplicationsKey, RegisteredApplicationName, CapabilitiesReference);
@@ -229,6 +236,7 @@ public sealed class WindowsIntegrationService
             !_registry.HasString($@"{ApplicationKey}\shell\open\command", null, _openCommand) ||
             !_registry.HasString($@"{ClassesRoot}\{VideoProgId}\shell\open\command", null, _openCommand) ||
             !_registry.HasString($@"{ClassesRoot}\{AudioProgId}\shell\open\command", null, _openCommand) ||
+            !_registry.HasString($@"{ClassesRoot}\{ImageProgId}\shell\open\command", null, _openCommand) ||
             !_registry.HasString(RegisteredApplicationsKey, RegisteredApplicationName, CapabilitiesReference))
         {
             return false;
@@ -239,7 +247,10 @@ public sealed class WindowsIntegrationService
                    _registry.HasString($@"{CapabilitiesKey}\FileAssociations", extension, VideoProgId)) &&
                MediaTypeDetector.SupportedAudioExtensions.All(extension =>
                    _registry.HasValue(OpenWithKey(extension), AudioProgId) &&
-                   _registry.HasString($@"{CapabilitiesKey}\FileAssociations", extension, AudioProgId));
+                   _registry.HasString($@"{CapabilitiesKey}\FileAssociations", extension, AudioProgId)) &&
+               MediaTypeDetector.SupportedImageExtensions.All(extension =>
+                   _registry.HasValue(OpenWithKey(extension), ImageProgId) &&
+                   _registry.HasString($@"{CapabilitiesKey}\\FileAssociations", extension, ImageProgId));
     }
 
     private bool IsContextMenuRegistered() => MediaTypeDetector.SupportedExtensions.All(extension =>
@@ -262,6 +273,7 @@ public sealed class WindowsIntegrationService
         _registry.DeleteKeyTree(CapabilitiesKey[..CapabilitiesKey.LastIndexOf('\\')]);
         _registry.DeleteKeyTree($@"{ClassesRoot}\{VideoProgId}");
         _registry.DeleteKeyTree($@"{ClassesRoot}\{AudioProgId}");
+        _registry.DeleteKeyTree($@"{ClassesRoot}\{ImageProgId}");
         _registry.DeleteKeyTree(ApplicationKey);
         _registry.DeleteKeyTree(AppPathsKey);
     }
@@ -283,5 +295,6 @@ public sealed class WindowsIntegrationService
     private static string ProgIdFor(string extension) =>
         MediaTypeDetector.SupportedVideoExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase)
             ? VideoProgId
-            : AudioProgId;
+            : MediaTypeDetector.SupportedImageExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase)
+                ? ImageProgId : AudioProgId;
 }
