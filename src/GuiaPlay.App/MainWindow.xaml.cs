@@ -1953,8 +1953,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Explicit Previous/Next only loads and cues the media. Never autoplay here.
-        await LoadMediaAsync(item.Item.OriginalPath, playImmediately: false, playlistItemId: target);
+        // Explicit Previous/Next loads without autoplay, for either backend.
+        if (item.Item.Kind == MediaKind.YouTube)
+        {
+            await LoadYouTubeItemAsync(item);
+        }
+        else
+        {
+            await LoadMediaAsync(item.Item.OriginalPath,
+                playImmediately: false, playlistItemId: target);
+        }
     }
 
     private void FullscreenPreviewButton_OnClick(object sender, RoutedEventArgs e)
