@@ -303,9 +303,22 @@ internal sealed class YouTubeOutputWindow : Window
                     }
 
                     break;
+                case "autoplayMutedRetry":
+                    // The official API reported a browser autoplay restriction.
+                    // It will retry once muted; do not claim playback yet.
+                    _state = "CARREGANDO";
+                    message = "Autoplay com áudio bloqueado. Tentando vídeo sem som…";
+                    FileLogger.Info("GP-YT05: navegador bloqueou autoplay com áudio; uma tentativa silenciosa.");
+                    break;
+                case "autoplayMutedPlaying":
+                    _state = "REPRODUZINDO";
+                    message = "YouTube iniciou sem som. O navegador bloqueou o áudio automático.";
+                    FileLogger.Info("GP-YT05: autoplay aceito somente sem áudio.");
+                    break;
                 case "autoplayBlocked":
                     _state = "INTERAÇÃO NECESSÁRIA";
-                    message = "Autoplay com som bloqueado pelo YouTube/navegador. Use Play no player da tela pública.";
+                    message = "Autoplay bloqueado. Clique no Play do player oficial da tela pública.";
+                    FileLogger.Info("GP-YT05: navegador bloqueou inclusive autoplay sem áudio.");
                     break;
                 case "error":
                     _startupTimer.Stop();
