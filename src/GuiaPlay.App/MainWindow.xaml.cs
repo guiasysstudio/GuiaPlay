@@ -2391,38 +2391,49 @@ public partial class MainWindow : Window
 
     private void ProgressSlider_OnDragStarted(object sender, MouseButtonEventArgs e)
     {
-        if (IsWithinThumb(e.OriginalSource as DependencyObject))
-        {
-            _isDraggingProgress = true;
-            return;
-        }
-
-        if (!TrySeek(MediaControlBehavior.PositionFromPoint(
-                e.GetPosition(ProgressSlider).X,
-                ProgressSlider.ActualWidth,
-                _engine.Length)))
+        if (sender is not Slider slider || !slider.IsEnabled || !CanSeekNow())
         {
             e.Handled = true;
             return;
         }
 
+        if (IsWithinThumb(e.OriginalSource as DependencyObject))
+        {
+            _isDraggingProgress = true;
+            _draggingProgressSlider = slider;
+            return;
+        }
+
+        _ = TrySeek(MediaControlBehavior.PositionFromPoint(
+            e.GetPosition(slider).X, slider.ActualWidth, _engine.Length));
         e.Handled = true;
     }
 
     private void ProgressSlider_OnDragCompleted(object sender, MouseButtonEventArgs e)
     {
-        if (!_isDraggingProgress)
+        if (!_isDraggingProgress || !ReferenceEquals(sender, _draggingProgressSlider))
         {
             return;
         }
 
+        var position = (long)_draggingProgressSlider.Value;
+        _draggingProgressSlider = null;
         _isDraggingProgress = false;
-        _ = TrySeek((long)ProgressSlider.Value);
+        _ = TrySeek(position);
+    }
+
+    private void ProgressSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isDraggingProgress && ReferenceEquals(sender, _draggingProgressSlider))
+        {
+            UpdateTimeLabels((long)e.NewValue, Math.Max(0, _engine.Length));
+        }
     }
 
     private void ProgressSlider_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (TrySeek(MediaControlBehavior.AdjustPosition(_engine.Time, _engine.Length, e.Delta)))
+        if (sender is Slider slider && slider.IsEnabled &&
+            TrySeek(MediaControlBehavior.AdjustPosition(_engine.Time, _engine.Length, e.Delta)))
         {
             e.Handled = true;
         }
@@ -2430,12 +2441,12 @@ public partial class MainWindow : Window
 
     private bool TrySeek(long targetMilliseconds)
     {
-        var duration = _engine.Length;
-        if (_coordinator.MediaPath is null || duration <= 0)
+        if (!CanSeekNow())
         {
             return false;
         }
 
+        var duration = _engine.Length;
         var target = Math.Clamp(targetMilliseconds, 0, duration);
         ProgressSlider.Maximum = Math.Max(1, duration);
         ProgressSlider.Value = target;
@@ -2554,7 +2565,7 @@ public partial class MainWindow : Window
         StatusText.Text = "Pausado";
     }
 
-    private void Engine_OnEndReached(long generation)
+    private async void Engine_OnEndReached(long generation)
     {
         var transition = _coordinator.NaturalEnd(generation);
         if (!transition.Accepted)
@@ -2570,7 +2581,14 @@ public partial class MainWindow : Window
         ProgressSlider.Value = ProgressSlider.Maximum;
         LogPlaybackMetrics($"Fim natural da geração {generation}");
         LogDiagnosticSnapshot("Fim natural");
-        _ = TryAutomaticInstallationAsync();
+
+        // Never chain playback in Manual. Autoplay is explicit and never skips missing
+        // files, authorization failures or operator monitor/device protections.
+        var advanced = await TryAutomaticAdvanceAsync(generation);
+        if (!advanced && !_isClosing && !_coordinator.IsActive)
+        {
+            _ = TryAutomaticInstallationAsync();
+        }
     }
 
     private void Engine_OnError(long generation, string message)
@@ -2613,6 +2631,7 @@ public partial class MainWindow : Window
         }
 
         UpdateTimeLabels(time, length);
+        RefreshSeekAvailability();
     }
 
     private void UpdateLength(long generation, long length)
@@ -2624,6 +2643,7 @@ public partial class MainWindow : Window
 
         ProgressSlider.Maximum = Math.Max(1, length);
         UpdateTimeLabels(_engine.Time, length);
+        RefreshSeekAvailability();
     }
 
     private void UpdateTimeLabels(long elapsed, long total)
@@ -3219,6 +3239,7 @@ public partial class MainWindow : Window
             PlayButton.IsEnabled = false;
             PauseButton.IsEnabled = false;
             StopButton.IsEnabled = false;
+            RefreshPlaylistTransport();
             return;
         }
 
@@ -3227,6 +3248,7 @@ public partial class MainWindow : Window
         PlayButton.IsEnabled = mayStart && _coordinator.CanPlay(SelectedOutputCount());
         PauseButton.IsEnabled = status == PlaybackStatus.Playing;
         StopButton.IsEnabled = _coordinator.MediaPath is not null;
+        RefreshPlaylistTransport();
     }
 
 
