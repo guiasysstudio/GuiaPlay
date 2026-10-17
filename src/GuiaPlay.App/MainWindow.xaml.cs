@@ -1269,6 +1269,12 @@ public partial class MainWindow : Window
             old.StateChanged -= YouTubeWindow_OnStateChanged;
             old.Close();
         }
+
+        if (_settingsInitialized && !_isClosing)
+        {
+            RefreshAudioPanel();
+            UpdateActiveOutputs();
+        }
     }
 
     // GP-I03: table search is a view filter. It never reorders persisted playback data.
