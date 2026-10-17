@@ -285,3 +285,5 @@ begin
       'Os dados do usuário em %LocalAppData%\GuiaSys\GuiaPlay serão preservados.';
   end;
 end;
+
+#include "WebView2Runtime.iss"

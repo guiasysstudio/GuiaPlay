@@ -76,3 +76,5 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 [Icons]
 Name: "{group}\GuiaPlay Interface 3.0 (TESTE)"; Filename: "{app}\GuiaPlay.exe"; WorkingDir: "{app}"
 ; No desktop shortcut by default; never reuse the stable Guiaplay shortcut.
+
+#include "WebView2Runtime.iss"
