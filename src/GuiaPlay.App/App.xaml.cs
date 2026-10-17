@@ -118,8 +118,10 @@ public partial class App : Application
 
         UpdateManager = new UpdateManager(this);
         WindowsIntegration = CreateWindowsIntegrationService();
+        DevelopmentDiagnostics.Trace("creating licensing services; no entitlement bypass");
         Licensing = new LicensingManager(Path.GetDirectoryName(settingsPath)!);
         Licensing.StateChanged += LicensingManager_OnStateChanged;
+        DevelopmentDiagnostics.Trace("licensing services ready");
 
         ApplyAppearance(Settings.Appearance, Settings.AccentColor, persist: false);
         SystemEvents.UserPreferenceChanged += SystemEvents_OnUserPreferenceChanged;
@@ -145,8 +147,10 @@ public partial class App : Application
                 MessageBoxImage.Error);
             args.Handled = true;
         };
+        DevelopmentDiagnostics.Trace("creating MainWindow");
         var window = new MainWindow();
         MainWindow = window;
+        DevelopmentDiagnostics.Trace("MainWindow constructed");
         window.Loaded += async (_, _) =>
         {
             var licensing = Licensing;
@@ -159,13 +163,18 @@ public partial class App : Application
                 return;
             }
 
+            DevelopmentDiagnostics.Trace("license initialization begin");
             var licenseSnapshot = await licensing.InitializeAsync();
+            DevelopmentDiagnostics.Trace("license initialization complete: HasAccess=" + licenseSnapshot.HasAccess);
             window.ApplyLicensingState(licenseSnapshot);
+            DevelopmentDiagnostics.Trace("license UI state applied");
             StartLicensingValidationTimer(licensing);
 
             if (!licenseSnapshot.HasAccess)
             {
+                DevelopmentDiagnostics.Trace("license dialog opening");
                 await window.OpenLicenseSettingsAsync();
+                DevelopmentDiagnostics.Trace("license dialog closed");
                 window.ApplyLicensingState(licensing.Current);
                 if (!licensing.Current.HasAccess)
                 {
@@ -186,7 +195,9 @@ public partial class App : Application
                 await window.HandleExternalMediaAsync(mediaPath);
             }
         };
+        DevelopmentDiagnostics.Trace("showing MainWindow");
         window.Show();
+        DevelopmentDiagnostics.Trace("MainWindow.Show returned");
     }
 
 
