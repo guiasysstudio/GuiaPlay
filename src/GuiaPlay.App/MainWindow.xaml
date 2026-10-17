@@ -15,7 +15,11 @@
                             CornerRadius="0" UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
     <Window.Resources>
-        <Geometry x:Key="GPFullscreenCornerGeometry">M3 9V3H9 M15 3H21V9 M21 15V21H15 M9 21H3V15</Geometry>
+        <!-- Vector contours from the supplied fullscreen.svg (Material Symbols). -->
+        <Geometry x:Key="GPFullscreenCornerGeometry">M120-120v-200h80v120h120v80H120Zm520 0v-80h120v-120h80v200H640ZM120-640v-200h200v80H200v120h-80Zm640 0v-120H640v-80h200v200h-80Z</Geometry>
+        <!-- The hero already has a circular bezel, so its glyphs omit extra rings. -->
+        <Geometry x:Key="GPTransportTriangleGeometry">M310-700 700-480 310-260Z</Geometry>
+        <Geometry x:Key="GPTransportPauseGeometry">M310-700h105v440H310Z M545-700h105v440H545Z</Geometry>
         <Geometry x:Key="GPSave">M840-680v480q0 33-23.5 56.5T760-120H200q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h480l160 160Zm-80 34L646-760H200v560h560v-446ZM565-275q35-35 35-85t-35-85q-35-35-85-35t-85 35q-35 35-35 85t35 85q35 35 85 35t85-35ZM240-560h360v-160H240v160Zm-40-86v446-560 114Z</Geometry>
         <Geometry x:Key="GPTrash">M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z</Geometry>
         <Geometry x:Key="GPArrowUp">m296-224-56-56 240-240 240 240-56 56-184-183-184 183Zm0-240-56-56 240-240 240 240-56 56-184-183-184 183Z</Geometry>
@@ -1092,9 +1096,9 @@
                                 Style="{StaticResource GPPlayTransport}" IsEnabled="False"
                                 ToolTip="Reproduzir (F5 / Espaço)" AutomationProperties.Name="Reproduzir ou pausar">
                             <Grid>
-                                <Path x:Name="MainPlayGlyph" Data="{StaticResource PlayIconGeometry}"
+                                <Path x:Name="MainPlayGlyph" Data="{StaticResource GPTransportTriangleGeometry}"
                                       Width="44" Height="44" Stretch="Uniform" Fill="White"/>
-                                <Path x:Name="MainPauseGlyph" Data="{StaticResource PauseIconGeometry}"
+                                <Path x:Name="MainPauseGlyph" Data="{StaticResource GPTransportPauseGeometry}"
                                       Width="40" Height="40" Stretch="Uniform" Fill="White" Visibility="Collapsed"/>
                                 <TextBlock x:Name="PlayButtonText" Text="Reproduzir" Visibility="Collapsed"/>
                             </Grid>
@@ -1162,8 +1166,7 @@
                             ToolTip="Abrir prévia do operador em tela cheia (F11; Esc para sair)"
                             AutomationProperties.Name="Prévia do operador em tela cheia">
                         <Path Data="{StaticResource GPFullscreenCornerGeometry}" Width="24" Height="24"
-                              Stretch="Uniform" Stroke="{DynamicResource GuiaPlayTextPrimaryBrush}"
-                              StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                              Stretch="Uniform" Fill="{DynamicResource GuiaPlayTextPrimaryBrush}"/>
                     </Button>
                 </StackPanel>
                 <!-- Existing workflow handles remain alive but outside the visual reference. -->
