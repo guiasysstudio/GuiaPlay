@@ -2017,12 +2017,19 @@ public partial class MainWindow : Window
             return;
         }
 
-        var current = Math.Clamp(_engine.Time, 0, _engine.Length);
-        _ = TrySeek(Math.Clamp(current + delta, 0, _engine.Length));
+        var duration = _youtubeWindow is null ? _engine.Length :
+            _youtubeSnapshot?.DurationMilliseconds ?? 0;
+        var time = _youtubeWindow is null ? _engine.Time :
+            _youtubeSnapshot?.ElapsedMilliseconds ?? 0;
+        var current = Math.Clamp(time, 0, duration);
+        _ = TrySeek(Math.Clamp(current + delta, 0, duration));
     }
 
     private bool CanSeekNow() =>
-        _licensingAllowsAccess &&
+        _youtubeWindow is not null
+            ? _licensingAllowsAccess && !_controlsBusy &&
+              _youtubeWindow.Ready && (_youtubeSnapshot?.DurationMilliseconds ?? 0) > 0
+            : _licensingAllowsAccess &&
         !_controlsBusy &&
         _coordinator.MediaPath is not null &&
         _engine.Length > 0 &&
