@@ -869,6 +869,11 @@ public partial class MainWindow : Window
         }
 
         var menu = new ContextMenu { PlacementTarget = AddMediaMenuButton, Placement = PlacementMode.Bottom };
+        // 'Abrir mídia' lives in Adicionar, not in the transport footer.
+        var openDirect = new MenuItem { Header = "Abrir mídia para reprodução…" };
+        openDirect.Click += OpenButton_OnClick;
+        menu.Items.Add(openDirect);
+        menu.Items.Add(new Separator());
         var addFiles = new MenuItem { Header = "Adicionar arquivo(s)…" };
         addFiles.Click += AddPlaylistItemButton_OnClick;
         var addFolder = new MenuItem { Header = "Adicionar pasta e subpastas…" };
@@ -878,6 +883,48 @@ public partial class MainWindow : Window
         var addYouTube = new MenuItem { Header = "Adicionar link do YouTube…" };
         addYouTube.Click += AddYouTubeLinkButton_OnClick;
         menu.Items.Add(addYouTube);
+        menu.IsOpen = true;
+    }
+
+    // Playback modes are moved to toolbar options; the ComboBox remains
+    // the single state entry point so existing safety rules are unchanged.
+    private void PlaylistOptionsMenuButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy)
+        {
+            return;
+        }
+
+        var menu = new ContextMenu
+        {
+            PlacementTarget = PlaylistOptionsMenuButton,
+            Placement = PlacementMode.Bottom
+        };
+        var manual = new MenuItem
+        {
+            Header = "Modo manual (sem avançar automaticamente)",
+            IsCheckable = true,
+            IsChecked = PlaybackModeCombo.SelectedIndex != 1
+        };
+        manual.Click += (_, _) => PlaybackModeCombo.SelectedIndex = 0;
+        var sequential = new MenuItem
+        {
+            Header = "Modo sequencial (avançar ao terminar)",
+            IsCheckable = true,
+            IsChecked = PlaybackModeCombo.SelectedIndex == 1
+        };
+        sequential.Click += (_, _) => PlaybackModeCombo.SelectedIndex = 1;
+        menu.Items.Add(manual);
+        menu.Items.Add(sequential);
+
+        if (!string.IsNullOrWhiteSpace(MediaSearchBox.Text))
+        {
+            menu.Items.Add(new Separator());
+            var clear = new MenuItem { Header = "Limpar pesquisa" };
+            clear.Click += ClearMediaSearchButton_OnClick;
+            menu.Items.Add(clear);
+        }
+
         menu.IsOpen = true;
     }
 
@@ -2263,6 +2310,35 @@ public partial class MainWindow : Window
         }
     }
 
+    // Central transport has exactly one visible Play/Pause control.
+    // Route through the existing playback handlers; do not create
+    // a parallel state machine or assume YouTube command acknowledgement.
+    private void MainPlayPauseButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_youtubeWindow is not null)
+        {
+            if (_youtubeSnapshot?.State == "REPRODUZINDO")
+            {
+                PauseButton_OnClick(sender, e);
+            }
+            else
+            {
+                PlayButton_OnClick(sender, e);
+            }
+
+            return;
+        }
+
+        if (_coordinator.Status == PlaybackStatus.Playing)
+        {
+            PauseButton_OnClick(sender, e);
+        }
+        else
+        {
+            PlayButton_OnClick(sender, e);
+        }
+    }
+
     private async void PlayButton_OnClick(object sender, RoutedEventArgs e)
         => await StartOrResumePlaybackAsync();
 
@@ -2973,9 +3049,6 @@ public partial class MainWindow : Window
         SpeakerIcon.Visibility = !silent && value > 80 ? Visibility.Visible : Visibility.Collapsed;
         SpeakerLowIcon.Visibility = !silent && value <= 80 ? Visibility.Visible : Visibility.Collapsed;
         SpeakerMuteIcon.Visibility = silent ? Visibility.Visible : Visibility.Collapsed;
-        SideVolumeUpIcon.Visibility = SpeakerIcon.Visibility;
-        SideVolumeDownIcon.Visibility = SpeakerLowIcon.Visibility;
-        SideVolumeMuteIcon.Visibility = SpeakerMuteIcon.Visibility;
         MuteButtonText.Text = silent ? "Ativar som" : "Mudo";
         MuteButton.ToolTip = silent ? "Ativar som" : $"Silenciar áudio ({Math.Round(value)}%)";
     }
@@ -3966,6 +4039,7 @@ public partial class MainWindow : Window
             PlayButton.IsEnabled = false;
             PauseButton.IsEnabled = false;
             StopButton.IsEnabled = false;
+            UpdateUnifiedPlayPauseVisual(isPlaying: false);
             RefreshPlaylistTransport();
             return;
         }
@@ -3977,6 +4051,7 @@ public partial class MainWindow : Window
             PauseButton.IsEnabled = youtube.Ready && current == "REPRODUZINDO";
             StopButton.IsEnabled = true;
             PlayButtonText.Text = current == "PAUSADO" ? "Continuar" : "Reproduzir";
+            UpdateUnifiedPlayPauseVisual(current == "REPRODUZINDO");
             RefreshPlaylistTransport();
             return;
         }
@@ -3986,7 +4061,19 @@ public partial class MainWindow : Window
         PlayButton.IsEnabled = mayStart && _coordinator.CanPlay(SelectedOutputCount());
         PauseButton.IsEnabled = status == PlaybackStatus.Playing;
         StopButton.IsEnabled = _coordinator.MediaPath is not null;
+        UpdateUnifiedPlayPauseVisual(status == PlaybackStatus.Playing);
         RefreshPlaylistTransport();
+    }
+
+    private void UpdateUnifiedPlayPauseVisual(bool isPlaying)
+    {
+        // PauseButton stays hidden for internal command/shortcut compatibility.
+        // The hero is active when EITHER the old play or pause action can run.
+        PlayButton.IsEnabled = PlayButton.IsEnabled || PauseButton.IsEnabled;
+        MainPlayGlyph.Visibility = isPlaying ? Visibility.Collapsed : Visibility.Visible;
+        MainPauseGlyph.Visibility = isPlaying ? Visibility.Visible : Visibility.Collapsed;
+        PlayButton.ToolTip = isPlaying ? "Pausar reprodução (F6 / Espaço)" : "Reproduzir (F5 / Espaço)";
+        AutomationProperties.SetName(PlayButton, isPlaying ? "Pausar" : "Reproduzir");
     }
 
 
