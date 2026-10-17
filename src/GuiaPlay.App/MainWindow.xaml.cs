@@ -3182,6 +3182,23 @@ public partial class MainWindow : Window
               ".\n\nO Windows apresenta cada grupo como uma única tela lógica ao GuiaPlay."
             : "Não foi detectada uma saída selecionada já duplicada no Windows.";
 
+        if (active.Length == 0 && selected.Length >= 2)
+        {
+            // SDC_VALIDATE probes this exact mixed operator + clone layout
+            // without ever applying it or altering saved Windows settings.
+            var validation = MonitorService.ValidateProposedPublicClone(
+                selected.Select(monitor => monitor.Id).ToArray(), _operatorMonitor?.Id);
+            report += "\n\n" + validation.Message;
+            FileLogger.Info($"GP-YT05: validação de clonagem (somente leitura): " +
+                $"supported={validation.Supported?.ToString() ?? "indefinido"}; " +
+                $"message={validation.Message}");
+        }
+        else if (active.Length == 0)
+        {
+            report += "\n\nPara testar a compatibilidade, selecione duas telas públicas " +
+                "e clique novamente em Espelhar.";
+        }
+
         FileLogger.Info($"GP-YT05: pré-verificação de duplicação: " +
             $"selecionadas={selected.Length}; grupos={clones.Count}; ativos={active.Length}.");
         var choice = MessageBox.Show(this,
