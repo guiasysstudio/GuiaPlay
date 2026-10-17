@@ -39,8 +39,9 @@ internal sealed class YouTubeOutputWindow : Window
     private int? _error;
     private readonly DispatcherTimer _startupTimer = new() { Interval = TimeSpan.FromSeconds(25) };
 
-    public YouTubeOutputWindow(MonitorInfo? monitor)
+    public YouTubeOutputWindow(MonitorInfo monitor)
     {
+        ArgumentNullException.ThrowIfNull(monitor);
         Monitor = monitor;
         _startupTimer.Tick += (_, _) =>
         {
@@ -51,22 +52,12 @@ internal sealed class YouTubeOutputWindow : Window
                     "WebView2 e acesso à API do YouTube.");
             }
         };
-        Title = monitor is null
-            ? "GuiaPlay — YouTube (player oficial)"
-            : "GuiaPlay — YouTube (saída pública)";
-        WindowStyle = monitor is null ? WindowStyle.SingleBorderWindow : WindowStyle.None;
-        ResizeMode = monitor is null ? ResizeMode.CanResize : ResizeMode.NoResize;
+        Title = "GuiaPlay — YouTube (saída pública)";
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
         ShowActivated = true;
-        Topmost = monitor is not null;
-        if (monitor is null)
-        {
-            Width = 1000;
-            Height = 650;
-            MinWidth = 640;
-            MinHeight = 420;
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        }
+        Topmost = true;
         Background = Brushes.Black;
 
         _browser = new WebView2
@@ -76,10 +67,7 @@ internal sealed class YouTubeOutputWindow : Window
             DefaultBackgroundColor = System.Drawing.Color.Black
         };
         Content = _browser;
-        if (monitor is not null)
-        {
-            SourceInitialized += (_, _) => WindowPlacement.FillMonitor(this, monitor);
-        }
+        SourceInitialized += (_, _) => WindowPlacement.FillMonitor(this, monitor);
         Closed += (_, _) =>
         {
             _closed = true;
@@ -94,11 +82,11 @@ internal sealed class YouTubeOutputWindow : Window
         };
     }
 
-    public MonitorInfo? Monitor { get; private set; }
+    public MonitorInfo Monitor { get; private set; }
     public bool Ready => _ready;
     public event EventHandler<YouTubePlaybackSnapshot>? PlaybackStateChanged;
 
-    public async Task InitializeAsync(YouTubeVideoReference video)
+    public async Task InitializeAsync(YouTubeVideoReference video, bool autoplayRequested = false)
     {
         ArgumentNullException.ThrowIfNull(video);
         if (_closed)
@@ -209,8 +197,10 @@ internal sealed class YouTubeOutputWindow : Window
         };
         core.WebMessageReceived += Browser_WebMessageReceived;
         _startupTimer.Start();
+        FileLogger.Info($"GP-YT-03: navegação com início automático solicitado={autoplayRequested}.");
         core.Navigate(HostOrigin + "/player.html?videoId=" +
-            Uri.EscapeDataString(video.VideoId));
+            Uri.EscapeDataString(video.VideoId) +
+            "&autoplay=" + (autoplayRequested ? "1" : "0"));
     }
 
     public void Command(string action, double? value = null)
@@ -232,11 +222,6 @@ internal sealed class YouTubeOutputWindow : Window
 
     public void Reposition(MonitorInfo monitor)
     {
-        if (Monitor is null)
-        {
-            return; // Operator player remains a freely movable window.
-        }
-
         Monitor = monitor;
         WindowPlacement.FillMonitor(this, monitor);
     }
@@ -318,7 +303,7 @@ internal sealed class YouTubeOutputWindow : Window
                     break;
                 case "autoplayBlocked":
                     _state = "INTERAÇÃO NECESSÁRIA";
-                    message = "O YouTube bloqueou o início por comando; clique em Reproduzir diretamente no player público.";
+                    message = "Autoplay com som bloqueado pelo YouTube/navegador. Use Play no player da tela pública.";
                     break;
                 case "error":
                     _startupTimer.Stop();
