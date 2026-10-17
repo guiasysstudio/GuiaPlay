@@ -3353,7 +3353,7 @@ public partial class MainWindow : Window
         var previousMonitors = _monitors;
         var current = MonitorService.GetActiveMonitors();
         if (_youtubeWindow is { } activeYouTube &&
-            MonitorTopologyReconciler.FindCurrent(activeYouTube.Monitor, current) is not { } currentYoutubeMonitor)
+            MonitorTopologyReconciler.FindCurrent(activeYouTube.Monitor, current) is null)
         {
             CloseYouTubeWindow();
             StatusText.Text = "Tela pública do YouTube desconectada; reprodução interrompida.";
