@@ -152,9 +152,9 @@ public partial class MainWindow : Window
 
         _monitorTimer = new DispatcherTimer(MonitorRefreshPolicy.SafetyPollInterval, DispatcherPriority.Background, (_, _) =>
         {
-            FileLogger.Info("GP-I11: monitor safety poll start");
+            DevelopmentDiagnostics.Trace("monitor safety poll start");
             RefreshConnectedDevices(false);
-            FileLogger.Info("GP-I11: monitor safety poll end");
+            DevelopmentDiagnostics.Trace("monitor safety poll end");
         }, Dispatcher);
         _settingsSaveTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(650), DispatcherPriority.Background, (_, _) => FlushDeferredSettings(), Dispatcher)
         {
@@ -175,9 +175,9 @@ public partial class MainWindow : Window
         Loaded += (_, _) =>
         {
             FitToWorkArea();
-            FileLogger.Info("GP-I11: initial monitor + audio refresh begins");
+            DevelopmentDiagnostics.Trace("initial monitor + audio refresh begins");
             RefreshConnectedDevices(false);
-            FileLogger.Info("GP-I11: initial monitor + audio refresh finished");
+            DevelopmentDiagnostics.Trace("initial monitor + audio refresh finished");
             if (_operatorMonitor is not null)
             {
                 WindowPlacement.PlaceOperatorPanel(this, _operatorMonitor);
@@ -189,7 +189,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                FileLogger.Info("GP-I11: periodic monitor refresh isolated in Debug.");
+                DevelopmentDiagnostics.Trace("periodic monitor refresh isolated in Debug.");
             }
 
             if ((Application.Current as App)?.StartupSettingsWarning is { } warning)
@@ -217,7 +217,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                FileLogger.Info("GP-I11: startup GitHub updater isolated in Debug.");
+                DevelopmentDiagnostics.Trace("startup GitHub updater isolated in Debug.");
             }
         };
         SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessageHook);
