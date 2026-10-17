@@ -347,6 +347,7 @@
                                     <Slider x:Name="PreviewProgressSlider" Grid.Column="1" Margin="5,0"
                                             Minimum="0" Maximum="{Binding Maximum, ElementName=ProgressSlider}"
                                             Value="{Binding Value, ElementName=ProgressSlider, Mode=TwoWay}"
+                                            ValueChanged="ProgressSlider_OnValueChanged"
                                             IsEnabled="False" ToolTip="Arraste para buscar a posição do vídeo"
                                             Foreground="{DynamicResource GuiaPlayAccentBrush}"
                                             PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
@@ -944,7 +945,8 @@
                     <TextBlock x:Name="ElapsedText" Text="00:00" VerticalAlignment="Center" />
                     <Slider x:Name="ProgressSlider" Grid.Column="1" Margin="7,0" Minimum="0" Maximum="1" Value="0"
                             Foreground="{DynamicResource GuiaPlayAccentBrush}"
-                            ToolTip="Posição da mídia" IsEnabled="False" PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
+                            ToolTip="Posição da mídia" IsEnabled="False" ValueChanged="ProgressSlider_OnValueChanged"
+                            PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
                             PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted" PreviewMouseWheel="ProgressSlider_OnMouseWheel" />
                     <TextBlock x:Name="RemainingText" Grid.Column="2" Text="-00:00 / 00:00" VerticalAlignment="Center"
                                TextAlignment="Right" />
