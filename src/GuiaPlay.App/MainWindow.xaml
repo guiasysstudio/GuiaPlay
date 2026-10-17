@@ -384,26 +384,33 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="10,12" />
-            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="Padding" Value="11,10" />
+            <Setter Property="Margin" Value="0,4" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="ItemSurface" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center" />
+                                CornerRadius="9" SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Border x:Name="ActiveStripe" Width="4" Background="Transparent"
+                                        CornerRadius="7,0,0,7" HorizontalAlignment="Left"/>
+                                <ContentPresenter Grid.Column="1" Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center"/>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource GuiaPlayAccentBrush}" />
+                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
                                 <Setter TargetName="ItemSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBrush}" />
-                                <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                                <Setter TargetName="ActiveStripe" Property="Background" Value="{DynamicResource GuiaPlayAccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="ItemSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBrush}" />
@@ -755,10 +762,11 @@
                                      BorderThickness="0" SelectionMode="Single"
                                      ItemContainerStyle="{StaticResource SavedPlaylistItemStyle}"
                                      SelectionChanged="SavedPlaylistsList_OnSelectionChanged"
-                                     MouseDoubleClick="SavedPlaylistsList_OnMouseDoubleClick"
+                                     PreviewMouseLeftButtonUp="SavedPlaylistsList_OnPreviewMouseLeftButtonUp"
                                      PreviewMouseRightButtonDown="SavedPlaylistsList_OnPreviewMouseRightButtonDown"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.CanContentScroll="True"
                                      AutomationProperties.Name="Playlists salvas">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="{x:Type models:SavedPlaylistEntry}">
@@ -846,7 +854,9 @@
                                           PreviewDragOver="PlaylistTree_OnPreviewDragOver"
                                           Drop="PlaylistTree_OnDrop" BorderThickness="0" Background="Transparent"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                          AutomationProperties.Name="Grupos e mídias da playlist" />
+                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                          ScrollViewer.CanContentScroll="True"
+                                          AutomationProperties.Name="Pastas e mídias da playlist ativa" />
                                 <StackPanel x:Name="PlaylistEmptyState" HorizontalAlignment="Center"
                                             VerticalAlignment="Center" MaxWidth="230" IsHitTestVisible="False">
                                     <Path Data="{StaticResource FolderAddIconGeometry}"
@@ -854,7 +864,7 @@
                                           Fill="{DynamicResource GuiaPlayTextSecondaryBrush}"
                                           HorizontalAlignment="Center" Margin="0,0,0,8" />
                                     <TextBlock Text="Lista de trabalho vazia" FontWeight="SemiBold" TextAlignment="Center" />
-                                    <TextBlock Text="Crie um grupo e adicione arquivos ou pastas com o botão Adicionar."
+                                    <TextBlock Text="Crie uma playlist, depois suas pastas e, dentro delas, adicione mídias."
                                                Style="{StaticResource SecondaryTextStyle}"
                                                TextAlignment="Center" Margin="0,4,0,0" TextWrapping="Wrap" />
                                 </StackPanel>
@@ -1104,6 +1114,7 @@
                                           RowBackground="{DynamicResource GuiaPlayControlSurfaceBrush}"
                                           HorizontalScrollBarVisibility="Auto"
                                           VerticalScrollBarVisibility="Auto"
+                                          ScrollViewer.CanContentScroll="True"
                                           AllowDrop="True"
                                           AutomationProperties.Name="Tabela de mídias em ordem de reprodução"
                                           SelectionChanged="MediaGrid_OnSelectionChanged"
