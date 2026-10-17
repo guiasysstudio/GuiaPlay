@@ -2648,6 +2648,7 @@ public partial class MainWindow : Window
             return;
         }
         var currentSettings = app.Settings;
+        var playbackActive = _coordinator.IsActive || _youtubeWindow is not null;
         var names = currentSettings.MonitorNames;
         RefreshAudioDevices(force: true);
         var dialog = new ScreenConfigurationWindow(
@@ -2661,7 +2662,7 @@ public partial class MainWindow : Window
             licensing,
             openUpdates,
             openLicense,
-            _coordinator.IsActive,
+            playbackActive,
             _operatorRecoverySettingsAllowed,
             openAbout,
             openAudio)
@@ -2677,7 +2678,7 @@ public partial class MainWindow : Window
         }
 
         var recoveringOperatorDuringPlayback = _coordinator.IsActive && _operatorRecoverySettingsAllowed;
-        if (_coordinator.IsActive && !recoveringOperatorDuringPlayback)
+        if (playbackActive && !recoveringOperatorDuringPlayback)
         {
             if (!app.UpdateSettings(current => current with
             {
