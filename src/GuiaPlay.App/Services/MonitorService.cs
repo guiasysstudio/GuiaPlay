@@ -4,6 +4,7 @@ using GuiaPlay.App.Models;
 namespace GuiaPlay.App.Services;
 
 internal sealed record ActiveDisplayCloneGroup(string SourceDeviceName, int PhysicalScreenCount);
+internal sealed record ClonePreflightResult(bool? Supported, string Message);
 
 internal static class MonitorService
 {
@@ -168,6 +169,147 @@ internal static class MonitorService
         }
 
         return [];
+    }
+
+    /// <summary>
+    /// Attempts only a Windows SDC_VALIDATE of a mixed topology: operator
+    /// extended, selected public displays cloned onto the first public
+    /// display's source. Never applies or persists the proposed layout.
+    /// Unsupported adapters, missing identity, or a race yield "unknown".
+    /// </summary>
+    public static ClonePreflightResult ValidateProposedPublicClone(
+        IReadOnlyList<string> publicDeviceNames, string? operatorDeviceName)
+    {
+        if (DevelopmentDiagnostics.SkipDisplayConfig)
+        {
+            return new(null, "Diagnóstico nativo de monitores desativado nesta execução.");
+        }
+
+        if (publicDeviceNames.Count < 2 ||
+            string.IsNullOrWhiteSpace(operatorDeviceName) ||
+            publicDeviceNames.Any(name => string.Equals(name,
+                operatorDeviceName, StringComparison.OrdinalIgnoreCase)) ||
+            publicDeviceNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != publicDeviceNames.Count)
+        {
+            return new(null, "Escolha duas ou mais saídas públicas distintas e configure a tela do operador.");
+        }
+
+        try
+        {
+            for (var attempt = 0; attempt < 3; attempt++)
+            {
+                var result = GetDisplayConfigBufferSizes(QueryOnlyActivePaths,
+                    out var pathCount, out var modeCount);
+                if (result != ErrorSuccess)
+                {
+                    return new(null, $"Leitura da topologia indisponível (erro {result}).");
+                }
+
+                var paths = new DisplayConfigPathInfo[pathCount];
+                var modes = new DisplayConfigModeInfo[modeCount];
+                result = QueryDisplayConfig(QueryOnlyActivePaths, ref pathCount, paths,
+                    ref modeCount, modes, nint.Zero);
+                if (result == ErrorInsufficientBuffer)
+                {
+                    continue;
+                }
+
+                if (result != ErrorSuccess)
+                {
+                    return new(null, $"Leitura da topologia falhou (erro {result}).");
+                }
+
+                // Source names are desktop GDI identities (\\.\DISPLAYn).
+                // Never assume the order of native paths matches WPF monitors.
+                var indexBySource = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (var index = 0; index < pathCount; index++)
+                {
+                    var path = paths[index];
+                    if ((path.Flags & 1u) == 0 || !path.TargetInfo.TargetAvailable)
+                    {
+                        continue;
+                    }
+
+                    var sourceName = new DisplayConfigSourceDeviceName
+                    {
+                        Header = new DisplayConfigDeviceInfoHeader
+                        {
+                            Type = 1,
+                            Size = (uint)Marshal.SizeOf<DisplayConfigSourceDeviceName>(),
+                            AdapterId = path.SourceInfo.AdapterId,
+                            Id = path.SourceInfo.Id
+                        }
+                    };
+                    if (DisplayConfigGetDeviceInfo(ref sourceName) != ErrorSuccess ||
+                        string.IsNullOrWhiteSpace(sourceName.ViewGdiDeviceName))
+                    {
+                        continue;
+                    }
+
+                    // Existing clone groups can have multiple paths sharing
+                    // one logical GDI source; those are not a safe new plan.
+                    if (!indexBySource.TryAdd(sourceName.ViewGdiDeviceName, index))
+                    {
+                        return new(null, "Já existe uma topologia duplicada; ajuste-a no Windows.");
+                    }
+                }
+
+                if (!indexBySource.ContainsKey(operatorDeviceName) ||
+                    publicDeviceNames.Any(name => !indexBySource.ContainsKey(name)))
+                {
+                    return new(null, "Uma das telas não tem identidade de origem ativa identificável.");
+                }
+
+                var first = paths[indexBySource[publicDeviceNames[0]]];
+                var adapter = first.SourceInfo.AdapterId;
+                foreach (var name in publicDeviceNames.Skip(1))
+                {
+                    var next = paths[indexBySource[name]];
+                    if (next.SourceInfo.AdapterId.LowPart != adapter.LowPart ||
+                        next.SourceInfo.AdapterId.HighPart != adapter.HighPart)
+                    {
+                        return new(false, "As saídas públicas estão em adaptadores gráficos diferentes; " +
+                            "a clonagem desta configuração não foi considerada segura.");
+                    }
+                }
+
+                // Copies only: SDC_VALIDATE cannot apply any display changes.
+                var candidate = paths.Take((int)pathCount).ToArray();
+                var masterIndex = indexBySource[publicDeviceNames[0]];
+                var source = candidate[masterIndex].SourceInfo;
+                source.ModeInfoIndex = uint.MaxValue; // best-fit source mode
+                candidate[masterIndex].SourceInfo = source;
+
+                foreach (var name in publicDeviceNames.Skip(1))
+                {
+                    var index = indexBySource[name];
+                    var clonedSource = candidate[index].SourceInfo;
+                    clonedSource.AdapterId = source.AdapterId;
+                    clonedSource.Id = source.Id;
+                    clonedSource.ModeInfoIndex = uint.MaxValue;
+                    candidate[index].SourceInfo = clonedSource;
+                }
+
+                const uint sdcValidate = 0x40;
+                const uint sdcUseSuppliedDisplayConfig = 0x20;
+                const uint sdcAllowChanges = 0x400;
+                result = SetDisplayConfig((uint)candidate.Length, candidate,
+                    modeCount, modes,
+                    sdcValidate | sdcUseSuppliedDisplayConfig | sdcAllowChanges);
+                return result == ErrorSuccess
+                    ? new(true, "O Windows aceitou a PRÉ-VALIDAÇÃO da duplicação das telas públicas. " +
+                        "Nenhuma alteração foi aplicada; a execução e a restauração ainda precisam de testes físicos.")
+                    : new(false, $"O Windows recusou a topologia proposta (erro {result}). " +
+                        "Tente duplicar as telas no painel de exibição do Windows.");
+            }
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or
+            EntryPointNotFoundException or InvalidOperationException)
+        {
+            FileLogger.Error("GP-YT05: pré-validação de duplicação falhou.", exception);
+        }
+
+        return new(null, "A pré-validação não pôde ser concluída.");
     }
 
     private static Dictionary<string, IReadOnlyList<PersistentIdentity>> GetPersistentIdentities()
@@ -379,6 +521,15 @@ internal static class MonitorService
 
     [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo")]
     private static extern int DisplayConfigGetDeviceInfo(ref DisplayConfigTargetDeviceName requestPacket);
+
+    // SDC_VALIDATE only: never call APPLY or SAVE_TO_DATABASE in this preflight.
+    [DllImport("user32.dll", EntryPoint = "SetDisplayConfig")]
+    private static extern int SetDisplayConfig(
+        uint numPathArrayElements,
+        [In] DisplayConfigPathInfo[] pathArray,
+        uint numModeInfoArrayElements,
+        [In] DisplayConfigModeInfo[] modeInfoArray,
+        uint flags);
 
     [DllImport("shcore.dll")]
     private static extern int GetDpiForMonitor(nint monitor, int dpiType, out uint dpiX, out uint dpiY);
