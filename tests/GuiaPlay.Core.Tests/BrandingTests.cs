@@ -520,7 +520,7 @@ public sealed class BrandingTests
         Assert.Equal("Collapsed", (string?)previewTimeline.Parent!.Attribute("Visibility"));
 
         Assert.Contains("x:Name=\"OperationalControlPanel\"", xaml, StringComparison.Ordinal);
-        Assert.Contains("Height=\"80\" MinHeight=\"0\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Height=\"112\" MinHeight=\"0\"", xaml, StringComparison.Ordinal);
         Assert.Contains("ColumnDefinition Width=\"1.55*\" MinWidth=\"365\"", xaml, StringComparison.Ordinal);
         Assert.Contains("GPAddMediaButtonStyle", xaml, StringComparison.Ordinal);
     }
@@ -576,22 +576,48 @@ public sealed class BrandingTests
         Assert.Same(body, seekCard.Parent);
         Assert.Equal("0", (string?)seekCard.Attribute("Grid.Row"));
         Assert.Equal("Transparent", (string?)seekCard.Attribute("Background"));
-        Assert.Equal("5,3,5,3", (string?)seekCard.Attribute("Padding"));
-        Assert.Equal("24", (string?)progress.Attribute("Height"));
+        Assert.Equal("5,5,5,5", (string?)seekCard.Attribute("Padding"));
+        Assert.Equal("28", (string?)progress.Attribute("Height"));
         var transportCard = body.Elements().Single(e =>
             e.Name.LocalName == "Border" && (string?)e.Attribute("Grid.Row") == "1");
         Assert.NotSame(seekCard, transportCard);
         Assert.Equal("Transparent", (string?)transportCard.Attribute("Background"));
         var rows = body.Elements().Single(e => e.Name.LocalName == "Grid.RowDefinitions");
         var firstRow = rows.Elements().First();
-        Assert.Equal("34", (string?)firstRow.Attribute("Height"));
+        Assert.Equal("42", (string?)firstRow.Attribute("Height"));
         Assert.Equal("1", (string?)progress.Attribute("Grid.Column"));
         Assert.Equal("0", (string?)elapsed.Attribute("Grid.Column"));
         Assert.Equal("2", (string?)total.Attribute("Grid.Column"));
         Assert.Equal("ProgressSlider_OnDragStarted", (string?)progress.Attribute("PreviewMouseLeftButtonDown"));
         Assert.Equal("ProgressSlider_OnDragCompleted", (string?)progress.Attribute("PreviewMouseLeftButtonUp"));
-        Assert.Equal("80", (string?)panel.Attribute("Height"));
+        Assert.Equal("112", (string?)panel.Attribute("Height"));
         Assert.Contains("RemainingText.Text = FormatTime(total);", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GP_I22_ExplicitSeekThumbTrackAndPlayHaveIndependentVisualClearance()
+    {
+        var source = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var document = XDocument.Parse(source);
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var panel = document.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "OperationalControlPanel");
+        var rows = panel.Descendants().First(e => e.Name.LocalName == "Grid.RowDefinitions").Elements().ToArray();
+        Assert.Equal("42", (string?)rows[0].Attribute("Height"));
+        Assert.Equal("*", (string?)rows[1].Attribute("Height"));
+
+        var slider = panel.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "ProgressSlider");
+        Assert.Equal("GPSeekSliderStyle", ((string?)slider.Attribute("Style"))?.Replace("{StaticResource ", "").TrimEnd('}'));
+        Assert.Equal("28", (string?)slider.Attribute("Height"));
+        var seekCard = slider.Parent!.Parent!;
+        Assert.Equal("True", (string?)seekCard.Attribute("ClipToBounds"));
+        var trackStyle = document.Descendants().Single(e => (string?)e.Attribute(x + "Key") == "GPSeekSliderStyle");
+        Assert.Contains(trackStyle.Descendants(), e => (string?)e.Attribute(x + "Name") == "PART_Track");
+        var thumbStyle = document.Descendants().Single(e => (string?)e.Attribute(x + "Key") == "GPSeekThumbStyle");
+        Assert.Contains(thumbStyle.Descendants(), e => e.Name.LocalName == "Ellipse");
+        Assert.Contains("Width=\"22\" Height=\"22\"", source, StringComparison.Ordinal);
+        var playStyle = document.Descendants().Single(e => (string?)e.Attribute(x + "Key") == "GPPlayTransport");
+        Assert.Contains(playStyle.Descendants(), e => (string?)e.Attribute("Value") == "48");
+        Assert.Equal("112", (string?)panel.Attribute("Height"));
     }
 
     [Fact]
@@ -608,13 +634,13 @@ public sealed class BrandingTests
         Assert.Equal("0", (string?)cards[0].Attribute("Grid.Row"));
         Assert.Equal("1", (string?)cards[1].Attribute("Grid.Row"));
         Assert.Equal("True", (string?)cards[1].Attribute("ClipToBounds"));
-        Assert.Equal("80", (string?)panel.Attribute("Height"));
+        Assert.Equal("112", (string?)panel.Attribute("Height"));
 
         var seeker = cards[0].Descendants().Single(e =>
             (string?)e.Attribute(x + "Name") == "ProgressSlider");
         var hero = cards[1].Descendants().Single(e =>
             (string?)e.Attribute(x + "Name") == "PlayButton");
-        Assert.Equal("24", (string?)seeker.Attribute("Height"));
+        Assert.Equal("28", (string?)seeker.Attribute("Height"));
         Assert.Equal("0", (string?)seeker.Parent!.Parent!.Attribute("Grid.Row"));
         Assert.Equal("1", (string?)hero.Ancestors().First(e =>
             (string?)e.Attribute("Grid.Row") == "1").Attribute("Grid.Row"));
@@ -632,7 +658,7 @@ public sealed class BrandingTests
         var panel = document.Descendants().Single(e =>
             (string?)e.Attribute(x + "Name") == "OperationalControlPanel");
 
-        Assert.Equal("80", (string?)panel.Attribute("Height"));
+        Assert.Equal("112", (string?)panel.Attribute("Height"));
         Assert.Equal("0", (string?)panel.Attribute("MinHeight"));
         Assert.DoesNotContain(panel.Descendants(), e => e.Name.LocalName == "Viewbox");
 
