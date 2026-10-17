@@ -436,8 +436,19 @@ public partial class MainWindow : Window
         return MediaLoadOutcome.Loaded;
     }
 
+    private bool HasNamedPlaylist()
+    {
+        if (_playlistWorkspace.ActivePresetId is not null) return true;
+        StatusText.Text = "Crie uma playlist ou salve a lista atual antes de criar pastas e mídias.";
+        MessageBox.Show(this,
+            "Primeiro crie uma playlist com o botão + no painel Playlists. Depois crie as pastas e adicione as mídias dentro delas.\n\nSe você já tem uma lista de trabalho antiga, use Salvar antes de continuar.",
+            "Selecione uma playlist", MessageBoxButton.OK, MessageBoxImage.Information);
+        return false;
+    }
+
     private void NewGroupButton_OnClick(object sender, RoutedEventArgs e)
     {
+        if (!_licensingAllowsAccess || _controlsBusy || !HasNamedPlaylist()) return;
         var prompt = new TextPromptWindow("Novo grupo", "Nome do grupo virtual:") { Owner = this };
         if (prompt.ShowDialog() != true)
         {
@@ -490,30 +501,21 @@ public partial class MainWindow : Window
 
     private void NewPlaylistButton_OnClick(object sender, RoutedEventArgs e)
     {
-        if (!_licensingAllowsAccess || _controlsBusy)
-        {
-            return;
-        }
-
+        if (!_licensingAllowsAccess || _controlsBusy) return;
         if (_playlistCatalog.Snapshot.Groups.Count > 0 || _playlistWorkspace.ActivePresetId is not null)
         {
-            var createNew = MessageBox.Show(
-                this,
-                "Iniciar uma nova playlist vazia? A lista de trabalho será substituída, mas as playlists já salvas e os arquivos originais não serão apagados.",
-                "Nova playlist",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-            if (createNew != MessageBoxResult.Yes)
-            {
-                return;
-            }
+            if (MessageBox.Show(this,
+                    "Criar uma nova playlist? O conteúdo atual será preservado na playlist salva. Arquivos originais nunca são apagados.",
+                    "Nova playlist", MessageBoxButton.YesNo, MessageBoxImage.Question)
+                != MessageBoxResult.Yes) return;
         }
 
         var replacementMode = ConfirmWorkspaceReplacement();
-        if (replacementMode is null)
-        {
-            return;
-        }
+        if (replacementMode is null) return;
+
+        var prompt = new TextPromptWindow("Nova playlist", "Nome da playlist:", "", "Criar")
+        { Owner = this };
+        if (prompt.ShowDialog() != true) return;
 
         if (Application.Current is not App app || app.PlaylistStore is null)
         {
@@ -521,29 +523,38 @@ public partial class MainWindow : Window
             return;
         }
 
+        // A playlist owns all groups and media. Store its empty named preset
+        // before replacing the working workspace. Never overwrite a sibling preset.
+        var created = _playlistPresetStore.Save(prompt.Value, PlaylistDocument.Empty);
+        if (created.Preset is not { } preset)
+        {
+            MessageBox.Show(this,
+                created.Error ?? "Já existe uma playlist com esse nome. Escolha outro nome.",
+                "Não foi possível criar playlist", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         var persisted = app.PlaylistStore.Save(PlaylistDocument.Empty);
         if (!persisted.Succeeded)
         {
+            _ = _playlistPresetStore.Delete(preset.Id); // rollback just-created empty preset
             FileLogger.Error($"Falha ao iniciar nova playlist: {persisted.Error}");
-            MessageBox.Show(
-                this,
-                "A nova playlist não foi criada porque a lista de trabalho não pôde ser persistida.",
-                "GuiaPlay — nova playlist",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            StatusText.Text = "Playlist anterior preservada: não foi possível gravar a nova lista.";
             return;
         }
 
         if (!_playlistWorkspace.StartNew(replacementMode.Value).Succeeded)
         {
-            StatusText.Text = "Alterações não salvas foram preservadas; nenhuma playlist foi substituída.";
+            _ = _playlistPresetStore.Delete(preset.Id);
+            StatusText.Text = "Alterações anteriores preservadas; não foi possível iniciar a nova playlist.";
             return;
         }
 
+        _playlistWorkspace.AcceptSavedPreset(preset);
         app.Playlist = _playlistCatalog.Snapshot;
         RebuildPlaylistTree();
-        RefreshSavedPlaylists();
-        StatusText.Text = "Nova playlist vazia criada. As mídias e playlists salvas foram preservadas.";
+        RefreshSavedPlaylists(preset.Id);
+        StatusText.Text = $"Playlist “{preset.Name}” criada. Agora crie pastas dentro dela.";
     }
 
     private SavedPlaylistEntry? SelectedSavedPlaylist() =>
@@ -2108,6 +2119,29 @@ public partial class MainWindow : Window
         }
     }
 
+    // Keep each named playlist's own folder/media tree up-to-date.
+    // A failed preset save never discards the still-persisted working playlist.
+    private void SaveActivePlaylistPreset()
+    {
+        if (_playlistWorkspace.ActivePresetId is not { } id ||
+            _playlistWorkspace.ActivePresetName is not { } name)
+        {
+            return; // Legacy unnamed working lists are kept until explicitly saved.
+        }
+
+        var result = _playlistPresetStore.Save(name, _playlistCatalog.Snapshot,
+            overwriteExisting: true);
+        if (result.Preset is { } preset && preset.Id == id)
+        {
+            _playlistWorkspace.AcceptSavedPreset(preset);
+            RefreshSavedPlaylists(id);
+            return;
+        }
+
+        FileLogger.Error($"Não foi possível sincronizar a playlist ativa {id:D}: {result.Error}");
+        StatusText.Text = "Lista de trabalho salva; não foi possível atualizar o preset ativo. Use Salvar.";
+    }
+
     private void SavePlaylistAndRefresh(string successMessage)
     {
         var snapshot = _playlistCatalog.Snapshot;
@@ -2127,6 +2161,7 @@ public partial class MainWindow : Window
 
         app.Playlist = snapshot;
         RebuildPlaylistTree();
+        SaveActivePlaylistPreset();
         RefreshActivePlaylistMarkers();
         StatusText.Text = successMessage;
     }
