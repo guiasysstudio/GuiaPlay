@@ -376,9 +376,9 @@ public sealed class BrandingTests
         Assert.Contains("x:Key=\"CompactTransportButtonStyle\"", main, StringComparison.Ordinal);
         Assert.Contains("<Setter Property=\"MinHeight\" Value=\"30\" />", main, StringComparison.Ordinal);
         // GP-I10: The approved 3-panel UI supersedes M10.3's two-column layout.
-        Assert.Contains("<ColumnDefinition Width=\"255\" MinWidth=\"240\" />", main, StringComparison.Ordinal);
-        Assert.Contains("<ColumnDefinition Width=\"*\" MinWidth=\"345\" />", main, StringComparison.Ordinal);
-        Assert.Contains("<ColumnDefinition Width=\"280\" MinWidth=\"240\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"1.05*\" MinWidth=\"230\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"3.4*\" MinWidth=\"345\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"1.1*\" MinWidth=\"235\" />", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PreviewProgressSlider\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"MediaGrid\"", main, StringComparison.Ordinal);
         Assert.Contains("SavePlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
