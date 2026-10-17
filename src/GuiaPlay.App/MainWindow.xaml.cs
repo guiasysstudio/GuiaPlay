@@ -4073,7 +4073,7 @@ public partial class MainWindow : Window
         MainPlayGlyph.Visibility = isPlaying ? Visibility.Collapsed : Visibility.Visible;
         MainPauseGlyph.Visibility = isPlaying ? Visibility.Visible : Visibility.Collapsed;
         PlayButton.ToolTip = isPlaying ? "Pausar reprodução (F6 / Espaço)" : "Reproduzir (F5 / Espaço)";
-        AutomationProperties.SetName(PlayButton, isPlaying ? "Pausar" : "Reproduzir");
+        System.Windows.Automation.AutomationProperties.SetName(PlayButton, isPlaying ? "Pausar" : "Reproduzir");
     }
 
 
