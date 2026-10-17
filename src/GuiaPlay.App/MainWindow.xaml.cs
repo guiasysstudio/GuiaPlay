@@ -3945,7 +3945,7 @@ public partial class MainWindow : Window
 
     private void SetConfigurationControlsEnabled(bool enabled)
     {
-        ConfigureScreensButton.IsEnabled = SettingsAccessPolicy.CanOpenSettings(_controlsBusy);
+        HeaderSettingsButton.IsEnabled = SettingsAccessPolicy.CanOpenSettings(_controlsBusy);
     }
 
     private void PersistExplicitOutputs()
