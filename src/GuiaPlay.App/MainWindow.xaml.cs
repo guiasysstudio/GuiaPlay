@@ -3239,6 +3239,28 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_youtubeWindow is { } youtube)
+        {
+            var status = _youtubeSnapshot?.State ?? "CARREGANDO";
+            PreviewLiveStateText.Text = "YOUTUBE " + status;
+            ProgramStatusBadgeText.Text = status;
+            ProgramPlaceholderText.Text = "YouTube · player oficial na tela pública";
+            ProgramDetailsText.Text = "Sem espelho de vídeo: a API não fornece quadros ao operador.";
+            YouTubeStatusHintText.Visibility = Visibility.Visible;
+            YouTubeStatusHintText.Text = _youtubeSnapshot?.Message ??
+                "Controle pelo GuiaPlay. O player visível permanece na saída pública.";
+            ProgramImage.Source = null;
+            ProgramImage.Visibility = Visibility.Collapsed;
+            ProgramEmptyState.Visibility = Visibility.Visible;
+            ActiveOutputsText.Text = youtube.Monitor.ShortLabel + " (YouTube)";
+            OutputSelectedCountText.Text = $"{SelectedOutputCount()} selecionada(s)";
+            NoPublicMonitorsText.Visibility = Visibility.Collapsed;
+            SidebarOutputsList.IsEnabled = false;
+            OutputsList.IsEnabled = false;
+            return;
+        }
+
+        YouTubeStatusHintText.Visibility = Visibility.Collapsed;
         // The program preview mirrors the frame used by the actual OutputWindow(s).
         // It never guesses what an external display physically shows.
         var selected = _outputChoices.Count(choice => choice.IsSelected);
