@@ -1433,14 +1433,20 @@ public partial class MainWindow : Window
     private void UpdateMediaGridActions()
     {
         var row = SelectedMediaRow();
-        var canMove = row is not null && _licensingAllowsAccess && !_controlsBusy;
-        MediaRemoveSelectedButton.IsEnabled = canMove;
-        var items = canMove
-            ? _playlistCatalog.Snapshot.Groups.FirstOrDefault(group => group.Id == row!.GroupId)?.Items
-            : null;
-        var index = items is null ? -1 : items.ToList().FindIndex(item => item.Id == row!.ItemId);
-        MediaMoveUpButton.IsEnabled = canMove && index > 0;
-        MediaMoveDownButton.IsEnabled = canMove && index >= 0 && index < (items?.Count ?? 0) - 1;
+        var available = row is not null && _licensingAllowsAccess && !_controlsBusy;
+        MediaRemoveSelectedButton.IsEnabled = available;
+
+        // The table displays playback order across ALL groups. Reordering must
+        // follow the visible sequence, rather than strand the first item of a
+        // group behind a permanently disabled arrow.
+        var orderedIds = _playlistCatalog.Snapshot.Groups
+            .SelectMany(group => group.Items)
+            .Select(item => item.Id)
+            .ToArray();
+        var index = available ? Array.IndexOf(orderedIds, row!.ItemId) : -1;
+        MediaMoveUpButton.IsEnabled = available && index > 0;
+        MediaMoveDownButton.IsEnabled = available && index >= 0 &&
+                                         index < orderedIds.Length - 1;
     }
 
     private void RemoveSelectedMediaButton_OnClick(object sender, RoutedEventArgs e) =>
@@ -1459,22 +1465,40 @@ public partial class MainWindow : Window
             return;
         }
 
-        var group = _playlistCatalog.Snapshot.Groups.FirstOrDefault(item => item.Id == row.GroupId);
-        if (group is null)
+        var playlist = _playlistCatalog.Snapshot;
+        var ordered = playlist.Groups
+            .SelectMany(group => group.Items.Select(item => (Group: group, Item: item)))
+            .ToArray();
+        var index = Array.FindIndex(ordered, entry => entry.Item.Id == row.ItemId);
+        var destination = index + direction;
+        if (index < 0 || destination < 0 || destination >= ordered.Length)
         {
             return;
         }
 
-        var index = group.Items.ToList().FindIndex(item => item.Id == row.ItemId);
-        var next = index + direction;
-        if (index < 0 || next < 0 || next >= group.Items.Count)
+        var neighbor = ordered[destination];
+        var neighborIndex = neighbor.Group.Items.ToList()
+            .FindIndex(item => item.Id == neighbor.Item.Id);
+        if (neighborIndex < 0)
         {
             return;
         }
 
-        if (_playlistCatalog.MoveItem(row.GroupId, row.ItemId, row.GroupId, next))
+        // Cross-group moves preserve the global row ordering and correctly
+        // update the source/destination group; original media files are untouched.
+        var newIndex = row.GroupId == neighbor.Group.Id
+            ? neighborIndex
+            : direction < 0 ? neighborIndex : neighborIndex + 1;
+        if (_playlistCatalog.MoveItem(row.GroupId, row.ItemId,
+                neighbor.Group.Id, newIndex))
         {
-            SavePlaylistAndRefresh("Ordem das mídias atualizada.");
+            SavePlaylistAndRefresh("Mídia movida na ordem de reprodução.");
+            var moved = _mediaRows.FirstOrDefault(item => item.ItemId == row.ItemId);
+            if (moved is not null)
+            {
+                MediaGrid.SelectedItem = moved;
+                MediaGrid.ScrollIntoView(moved);
+            }
         }
     }
 
