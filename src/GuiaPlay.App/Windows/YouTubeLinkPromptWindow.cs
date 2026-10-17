@@ -28,9 +28,9 @@ internal sealed class YouTubeLinkPromptWindow : Window
         });
         root.Children.Add(new TextBlock
         {
-            Text = "Sem tela pública selecionada, o player abre em uma janela do GuiaPlay. " +
-                   "Com uma tela pública selecionada, o vídeo aparece nela. " +
-                   "O player oficial mantém os controles e a identificação do YouTube.",
+            Text = "Adicionar o link apenas salva o vídeo na playlist. " +
+                   "Depois, selecione uma tela pública e clique em Reproduzir. " +
+                   "O início automático acontece somente após esse comando, sujeito às permissões do YouTube.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 5, 0, 12)
         });
@@ -63,7 +63,7 @@ internal sealed class YouTubeLinkPromptWindow : Window
         var cancel = new Button { Content = "Cancelar", MinWidth = 90, IsCancel = true };
         var add = new Button
         {
-            Content = "Adicionar e abrir",
+            Content = "Adicionar link",
             MinWidth = 125,
             IsDefault = true,
             Margin = new Thickness(8, 0, 0, 0)
