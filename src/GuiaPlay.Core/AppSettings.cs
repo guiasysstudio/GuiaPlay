@@ -36,7 +36,8 @@ public sealed record AppSettings(
     string? LastUpdateCheckProductVersion,
     string? LastKnownUpdateVersion,
     DateTimeOffset? LastKnownUpdatePublishedAt,
-    UpdateCheckStatus? LastKnownUpdateStatus)
+    UpdateCheckStatus? LastKnownUpdateStatus,
+    IReadOnlyList<OperatorShortcutAssignment>? ShortcutAssignments = null)
 {
     public const int CurrentSchemaVersion = 6;
 
@@ -238,6 +239,24 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
         var lastKnownVersion = ReadString(updates?["lastKnownVersion"]);
         var lastKnownPublishedAt = ReadDateTimeOffset(updates?["lastKnownPublishedAt"]);
         var lastKnownStatus = ReadNullableEnum<UpdateCheckStatus>(updates?["lastKnownStatus"]);
+        var customShortcuts = new List<OperatorShortcutAssignment>();
+        if (root["shortcuts"] is JsonArray shortcuts)
+        {
+            foreach (var shortcut in shortcuts)
+            {
+                if (shortcut is not JsonObject entry) continue;
+                var action = ParseEnum(entry["action"], OperatorShortcutAction.None);
+                var key = ParseEnum(entry["key"], OperatorShortcutKey.None);
+                var modifiers = ParseEnum(entry["modifiers"], OperatorShortcutModifiers.None);
+                if (action == OperatorShortcutAction.None) continue;
+                customShortcuts.Add(new OperatorShortcutAssignment(action, key, modifiers));
+            }
+        }
+        if (!OperatorShortcutPolicy.TryValidateAssignments(customShortcuts, out _))
+        {
+            // Corrupt/custom bindings cannot steal an essential operator command.
+            customShortcuts.Clear();
+        }
         return new AppSettings(
             appearance,
             accentColor,
@@ -254,12 +273,24 @@ public sealed class AppSettingsStore(string filePath, int invalidBackupRetention
             lastCheckProductVersion,
             lastKnownVersion,
             lastKnownPublishedAt,
-            lastKnownStatus);
+            lastKnownStatus,
+            customShortcuts);
     }
 
     private void UpdateRoot(AppSettings settings)
     {
         _root["schemaVersion"] = AppSettings.CurrentSchemaVersion;
+        var shortcutArray = new JsonArray();
+        foreach (var shortcut in settings.ShortcutAssignments ?? [])
+        {
+            shortcutArray.Add(new JsonObject
+            {
+                ["action"] = shortcut.Action.ToString(),
+                ["key"] = shortcut.Key.ToString(),
+                ["modifiers"] = shortcut.Modifiers.ToString()
+            });
+        }
+        _root["shortcuts"] = shortcutArray;
         _root["appearance"] = settings.Appearance.ToString();
         _root["accentColor"] = settings.AccentColor.ToString();
 
