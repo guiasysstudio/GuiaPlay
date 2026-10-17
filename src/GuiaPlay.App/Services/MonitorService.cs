@@ -16,12 +16,12 @@ internal static class MonitorService
         // Identity probing uses QueryDisplayConfig (native API). In Debug a
         // controlled isolation run can omit only this native step; Win32 screen
         // enumeration remains active and no output is falsely authenticated.
-        FileLogger.Info("GP-I11: Monitor enumeration begins. DisplayConfig=" +
+        DevelopmentDiagnostics.Trace("Monitor enumeration begins. DisplayConfig=" +
             (DevelopmentDiagnostics.SkipDisplayConfig ? "isolated" : "enabled"));
         var persistentIdentities = DevelopmentDiagnostics.SkipDisplayConfig
             ? new Dictionary<string, IReadOnlyList<PersistentIdentity>>(StringComparer.OrdinalIgnoreCase)
             : GetPersistentIdentities();
-        FileLogger.Info("GP-I11: DisplayConfig identity enumeration completed.");
+        DevelopmentDiagnostics.Trace("DisplayConfig identity enumeration completed.");
         EnumDisplayMonitors(nint.Zero, nint.Zero, (handle, _, _, _) =>
         {
             var native = new MonitorInfoEx { Size = Marshal.SizeOf<MonitorInfoEx>() };
@@ -75,7 +75,7 @@ internal static class MonitorService
             .Select(group => group.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        FileLogger.Info("GP-I11: Win32 monitor enumeration completed; total=" + result.Count);
+        DevelopmentDiagnostics.Trace("Win32 monitor enumeration completed; total=" + result.Count);
         return result
             .Select(monitor => duplicateIdentities.Contains(monitor.PersistentId ?? string.Empty)
                 ? monitor with { IdentityReliable = false }
