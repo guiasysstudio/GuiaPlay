@@ -48,7 +48,7 @@ internal sealed class YouTubeOutputWindow : Window
             if (!_closed && !_ready)
             {
                 _state = "ERRO";
-                StateChanged?.Invoke(this, new YouTubePlaybackSnapshot(
+                PlaybackStateChanged?.Invoke(this, new YouTubePlaybackSnapshot(
                     _state, false, 0, 0, null,
                     "O YouTube não respondeu dentro do prazo. Verifique a conexão e o player público."));
             }
@@ -84,7 +84,7 @@ internal sealed class YouTubeOutputWindow : Window
 
     public MonitorInfo Monitor { get; private set; }
     public bool Ready => _ready;
-    public event EventHandler<YouTubePlaybackSnapshot>? StateChanged;
+    public event EventHandler<YouTubePlaybackSnapshot>? PlaybackStateChanged;
 
     public async Task InitializeAsync(YouTubeVideoReference video)
     {
@@ -287,7 +287,7 @@ internal sealed class YouTubeOutputWindow : Window
                     return;
             }
 
-            StateChanged?.Invoke(this, new YouTubePlaybackSnapshot(
+            PlaybackStateChanged?.Invoke(this, new YouTubePlaybackSnapshot(
                 _state, _ready, _elapsed, _duration, _error, message));
         }
         catch (JsonException)
