@@ -2835,6 +2835,7 @@ public partial class MainWindow : Window
         MuteButton.Tag = state.Muted;
         UpdateMuteVisual(state.Muted);
         _engine.Muted = state.Muted;
+        _youtubeWindow?.Command(state.Muted ? "mute" : "unmute");
         VolumeText.Text = state.Muted ? "mudo" : $"{state.Volume}%";
         ScheduleSettingsSave();
     }
