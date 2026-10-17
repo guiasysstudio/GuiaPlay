@@ -229,6 +229,14 @@
                                 <TextBlock Text="Sobre" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
+                        <Button Click="KeyboardShortcutsButton_OnClick"
+                                Style="{StaticResource HeaderNavigationButtonStyle}"
+                                ToolTip="Lista de atalhos de teclado (F1)" AutomationProperties.Name="Atalhos de teclado">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⌨" FontSize="16" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                <TextBlock Text="Atalhos" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </ScrollViewer>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
