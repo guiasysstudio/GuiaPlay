@@ -17,7 +17,7 @@ public sealed record PlaylistGroup(
 
 public sealed record PlaylistDocument(int SchemaVersion, IReadOnlyList<PlaylistGroup> Groups)
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
     public static PlaylistDocument Empty { get; } = new(CurrentSchemaVersion, []);
 }
 
@@ -231,6 +231,32 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
 
         var items = _groups[index].Items.ToList();
         var item = new PlaylistItem(Guid.NewGuid(), Path.GetFileName(fullPath), fullPath, kind, items.Count);
+        items.Add(item);
+        _groups[index] = _groups[index] with { Items = items };
+        MarkChanged();
+        return item;
+    }
+
+    /// <summary>Adds a canonical YouTube link without inspecting local files.</summary>
+    public PlaylistItem AddYouTubeItem(Guid groupId, YouTubeVideoReference video, string? name = null)
+    {
+        ArgumentNullException.ThrowIfNull(video);
+        var index = _groups.FindIndex(group => group.Id == groupId);
+        if (index < 0)
+        {
+            throw new ArgumentException("Grupo não encontrado.", nameof(groupId));
+        }
+
+        var items = _groups[index].Items.ToList();
+        var url = video.WatchUri.AbsoluteUri;
+        if (items.Any(item => item.Kind == MediaKind.YouTube &&
+                              string.Equals(item.OriginalPath, url, StringComparison.Ordinal)))
+        {
+            throw new ArgumentException("Esse vídeo do YouTube já existe no grupo.", nameof(video));
+        }
+
+        var item = new PlaylistItem(Guid.NewGuid(), string.IsNullOrWhiteSpace(name)
+            ? $"YouTube · {video.VideoId}" : name.Trim(), url, MediaKind.YouTube, items.Count);
         items.Add(item);
         _groups[index] = _groups[index] with { Items = items };
         MarkChanged();
