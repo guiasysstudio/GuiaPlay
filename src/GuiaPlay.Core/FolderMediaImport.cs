@@ -219,8 +219,9 @@ public static class FolderMediaPlaylistMerge
                 string.Equals(group.SourceDirectory, directory, StringComparison.OrdinalIgnoreCase));
             if (index < 0 && groups.Any(group =>
                 string.Equals(group.Name, name, StringComparison.OrdinalIgnoreCase) &&
-                (group.SourceDirectory is not null && !string.Equals(group.SourceDirectory,
-                    directory, StringComparison.OrdinalIgnoreCase) ||
+                (directory is not null && group.SourceDirectory is null && group.Items.Count == 0 ||
+                 group.SourceDirectory is not null && !string.Equals(group.SourceDirectory,
+                     directory, StringComparison.OrdinalIgnoreCase) ||
                  group.Items.Count > 0 && group.Items.Any(item =>
                     !BelongsToRoot(item.OriginalPath, scan.RootPath)))))
             {
