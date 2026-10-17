@@ -66,3 +66,41 @@ dotnet run --project .\src\GuiaPlay.App\GuiaPlay.App.csproj -c Debug
 ```
 
 Se fechar, executar `tools/gp-i11-startup-diagnostics.ps1 -AnalyzeOnly` e enviar o novo evento de falha e as linhas `GP-I11` do log, sem dados pessoais.
+
+## GP-I11.2 — nova falha, reparacao por evidencia (17/10/2026)
+
+**Observacao confirmada:** a falha de 17/10/2026 07:21 (PID 0x54AC) ocorreu com modulo `ntdll.dll`, `0xC0000005`, identico bucket WER. Desta vez o log **NAO** registrou `GP-I11: Inicializando LibVLC sob demanda`. Conclusao: a inicializacao antecipada do LibVLC era um defeito de arquitetura corrigido, mas **nao era explicacao suficiente para o crash restante**. Nao mascarar esse fato e nao anunciar a falha como resolvida.
+
+### Investigacoes realizadas no codigo
+
+- Revisao dos P/Invokes de monitores em `MonitorService.cs` (`GetDisplayConfigBufferSizes`, `QueryDisplayConfig`, `DisplayConfigGetDeviceInfo`, `EnumDisplayMonitors`, `GetMonitorInfo`, `GetDpiForMonitor`).
+- Analise do background timer de monitor e consulta automatica de atualizacao GitHub, cujas execucoes coincidiam com o periodo da falha.
+- O evento WER nao contem a stack nativa; a DLL `ntdll.dll` pode ser o ponto de deteccao de corrupcao originada antes. E necessario isolar o componente ou capturar dump.
+
+### Alteracoes feitas, SEM alterar o comportamento Release
+
+1. `DevelopmentDiagnostics.cs`: tres gates **exclusivos da compilacao Debug** (leitura de variaveis de ambiente). Nao altera verificacao de licenca nem sua persistencia:
+   - `GUIAPLAY_DIAG_SKIP_DISPLAYCONFIG`: a enumeracao Win32 de monitores continua, mas a identidade persistente via DisplayConfig nativo e omitida; nenhuma identificacao e falsamente considerada confiavel.
+   - `GUIAPLAY_DIAG_SKIP_MONITOR_POLL`: interrompe somente o polling periodico de topologia, mas mantem enumeracao inicial.
+   - `GUIAPLAY_DIAG_SKIP_STARTUP_UPDATE`: suspende apenas a consulta automatica de atualizacao no inicio, sem desativar atualizacoes na versao Release.
+2. Pontos de instrumentacao detalhados da sequencia de enumeracao, polling e atualizacao.
+3. Logger inicial registra PID e caminho do executavel, para evitar confundir diagnostico de Debug com os logs da instalacao estavel.
+4. `tools/gp-i11-isolate-native-crash.ps1`: **um unico comando** compila o projeto Debug e executa quatro experiencias supervisionadas em sequencia, aguardando por um intervalo e fechando somente a instancia que o proprio script iniciou. Nao altera registro, arquivos de licencia, pasta do usuario, instaladores ou Release. `artifacts/gp-i11-isolation/isolation-result.txt`.
+5. `tools/gp-i11-native-dump.ps1`: opcao de obtencao de uma **stack nativa real** com ProcDump oficial da Microsoft (assinatura validada); download somente se `-DownloadOfficial` for explicitamente passado; a EULA nao e aceita automaticamente. Dump local nao e carregado/compartilhado pelo script. Se `cdb.exe` do Windows Debugger estiver presente, gera `native-stack.txt`. Nao enviar dump sem revisao: pode conter memoria de licenca e arquivos privados.
+
+### Protocolo de isolamento
+
+```powershell
+git pull --ff-only origin feat/gp-interface-3-modelo1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gp-i11-isolate-native-crash.ps1
+```
+
+Se a matriz nao identificar um componente especifico, capturar stack:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gp-i11-native-dump.ps1 -DownloadOfficial
+```
+
+**Proibido:** mexer em `main`, restaurar/remover licencia, apagar dados, desabilitar protecoes de acesso comercial, executar instalador, publicar release ou atribuir causa raiz sem stack/isolamento.
+
+**Status:** identificacao da causa nativa **pendente da execucao da matriz na maquina com o crash**. A correção final deve ser proposta como alteracao do componente confirmado e revalidada fisicamente.
