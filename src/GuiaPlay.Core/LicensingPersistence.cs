@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.Win32;
@@ -222,29 +223,116 @@ internal sealed class WindowsDeviceIdentityStore(string fallbackFilePath)
 
 internal static class WindowsDataProtection
 {
-    // The original implementation hand-marshaled Win32 DATA_BLOB values and
-    // owned unmanaged buffers. Use the supported Windows DPAPI wrapper instead:
-    // it performs the same per-user encryption with no optional entropy, so
-    // existing licensing.dat blobs remain decryptable. Never persist plaintext.
-    public static byte[] Protect(byte[] value)
+    private const int CryptProtectUiForbidden = 0x1;
+
+    public static byte[] Protect(byte[] value) => Transform(value, protect: true);
+
+    public static byte[] Unprotect(byte[] value) => Transform(value, protect: false);
+
+    private static byte[] Transform(byte[] value, bool protect)
     {
         ArgumentNullException.ThrowIfNull(value);
-        EnsureWindows();
-        return ProtectedData.Protect(value, optionalEntropy: null, DataProtectionScope.CurrentUser);
-    }
-
-    public static byte[] Unprotect(byte[] value)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-        EnsureWindows();
-        return ProtectedData.Unprotect(value, optionalEntropy: null, DataProtectionScope.CurrentUser);
-    }
-
-    private static void EnsureWindows()
-    {
         if (!OperatingSystem.IsWindows())
         {
             throw new PlatformNotSupportedException("A proteção local de licença do GuiaPlay exige Windows.");
         }
+
+        var input = CreateBlob(value);
+        var output = default(DataBlob);
+        try
+        {
+            var succeeded = protect
+                ? CryptProtectData(
+                    ref input,
+                    "GuiaPlay Licensing",
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    CryptProtectUiForbidden,
+                    out output)
+                : CryptUnprotectData(
+                    ref input,
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    CryptProtectUiForbidden,
+                    out output);
+
+            if (!succeeded)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            var result = new byte[output.Size];
+            if (output.Size > 0)
+            {
+                Marshal.Copy(output.Data, result, 0, output.Size);
+            }
+
+            return result;
+        }
+        finally
+        {
+            if (input.Data != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(input.Data);
+            }
+
+            if (output.Data != IntPtr.Zero)
+            {
+                _ = LocalFree(output.Data);
+            }
+        }
     }
+
+    private static DataBlob CreateBlob(byte[] value)
+    {
+        if (value.Length == 0)
+        {
+            return new DataBlob(0, IntPtr.Zero);
+        }
+
+        var pointer = Marshal.AllocHGlobal(value.Length);
+        Marshal.Copy(value, 0, pointer, value.Length);
+        return new DataBlob(value.Length, pointer);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DataBlob
+    {
+        public DataBlob(int size, IntPtr data)
+        {
+            Size = size;
+            Data = data;
+        }
+
+        public int Size;
+        public IntPtr Data;
+    }
+
+    [DllImport("Crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CryptProtectData(
+        ref DataBlob dataIn,
+        string? dataDescription,
+        IntPtr optionalEntropy,
+        IntPtr reserved,
+        IntPtr promptStruct,
+        int flags,
+        out DataBlob dataOut);
+
+    [DllImport("Crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CryptUnprotectData(
+        ref DataBlob dataIn,
+        IntPtr dataDescription,
+        IntPtr optionalEntropy,
+        IntPtr reserved,
+        IntPtr promptStruct,
+        int flags,
+        out DataBlob dataOut);
+
+    [DllImport("Kernel32.dll", SetLastError = true)]
+    private static extern IntPtr LocalFree(IntPtr memory);
 }
