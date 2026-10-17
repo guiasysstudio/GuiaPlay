@@ -273,7 +273,7 @@ public sealed class SingleInstanceCoordinator : IDisposable
     private static async Task ForwardAsync(string pipeName, string? mediaPath, CancellationToken cancellationToken)
     {
         using var client = new NamedPipeClientStream(".", pipeName, PipeDirection.Out, PipeOptions.Asynchronous);
-        await client.ConnectAsync(5000, cancellationToken).ConfigureAwait(false);
+        await client.ConnectAsync(10000, cancellationToken).ConfigureAwait(false);
         await using var writer = new StreamWriter(client, new UTF8Encoding(false), leaveOpen: false) { AutoFlush = true };
         await writer.WriteLineAsync(
             JsonSerializer.Serialize(new SingleInstanceRequest(mediaPath)).AsMemory(),
