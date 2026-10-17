@@ -26,7 +26,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          foreach ($file in @('tools/gp-i10-validation.ps1', 'tools/gp-i10-installers-local.ps1', 'tools/gp-i11-startup-diagnostics.ps1', 'tools/gp-i11-isolate-native-crash.ps1')) {
+          foreach ($file in @('tools/gp-i10-validation.ps1', 'tools/gp-i10-installers-local.ps1', 'tools/gp-i11-startup-diagnostics.ps1', 'tools/gp-i11-isolate-native-crash.ps1', 'tools/gp-i11-native-dump.ps1')) {
             $tokens = $null
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile(
