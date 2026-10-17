@@ -1173,7 +1173,7 @@ public partial class MainWindow : Window
             _youtubeReference = reference;
             _youtubeSnapshot = new YouTubePlaybackSnapshot(
                 "CARREGANDO", false, 0, 0, null, null);
-            window.StateChanged += YouTubeWindow_OnStateChanged;
+            window.PlaybackStateChanged += YouTubeWindow_OnStateChanged;
             window.Closed += (_, _) =>
             {
                 if (ReferenceEquals(_youtubeWindow, window))
@@ -1270,7 +1270,7 @@ public partial class MainWindow : Window
         _youtubeSnapshot = null;
         if (old is not null)
         {
-            old.StateChanged -= YouTubeWindow_OnStateChanged;
+            old.PlaybackStateChanged -= YouTubeWindow_OnStateChanged;
             old.Close();
         }
 
