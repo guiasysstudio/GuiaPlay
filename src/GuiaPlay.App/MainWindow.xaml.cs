@@ -671,18 +671,19 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void SavedPlaylistsList_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private void SavedPlaylistsList_OnPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Left)
+        if (!_licensingAllowsAccess || _controlsBusy || e.ChangedButton != MouseButton.Left ||
+            e.OriginalSource is not DependencyObject origin ||
+            ItemsControl.ContainerFromElement(SavedPlaylistsList, origin) is not ListBoxItem item ||
+            item.DataContext is not SavedPlaylistEntry selected ||
+            _playlistWorkspace.ActivePresetId == selected.Id)
         {
             return;
         }
 
-        if (e.OriginalSource is DependencyObject origin &&
-            ItemsControl.ContainerFromElement(SavedPlaylistsList, origin) is ListBoxItem)
-        {
-            OpenSelectedPresetButton_OnClick(sender, e);
-        }
+        _ = TryLoadPlaylistPreset(selected.Id);
+        e.Handled = true;
     }
 
     private void OpenSelectedPresetButton_OnClick(object sender, RoutedEventArgs e)
@@ -1059,6 +1060,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!HasNamedPlaylist()) return;
+
         var dialog = new OpenFileDialog
         {
             Title = "Adicionar referências à playlist",
@@ -1079,6 +1082,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!HasNamedPlaylist()) return;
+
         var picker = new OpenFolderDialog
         {
             Title = "Selecionar pasta de vídeos e músicas",
@@ -1098,6 +1103,8 @@ public partial class MainWindow : Window
         {
             return;
         }
+
+        if (!HasNamedPlaylist()) return;
 
         var dialog = new YouTubeLinkPromptWindow { Owner = this };
         if (dialog.ShowDialog() != true)
@@ -1136,6 +1143,7 @@ public partial class MainWindow : Window
         _playlistCatalog.ApplyPersistedChanges(catalog.Snapshot);
         app.Playlist = _playlistCatalog.Snapshot;
         RebuildPlaylistTree();
+        SaveActivePlaylistPreset();
         RefreshActivePlaylistMarkers();
         StatusText.Text = "Link YouTube salvo. Para reproduzir, selecione somente uma tela pública.";
     }
@@ -1149,6 +1157,8 @@ public partial class MainWindow : Window
         {
             return;
         }
+
+        if (!HasNamedPlaylist()) return;
 
         using var cancellation = new CancellationTokenSource();
         _folderImportCancellation = cancellation;
@@ -1229,6 +1239,7 @@ public partial class MainWindow : Window
             _playlistCatalog.ApplyPersistedChanges(merged.Playlist);
             app.Playlist = _playlistCatalog.Snapshot;
             RebuildPlaylistTree();
+            SaveActivePlaylistPreset();
             RefreshActivePlaylistMarkers();
 
             FolderImportStatusText.Text = $"{merged.Added} mídia(s) importada(s)";
@@ -1881,6 +1892,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!HasNamedPlaylist()) return;
+
         var receivedPaths = paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToArray();
         if (receivedPaths.Length == 0)
         {
@@ -1994,6 +2007,7 @@ public partial class MainWindow : Window
         _playlistCatalog.ApplyPersistedChanges(stagedDocument);
         app.Playlist = _playlistCatalog.Snapshot;
         RebuildPlaylistTree();
+        SaveActivePlaylistPreset();
         RefreshActivePlaylistMarkers();
         var ignored = result.Rejected.Count + duplicates;
         StatusText.Text = $"{result.Added.Count} mídia(s) em {targetGroup.Name}. " +
