@@ -570,8 +570,21 @@ public sealed class BrandingTests
         Assert.NotNull(seekRow);
         Assert.Same(seekRow, elapsed.Parent);
         Assert.Same(seekRow, total.Parent);
-        Assert.Same(body, seekRow!.Parent);
-        Assert.Equal("0", (string?)seekRow.Attribute("Grid.Row"));
+        var seekCard = seekRow!.Parent;
+        Assert.NotNull(seekCard);
+        Assert.Equal("Border", seekCard!.Name.LocalName);
+        Assert.Same(body, seekCard.Parent);
+        Assert.Equal("0", (string?)seekCard.Attribute("Grid.Row"));
+        Assert.Equal("Transparent", (string?)seekCard.Attribute("Background"));
+        Assert.Equal("5,3,5,3", (string?)seekCard.Attribute("Padding"));
+        Assert.Equal("24", (string?)progress.Attribute("Height"));
+        var transportCard = body.Elements().Single(e =>
+            e.Name.LocalName == "Border" && (string?)e.Attribute("Grid.Row") == "1");
+        Assert.NotSame(seekCard, transportCard);
+        Assert.Equal("Transparent", (string?)transportCard.Attribute("Background"));
+        var rows = body.Elements().Single(e => e.Name.LocalName == "Grid.RowDefinitions");
+        var firstRow = rows.Elements().First();
+        Assert.Equal("34", (string?)firstRow.Attribute("Height"));
         Assert.Equal("1", (string?)progress.Attribute("Grid.Column"));
         Assert.Equal("0", (string?)elapsed.Attribute("Grid.Column"));
         Assert.Equal("2", (string?)total.Attribute("Grid.Column"));
@@ -579,6 +592,35 @@ public sealed class BrandingTests
         Assert.Equal("ProgressSlider_OnDragCompleted", (string?)progress.Attribute("PreviewMouseLeftButtonUp"));
         Assert.Equal("80", (string?)panel.Attribute("Height"));
         Assert.Contains("RemainingText.Text = FormatTime(total);", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GP_I21_SeekThumbHasDedicatedVerticalClearanceWithoutGrowingFooter()
+    {
+        var document = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var panel = document.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "OperationalControlPanel");
+        var body = panel.Elements().Single();
+        var cards = body.Elements().Where(e => e.Name.LocalName == "Border").ToArray();
+
+        Assert.Equal(2, cards.Length);
+        Assert.Equal("0", (string?)cards[0].Attribute("Grid.Row"));
+        Assert.Equal("1", (string?)cards[1].Attribute("Grid.Row"));
+        Assert.Equal("80", (string?)panel.Attribute("Height"));
+
+        var seeker = cards[0].Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "ProgressSlider");
+        var hero = cards[1].Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "PlayButton");
+        Assert.Equal("24", (string?)seeker.Attribute("Height"));
+        Assert.Equal("0", (string?)seeker.Parent!.Parent!.Attribute("Grid.Row"));
+        Assert.Equal("1", (string?)hero.Ancestors().First(e =>
+            (string?)e.Attribute("Grid.Row") == "1").Attribute("Grid.Row"));
+        Assert.DoesNotContain(cards[1].Descendants(), e =>
+            (string?)e.Attribute(x + "Name") == "ProgressSlider");
+        Assert.DoesNotContain(cards[0].Descendants(), e =>
+            (string?)e.Attribute(x + "Name") == "PlayButton");
     }
 
     [Fact]
