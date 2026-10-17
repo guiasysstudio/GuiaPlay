@@ -1116,6 +1116,152 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task LoadYouTubeItemAsync(PlaylistItemNode node)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || _isClosing ||
+            !YouTubeVideoReferenceParser.TryParse(node.Item.OriginalPath, out var reference))
+        {
+            StatusText.Text = "Link do YouTube inválido ou GuiaPlay indisponível.";
+            return;
+        }
+
+        var selected = _outputChoices.Where(choice => choice.IsSelected)
+            .Select(choice => choice.Monitor).ToArray();
+        if (_operatorRequiresConfiguration || _operatorMonitor is null ||
+            selected.Length != 1 || selected[0].Id == _operatorMonitor.Id)
+        {
+            StatusText.Text = "YouTube exige uma única tela pública selecionada, separada do operador.";
+            return;
+        }
+
+        var monitor = selected[0];
+        var eligible = YouTubeEmbedGate.Assess(
+            monitor.Width, monitor.Height, hasAppIdentification: true,
+            isActuallyVisible: true, automaticPlayback: false,
+            visibleViewportFraction: 1, otherAutoPlayingYouTubePlayersOnSameScreen: 0);
+        if (!eligible.Allowed)
+        {
+            StatusText.Text = eligible.Reason ?? "A saída pública não atende às exigências do YouTube.";
+            return;
+        }
+
+        if ((_coordinator.IsActive || _youtubeWindow is not null) &&
+            MessageBox.Show(this,
+                "Interromper a mídia atual e abrir o player oficial do YouTube na tela selecionada?",
+                "Trocar reprodução", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var window = new YouTubeOutputWindow(monitor);
+        SetControlsBusy(true);
+        _suppressAutoAdvance = true;
+        try
+        {
+            // One backend at a time: stop LibVLC before showing the official player.
+            if (_coordinator.MediaPath is not null)
+            {
+                await _engine.StopAsync();
+                _coordinator.Stop();
+            }
+
+            CloseOutputWindows();
+            CloseYouTubeWindow();
+            _youtubeWindow = window;
+            _youtubeReference = reference;
+            _youtubeSnapshot = new YouTubePlaybackSnapshot(
+                "CARREGANDO", false, 0, 0, null, null);
+            window.StateChanged += YouTubeWindow_OnStateChanged;
+            window.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_youtubeWindow, window))
+                {
+                    _youtubeWindow = null;
+                    _youtubeReference = null;
+                    _youtubeSnapshot = null;
+                    if (!_isClosing)
+                    {
+                        StatusText.Text = "Player do YouTube fechado; conteúdo local preservado.";
+                        RefreshPlaybackControls();
+                    }
+                }
+            };
+
+            window.Show();
+            await window.InitializeAsync(reference!);
+            if (_isClosing || !_licensingAllowsAccess)
+            {
+                CloseYouTubeWindow();
+                return;
+            }
+
+            _loadedPlaylistItemId = node.Item.Id;
+            _loadedPlaylistRevision = _playlistRevision;
+            _bitmap = null;
+            PreviewImage.Source = null;
+            ProgramImage.Source = null;
+            PreviewPlaceholder.Text = "YouTube · prévia informativa";
+            PreviewEmptyHint.Text = "A imagem do YouTube aparece somente na tela pública.";
+            PreviewEmptyState.Visibility = Visibility.Visible;
+            FileNameText.Text = node.Name;
+            FileNameText.ToolTip = reference!.WatchUri.AbsoluteUri;
+            ProgressSlider.Value = 0;
+            ProgressSlider.Maximum = 1;
+            UpdateTimeLabels(0, 0);
+            StatusText.Text = "YouTube aberto. Pressione Reproduzir ou utilize o player visível no projetor.";
+            RefreshPlaybackControls();
+        }
+        catch (Exception exception)
+        {
+            FileLogger.Error("Falha ao preparar o player oficial do YouTube.", exception);
+            CloseYouTubeWindow();
+            StatusText.Text = "WebView2/YouTube não disponível. Verifique Runtime Edge e conexão.";
+        }
+        finally
+        {
+            _suppressAutoAdvance = false;
+            SetControlsBusy(false);
+        }
+    }
+
+    private void YouTubeWindow_OnStateChanged(object? sender, YouTubePlaybackSnapshot status)
+    {
+        if (_isClosing || !_licensingAllowsAccess || !ReferenceEquals(sender, _youtubeWindow))
+        {
+            return;
+        }
+
+        _youtubeSnapshot = status;
+        if (!_isDraggingProgress)
+        {
+            ProgressSlider.Maximum = Math.Max(1, status.DurationMilliseconds);
+            ProgressSlider.Value = Math.Clamp(
+                status.ElapsedMilliseconds, 0, Math.Max(1, status.DurationMilliseconds));
+        }
+
+        UpdateTimeLabels(status.ElapsedMilliseconds, status.DurationMilliseconds);
+        if (!string.IsNullOrWhiteSpace(status.Message))
+        {
+            StatusText.Text = status.Message;
+        }
+
+        RefreshPlaybackControls();
+    }
+
+    private void CloseYouTubeWindow()
+    {
+        var old = _youtubeWindow;
+        _youtubeWindow = null;
+        _youtubeReference = null;
+        _youtubeSnapshot = null;
+        if (old is not null)
+        {
+            old.StateChanged -= YouTubeWindow_OnStateChanged;
+            old.Close();
+        }
+    }
+
     // GP-I03: table search is a view filter. It never reorders persisted playback data.
     private bool MediaGridFilter(object value)
     {
