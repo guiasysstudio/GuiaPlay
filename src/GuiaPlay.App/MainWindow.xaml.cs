@@ -1184,6 +1184,8 @@ public partial class MainWindow : Window
                     if (!_isClosing)
                     {
                         StatusText.Text = "Player do YouTube fechado; conteúdo local preservado.";
+                        RefreshAudioPanel();
+                        UpdateActiveOutputs();
                         RefreshPlaybackControls();
                     }
                 }
