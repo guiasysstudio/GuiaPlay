@@ -1712,6 +1712,18 @@ public partial class MainWindow : Window
         var firstReady = _youtubeSnapshot?.Ready != true && status.Ready;
         var previousState = _youtubeSnapshot?.State;
         _youtubeSnapshot = status;
+        if (status.State != previousState)
+        {
+            if (status.State == "PAUSADO")
+            {
+                foreach (var mirror in _youtubeMirrors) mirror.Command("pause");
+            }
+            else if (status.State == "REPRODUZINDO")
+            {
+                foreach (var mirror in _youtubeMirrors) mirror.Command("play");
+            }
+        }
+
         if (firstReady || status.State != previousState || status.State == "ERRO")
         {
             FileLogger.Info($"GP-YT-02: estado do player={status.State}; " +
@@ -2916,8 +2928,8 @@ public partial class MainWindow : Window
         {
             if (youtube.Ready && _licensingAllowsAccess && !_controlsBusy)
             {
-                youtube.Command("play");
-                StatusText.Text = "Reprodução solicitada ao YouTube.";
+                SendYouTubeCommand("play");
+                StatusText.Text = "Reprodução solicitada ao YouTube nas saídas selecionadas.";
             }
             else
             {
@@ -3047,8 +3059,8 @@ public partial class MainWindow : Window
     {
         if (_youtubeWindow is { Ready: true } youtube && _licensingAllowsAccess)
         {
-            youtube.Command("pause");
-            StatusText.Text = "Pausa solicitada ao YouTube.";
+            SendYouTubeCommand("pause");
+            StatusText.Text = "Pausa solicitada ao YouTube em todas as telas.";
             return;
         }
 
@@ -3912,7 +3924,7 @@ public partial class MainWindow : Window
         var target = Math.Clamp(targetMilliseconds, 0, duration);
         if (_youtubeWindow is { } youtube)
         {
-            youtube.Command("seek", target / 1000d);
+            SendYouTubeCommand("seek", target / 1000d);
             ProgressSlider.Maximum = Math.Max(1, duration);
             ProgressSlider.Value = target;
             UpdateTimeLabels(target, duration);
@@ -4182,19 +4194,20 @@ public partial class MainWindow : Window
             var status = _youtubeSnapshot?.State ?? "CARREGANDO";
             PreviewLiveStateText.Text = "YOUTUBE " + status;
             ProgramStatusBadgeText.Text = status;
-            ProgramPlaceholderText.Text = youtube.Monitor is null
-                ? "YouTube · player oficial no GuiaPlay"
-                : "YouTube · player oficial na tela pública";
-            ProgramDetailsText.Text = "O vídeo fica somente no player visível, sem espelho de quadros.";
+            ProgramPlaceholderText.Text = $"YouTube · {1 + _youtubeMirrors.Count} tela(s) pública(s)";
+            ProgramDetailsText.Text = _youtubeMirrors.Count > 0
+                ? "Players oficiais independentes; sincronização aproximada e som na primeira tela."
+                : "Player oficial na tela pública; sem espelho de quadros.";
             YouTubeStatusHintText.Visibility = Visibility.Visible;
             YouTubeStatusHintText.Text = _youtubeSnapshot?.Message ??
                 "Controle pela barra do GuiaPlay ou diretamente pelo player visível.";
             ProgramImage.Source = null;
             ProgramImage.Visibility = Visibility.Collapsed;
             ProgramEmptyState.Visibility = Visibility.Visible;
-            ActiveOutputsText.Text = youtube.Monitor is { } outputMonitor
-                ? outputMonitor.ShortLabel + " (YouTube)"
-                : "Operador · janela do GuiaPlay";
+            ActiveOutputsText.Text = string.Join(Environment.NewLine,
+                new[] { youtube.Monitor.ShortLabel }
+                    .Concat(_youtubeMirrors.Select(mirror => mirror.Monitor.ShortLabel)))
+                + " (YouTube)";
             OutputSelectedCountText.Text = $"{SelectedOutputCount()} selecionada(s)";
             NoPublicMonitorsText.Visibility = Visibility.Collapsed;
             SidebarOutputsList.IsEnabled = false;
@@ -4292,16 +4305,23 @@ public partial class MainWindow : Window
     {
         var previousMonitors = _monitors;
         var current = MonitorService.GetActiveMonitors();
-        if (_youtubeWindow is { Monitor: { } youtubeMonitor } activeYouTube &&
-            MonitorTopologyReconciler.FindCurrent(youtubeMonitor, current) is null)
+        if (_youtubeWindow is { } activeYouTube)
         {
-            CloseYouTubeWindow();
-            StatusText.Text = "Tela pública do YouTube desconectada; reprodução interrompida.";
-        }
-        else if (_youtubeWindow is { Monitor: { } connectedMonitor } connectedYouTube &&
-                 MonitorTopologyReconciler.FindCurrent(connectedMonitor, current) is { } routedMonitor)
-        {
-            connectedYouTube.Reposition(routedMonitor);
+            var youtubeOutputs = new[] { activeYouTube }.Concat(_youtubeMirrors).ToArray();
+            if (youtubeOutputs.Any(output =>
+                MonitorTopologyReconciler.FindCurrent(output.Monitor, current) is null))
+            {
+                CloseYouTubeWindow();
+                StatusText.Text = "Tela pública do YouTube desconectada; reprodução conjunta interrompida.";
+            }
+            else
+            {
+                foreach (var output in youtubeOutputs)
+                {
+                    var routed = MonitorTopologyReconciler.FindCurrent(output.Monitor, current);
+                    if (routed is not null) output.Reposition(routed);
+                }
+            }
         }
         var names = (Application.Current as App)?.Settings.MonitorNames ?? new Dictionary<string, string>();
         current = current.Select(monitor => monitor with
