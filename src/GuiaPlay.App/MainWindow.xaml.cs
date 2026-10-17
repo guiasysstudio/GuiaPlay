@@ -284,7 +284,7 @@ public partial class MainWindow : Window
         var dialog = new OpenFileDialog
         {
             Title = "Abrir mídia",
-            Filter = "Mídia compatível|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.ogv;*.mp3;*.wav;*.ogg;*.flac;*.aac;*.m4a;*.wma;*.opus;*.aiff;*.alac;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff|Vídeo|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.ogv|Áudio|*.mp3;*.wav;*.ogg;*.flac;*.aac;*.m4a;*.wma;*.opus;*.aiff;*.alac;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff|Imagens|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff",
+            Filter = "Mídia compatível|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.ogv;*.mp3;*.wav;*.ogg;*.flac;*.aac;*.m4a;*.wma;*.opus;*.aiff;*.alac;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff|Vídeo|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.webm;*.m4v;*.mpg;*.mpeg;*.ts;*.m2ts;*.3gp;*.ogv|Áudio|*.mp3;*.wav;*.ogg;*.flac;*.aac;*.m4a;*.wma;*.opus;*.aiff;*.alac|Imagens|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff",
             CheckFileExists = true,
             Multiselect = false
         };
