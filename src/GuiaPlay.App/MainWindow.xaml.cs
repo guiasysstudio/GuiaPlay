@@ -397,6 +397,7 @@ public partial class MainWindow : Window
                 : "Aguardando o primeiro quadro da mídia";
             PreviewEmptyState.Visibility = Visibility.Visible;
             FileNameText.Text = Path.GetFileName(path);
+            UpdateTransportArtwork(kind, path);
             FileNameText.ToolTip = Path.GetFileName(path);
             ProgressSlider.Value = 0;
             ProgressSlider.Maximum = 1;
@@ -1249,6 +1250,7 @@ public partial class MainWindow : Window
             PreviewEmptyHint.Text = "A imagem do YouTube aparece somente na tela pública.";
             PreviewEmptyState.Visibility = Visibility.Visible;
             FileNameText.Text = node.Name;
+            UpdateTransportArtwork(MediaKind.YouTube, node.Item.OriginalPath);
             FileNameText.ToolTip = reference!.WatchUri.AbsoluteUri;
             ProgressSlider.Value = 0;
             ProgressSlider.Maximum = 1;
@@ -1589,6 +1591,11 @@ public partial class MainWindow : Window
                 if (!token.IsCancellationRequested && !_isClosing && _mediaRows.Contains(row))
                 {
                     row.ApplyMetadata(metadata);
+                    if (_coordinator.MediaPath is { } loadedPath &&
+                        string.Equals(row.FilePath, loadedPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        UpdateTransportArtwork(row.Node.Item.Kind, row.FilePath);
+                    }
                 }
             }, DispatcherPriority.Background, token);
         }, token);
@@ -2931,6 +2938,23 @@ public partial class MainWindow : Window
         _youtubeWindow?.Command(state.Muted ? "mute" : "unmute");
         VolumeText.Text = state.Muted ? "mudo" : $"{state.Volume}%";
         ScheduleSettingsSave();
+    }
+
+    // The reference screenshot's artwork is illustrative; the UI never substitutes
+    // another file's cover. The placeholder uses the real media kind until a
+    // verified thumbnail is available from the isolated metadata pipeline.
+    private void UpdateTransportArtwork(MediaKind kind, string? path)
+    {
+        var matchingRow = string.IsNullOrWhiteSpace(path)
+            ? null
+            : _mediaRows.FirstOrDefault(row =>
+                string.Equals(row.FilePath, path, StringComparison.OrdinalIgnoreCase));
+        TransportThumbnailImage.Source = matchingRow?.Thumbnail;
+        var showPlaceholder = matchingRow?.Thumbnail is null;
+        TransportAudioPlaceholderIcon.Visibility = showPlaceholder && kind == MediaKind.Audio
+            ? Visibility.Visible : Visibility.Collapsed;
+        TransportVideoPlaceholderIcon.Visibility = showPlaceholder && kind != MediaKind.Audio
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // GP-I13: user-supplied SVG levels; one indicator for local and YouTube audio.
