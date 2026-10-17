@@ -171,6 +171,10 @@ public partial class MainWindow : Window
             }
 
             FileLogger.Info("Painel do operador carregado.");
+            if (_playlistAvailabilityCancellation is { } mediaCancellation)
+            {
+                _ = RefreshMediaGridMetadataAsync(_mediaRows.ToArray(), mediaCancellation.Token);
+            }
             RefreshUpdateIndicator();
             ApplyLicensingState((Application.Current as App)?.Licensing?.Current ?? LicensingSnapshot.Checking);
             _ = CheckForUpdatesOnStartupAsync();
@@ -1318,7 +1322,10 @@ public partial class MainWindow : Window
 
         var token = _playlistAvailabilityCancellation.Token;
         _ = RefreshLocalPlaylistAvailabilityAsync(token);
-        _ = RefreshMediaGridMetadataAsync(_mediaRows.ToArray(), token);
+        if (_settingsInitialized && !_isClosing)
+        {
+            _ = RefreshMediaGridMetadataAsync(_mediaRows.ToArray(), token);
+        }
     }
 
     private async Task RefreshLocalPlaylistAvailabilityAsync(CancellationToken cancellationToken)
