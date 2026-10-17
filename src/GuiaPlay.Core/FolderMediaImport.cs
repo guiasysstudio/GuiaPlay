@@ -217,7 +217,7 @@ public static class FolderMediaPlaylistMerge
             // not merely by display name; empty links work too.
             var index = directory is null ? -1 : groups.FindIndex(group =>
                 string.Equals(group.SourceDirectory, directory, StringComparison.OrdinalIgnoreCase));
-            if (index < 0 && groups.Any(group =>
+            if (index < 0 && !string.IsNullOrEmpty(scan.RootPath) && groups.Any(group =>
                 string.Equals(group.Name, name, StringComparison.OrdinalIgnoreCase) &&
                 (directory is not null && group.SourceDirectory is null && group.Items.Count == 0 ||
                  group.SourceDirectory is not null && !string.Equals(group.SourceDirectory,
