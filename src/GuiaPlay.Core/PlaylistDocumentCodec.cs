@@ -44,9 +44,20 @@ internal static class PlaylistDocumentCodec
                             Order = itemOrder
                         };
                     })
-                    .ToArray()))
+                    .ToArray(),
+                NormalizeLinkedFolder(group.SourceDirectory)))
             .ToArray();
         return new PlaylistDocument(PlaylistDocument.CurrentSchemaVersion, groups);
+    }
+
+    private static string? NormalizeLinkedFolder(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source)) return null;
+        try { return Path.GetFullPath(source); }
+        catch (Exception error) when (error is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null; // media item references survive even when a folder link is invalid
+        }
     }
 
     private static string CanonicalYouTubePath(string value)
@@ -183,7 +194,15 @@ internal static class PlaylistDocumentCodec
             }
         }
 
-        group = new PlaylistGroup(id, name.Trim(), order, items);
+        string? sourceDirectory = null;
+        if (TryReadString(element, "sourceDirectory", out var linkedPath) &&
+            !string.IsNullOrWhiteSpace(linkedPath))
+        {
+            sourceDirectory = NormalizeLinkedFolder(linkedPath);
+            if (sourceDirectory is null)
+                warnings.Add($"O vínculo da pasta ‘{name.Trim()}’ é inválido e foi descartado.");
+        }
+        group = new PlaylistGroup(id, name.Trim(), order, items, sourceDirectory);
         return true;
     }
 
