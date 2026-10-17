@@ -65,7 +65,8 @@ public sealed record OperatorShortcutBinding(
 public sealed record OperatorShortcutAssignment(
     OperatorShortcutAction Action,
     OperatorShortcutKey Key,
-    OperatorShortcutModifiers Modifiers);
+    OperatorShortcutModifiers Modifiers,
+    string? CapturedKey = null);
 
 /// <summary>
 /// Window-scoped operator shortcuts. No global hooks or input simulation.
@@ -119,36 +120,39 @@ public static class OperatorShortcutPolicy
         bool textEntryFocused,
         bool spaceHandledByControl,
         bool isRepeated,
+        IReadOnlyList<OperatorShortcutAssignment>? assignments = null) =>
+        Resolve(key.ToString(), modifiers, textEntryFocused, spaceHandledByControl,
+            isRepeated, assignments);
+
+    // WPF sends the *actual* Key enum name, including NumPad, OEM punctuation,
+    // F2–F24, media keys etc. The operator does not choose from a canned list.
+    public static OperatorShortcutAction Resolve(
+        string? keyName,
+        OperatorShortcutModifiers modifiers,
+        bool textEntryFocused,
+        bool spaceHandledByControl,
+        bool isRepeated,
         IReadOnlyList<OperatorShortcutAssignment>? assignments = null)
     {
-        if (key == OperatorShortcutKey.None || isRepeated ||
-            (modifiers & (OperatorShortcutModifiers.Windows | OperatorShortcutModifiers.Alt)) != 0)
-        {
+        if (string.IsNullOrWhiteSpace(keyName) || keyName == nameof(OperatorShortcutKey.None) ||
+            isRepeated || (modifiers & (OperatorShortcutModifiers.Windows | OperatorShortcutModifiers.Alt)) != 0)
             return OperatorShortcutAction.None;
-        }
 
-        if (spaceHandledByControl && key == OperatorShortcutKey.Space)
-        {
+        if (spaceHandledByControl && keyName == nameof(OperatorShortcutKey.Space))
             return OperatorShortcutAction.None;
-        }
 
-        // Override by action (rather than adding shortcuts): moving an action
-        // must never leave the old key active as a hidden duplicate.
-        foreach (var shortcut in Bindings)
+        foreach (var binding in Bindings)
         {
-            var configured = assignments?.FirstOrDefault(a => a.Action == shortcut.Action);
-            var gestureKey = configured?.Key ?? shortcut.Key;
-            var gestureModifiers = configured?.Modifiers ?? shortcut.Modifiers;
-            if (gestureKey == key && gestureModifiers == modifiers)
+            var assigned = assignments?.FirstOrDefault(a => a.Action == binding.Action);
+            var actualKey = assigned?.CapturedKey ?? (assigned?.Key ?? binding.Key).ToString();
+            var actualModifiers = assigned?.Modifiers ?? binding.Modifiers;
+            if (string.Equals(actualKey, keyName, StringComparison.OrdinalIgnoreCase) &&
+                actualModifiers == modifiers)
             {
-                // Only the Help action may work inside a text editor.
-                // Rebinding F1 to Play must never hijack typing or editing.
-                return textEntryFocused && shortcut.Action != OperatorShortcutAction.Help
-                    ? OperatorShortcutAction.None
-                    : shortcut.Action;
+                return textEntryFocused && binding.Action != OperatorShortcutAction.Help
+                    ? OperatorShortcutAction.None : binding.Action;
             }
         }
-
         return OperatorShortcutAction.None;
     }
 
@@ -158,29 +162,31 @@ public static class OperatorShortcutPolicy
     {
         error = null;
         if (overrides is null || overrides.Count == 0) return true;
-        var actions = Bindings.Select(b => b.Action).ToHashSet();
-        var usedActions = new HashSet<OperatorShortcutAction>();
-        var usedKeys = new HashSet<(OperatorShortcutKey, OperatorShortcutModifiers)>();
-        foreach (var item in overrides)
+        var allowed = Bindings.Select(b => b.Action).ToHashSet();
+        var actions = new HashSet<OperatorShortcutAction>();
+        var gestures = new HashSet<(string, OperatorShortcutModifiers)>();
+        foreach (var custom in overrides)
         {
-            if (!actions.Contains(item.Action) || !usedActions.Add(item.Action) ||
-                !Enum.IsDefined(item.Key) ||
-                (item.Modifiers & ~(OperatorShortcutModifiers.Control | OperatorShortcutModifiers.Shift)) != 0)
+            if (!allowed.Contains(custom.Action) || !actions.Add(custom.Action) ||
+                !Enum.IsDefined(custom.Key) ||
+                (custom.Modifiers & ~(OperatorShortcutModifiers.Control | OperatorShortcutModifiers.Shift)) != 0 ||
+                (custom.CapturedKey is { } name && (name.Length > 40 ||
+                    name.Any(c => !char.IsLetterOrDigit(c)))))
             {
-                error = "Um atalho possui ação, tecla ou modificador inválido.";
+                error = "Atalho inválido. Use uma tecla principal com Ctrl e/ou Shift.";
                 return false;
             }
         }
 
         foreach (var binding in Bindings)
         {
-            var custom = overrides.FirstOrDefault(o => o.Action == binding.Action);
-            var gestureKey = custom?.Key ?? binding.Key;
-            var gestureMods = custom?.Modifiers ?? binding.Modifiers;
-            if (gestureKey == OperatorShortcutKey.None) continue; // Disable this command's keyboard gesture.
-            if (!usedKeys.Add((gestureKey, gestureMods)))
+            var custom = overrides.FirstOrDefault(x => x.Action == binding.Action);
+            var actualKey = custom?.CapturedKey ?? (custom?.Key ?? binding.Key).ToString();
+            var modifiers = custom?.Modifiers ?? binding.Modifiers;
+            if (actualKey == nameof(OperatorShortcutKey.None)) continue;
+            if (!gestures.Add((actualKey.ToUpperInvariant(), modifiers)))
             {
-                error = $"A combinação {gestureMods} + {gestureKey} está atribuída a mais de uma ação.";
+                error = $"A combinação {modifiers} + {actualKey} está atribuída a mais de uma função.";
                 return false;
             }
         }
