@@ -28,8 +28,8 @@ begin
   if (CurStep <> ssPostInstall) or GuiaPlayHasWebView2Runtime then
     Exit;
 
-  ; Prevents a successful GuiaPlay installation from being reported as failed
-  ; simply because Microsoft download servers cannot be reached.
+  // Do not fail the entire GuiaPlay installation if the Microsoft
+  // download servers cannot be reached.
   try
     Log('WebView2 runtime ausente; instalando bootstrapper Evergreen oficial da Microsoft.');
     DownloadTemporaryFile(
