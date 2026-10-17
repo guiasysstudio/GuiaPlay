@@ -250,7 +250,7 @@ public sealed class WindowsIntegrationService
                    _registry.HasString($@"{CapabilitiesKey}\FileAssociations", extension, AudioProgId)) &&
                MediaTypeDetector.SupportedImageExtensions.All(extension =>
                    _registry.HasValue(OpenWithKey(extension), ImageProgId) &&
-                   _registry.HasString($@"{CapabilitiesKey}\\FileAssociations", extension, ImageProgId));
+                   _registry.HasString($@"{CapabilitiesKey}\FileAssociations", extension, ImageProgId));
     }
 
     private bool IsContextMenuRegistered() => MediaTypeDetector.SupportedExtensions.All(extension =>
