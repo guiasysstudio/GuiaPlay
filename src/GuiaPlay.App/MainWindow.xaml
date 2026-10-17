@@ -304,6 +304,7 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <Grid Margin="4,1,4,5">
                                     <Grid.ColumnDefinitions>
@@ -334,6 +335,27 @@
                                         </StackPanel>
                                     </Grid>
                                 </Border>
+                                <!-- Same LibVLC position as transport below; bindings prevent drift. -->
+                                <Grid Grid.Row="2" Margin="2,6,2,1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="39" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="80" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Text, ElementName=ElapsedText}"
+                                               VerticalAlignment="Center" FontSize="10" />
+                                    <Slider x:Name="PreviewProgressSlider" Grid.Column="1" Margin="5,0"
+                                            Minimum="0" Maximum="{Binding Maximum, ElementName=ProgressSlider}"
+                                            Value="{Binding Value, ElementName=ProgressSlider, Mode=TwoWay}"
+                                            IsEnabled="False" ToolTip="Arraste para buscar a posição do vídeo"
+                                            Foreground="{DynamicResource GuiaPlayAccentBrush}"
+                                            PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
+                                            PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted"
+                                            PreviewMouseWheel="ProgressSlider_OnMouseWheel" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Text, ElementName=RemainingText}"
+                                               TextAlignment="Right" VerticalAlignment="Center" FontSize="9"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Grid>
                             </Grid>
                         </Border>
                         <Border Grid.Column="2" CornerRadius="8"
@@ -916,13 +938,13 @@
         <Border x:Name="OperationalControlPanel" Grid.Row="2" Margin="0,8,0,0" Style="{StaticResource CardStyle}"
                 Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" Padding="8,6">
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="48" /><ColumnDefinition Width="*" /><ColumnDefinition Width="104" /></Grid.ColumnDefinitions>
                     <TextBlock x:Name="ElapsedText" Text="00:00" VerticalAlignment="Center" />
                     <Slider x:Name="ProgressSlider" Grid.Column="1" Margin="7,0" Minimum="0" Maximum="1" Value="0"
                             Foreground="{DynamicResource GuiaPlayAccentBrush}"
-                            ToolTip="Posição da mídia" PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
+                            ToolTip="Posição da mídia" IsEnabled="False" PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
                             PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted" PreviewMouseWheel="ProgressSlider_OnMouseWheel" />
                     <TextBlock x:Name="RemainingText" Grid.Column="2" Text="-00:00 / 00:00" VerticalAlignment="Center"
                                TextAlignment="Right" />
@@ -931,12 +953,24 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <WrapPanel VerticalAlignment="Center">
                         <Button x:Name="OpenButton" Content="Abrir mídia…" Click="OpenButton_OnClick" Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,6,0" />
+                        <Button x:Name="PreviousMediaButton" Content="|◀" Click="PreviousMediaButton_OnClick"
+                                IsEnabled="False" ToolTip="Carregar a mídia anterior sem reproduzir automaticamente"
+                                Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,5,0" />
+                        <Button x:Name="BackFiveButton" Content="−5s" Click="BackFiveButton_OnClick"
+                                IsEnabled="False" ToolTip="Voltar cinco segundos"
+                                Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,5,0" />
                         <Button x:Name="PlayButton" Click="PlayButton_OnClick" IsEnabled="False" Style="{StaticResource CompactPrimaryButtonStyle}" Margin="0,0,6,0" ToolTip="Reproduzir mídia">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource PlayIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock x:Name="PlayButtonText" Text="Reproduzir" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                         <Button x:Name="PauseButton" Click="PauseButton_OnClick" IsEnabled="False" Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,6,0" ToolTip="Pausar reprodução">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource PauseIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Pausar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
+                        <Button x:Name="ForwardFiveButton" Content="+5s" Click="ForwardFiveButton_OnClick"
+                                IsEnabled="False" ToolTip="Avançar cinco segundos"
+                                Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,5,0" />
+                        <Button x:Name="NextMediaButton" Content="▶|" Click="NextMediaButton_OnClick"
+                                IsEnabled="False" ToolTip="Carregar a próxima mídia sem reproduzir automaticamente"
+                                Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,5,0" />
                         <Button x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False" Style="{StaticResource CompactTransportButtonStyle}" ToolTip="Parar reprodução">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource StopIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Parar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
@@ -976,7 +1010,40 @@
                     </ScrollViewer>
                     <Button x:Name="IdentifyButton" Grid.Column="3" Content="Identificar telas" Style="{StaticResource CompactTransportButtonStyle}" Click="IdentifyButton_OnClick" />
                 </Grid>
-
+                <!-- Manual is the safe default: no automatic transition on media end. -->
+                <Grid Grid.Row="3" Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ComboBox x:Name="PlaybackModeCombo" Width="142" Height="30"
+                              ToolTip="Modo manual não inicia outra mídia ao terminar"
+                              AutomationProperties.Name="Modo de reprodução"
+                              SelectionChanged="PlaybackModeCombo_OnSelectionChanged"
+                              Margin="0,0,6,0">
+                        <ComboBoxItem Content="Modo: Manual" />
+                        <ComboBoxItem Content="Modo: Sequencial" />
+                    </ComboBox>
+                    <Button x:Name="RepeatModeButton" Grid.Column="1" MinWidth="116"
+                            Click="RepeatModeButton_OnClick"
+                            ToolTip="Alterna entre não repetir, repetir a atual e repetir a lista"
+                            Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,7,0">
+                        <TextBlock x:Name="RepeatModeButtonText" Text="Repetir: Não" />
+                    </Button>
+                    <CheckBox x:Name="ShufflePlaylistCheckBox" Grid.Column="2" Content="Aleatório"
+                              ToolTip="Seleciona um próximo item aleatório, sem repetir a atual"
+                              VerticalAlignment="Center" Margin="0,0,12,0"
+                              Checked="ShufflePlaylistCheckBox_OnChanged"
+                              Unchecked="ShufflePlaylistCheckBox_OnChanged" />
+                    <TextBlock x:Name="NextPlaylistItemText" Grid.Column="3"
+                               Text="Próxima: nenhuma mídia selecionada"
+                               FontSize="11" TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"
+                               ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"
+                               Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                </Grid>
             </Grid>
         </Border>
     </Grid>
