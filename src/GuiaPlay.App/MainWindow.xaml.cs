@@ -37,7 +37,11 @@ public partial class MainWindow : Window
     private const string PlaylistDragFormat = "GuiaPlay.PlaylistNode";
     private const string MediaGridDragFormat = "GuiaPlay.MediaGridRow";
     private readonly PlaybackCoordinator _coordinator = new();
-    private readonly LibVlcPlaybackEngine _engine;
+    // Loading LibVLC at window construction time starts native services before any
+    // playback is requested. Defer native initialization until a local-media action.
+    // This also keeps YouTube-only sessions independent of LibVLC.
+    private LibVlcPlaybackEngine? _engineInstance;
+    private LibVlcPlaybackEngine _engine => _engineInstance ??= CreatePlaybackEngine();
     private readonly ObservableCollection<MonitorChoice> _outputChoices = [];
     private readonly ObservableCollection<PlaylistGroupNode> _playlistGroups = [];
     private readonly ObservableCollection<SavedPlaylistEntry> _savedPlaylists = [];
@@ -144,16 +148,7 @@ public partial class MainWindow : Window
         MuteButton.Tag = settings.Muted;
         UpdateMuteVisual(settings.Muted);
         VolumeText.Text = settings.Muted ? "mudo" : $"{settings.Volume}%";
-        _engine = new LibVlcPlaybackEngine(settings.Equalizer);
-        _engine.FrameReady += Engine_OnFrameReady;
-        _engine.Playing += generation => Dispatch(() => Engine_OnPlaying(generation));
-        _engine.Paused += generation => Dispatch(() => Engine_OnPaused(generation));
-        _engine.EndReached += generation => Dispatch(() => Engine_OnEndReached(generation));
-        _engine.Error += (generation, message) => Dispatch(() => Engine_OnError(generation, message));
-        _engine.TimeChanged += (generation, time) => Dispatch(() => UpdateTime(generation, time));
-        _engine.LengthChanged += (generation, length) => Dispatch(() => UpdateLength(generation, length));
-        _engine.AudioDeviceChanged += (generation, deviceId) => Dispatch(() => Engine_OnAudioDeviceChanged(generation, deviceId));
-        _engine.EqualizerFailed += message => FileLogger.Error($"Falha ao aplicar equalizador; reprodução original preservada: {message}");
+        FileLogger.Info("GP-I11: Janela iniciada sem carregar o motor LibVLC antecipadamente.");
 
         _monitorTimer = new DispatcherTimer(MonitorRefreshPolicy.SafetyPollInterval, DispatcherPriority.Background, (_, _) => RefreshConnectedDevices(false), Dispatcher);
         _settingsSaveTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(650), DispatcherPriority.Background, (_, _) => FlushDeferredSettings(), Dispatcher)
@@ -205,6 +200,24 @@ public partial class MainWindow : Window
         };
         SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessageHook);
         Closing += MainWindow_OnClosing;
+    }
+
+    private LibVlcPlaybackEngine CreatePlaybackEngine()
+    {
+        var settings = (Application.Current as App)?.Settings ?? AppSettings.Default;
+        FileLogger.Info("GP-I11: Inicializando LibVLC sob demanda.");
+        var engine = new LibVlcPlaybackEngine(settings.Equalizer);
+        engine.FrameReady += Engine_OnFrameReady;
+        engine.Playing += generation => Dispatch(() => Engine_OnPlaying(generation));
+        engine.Paused += generation => Dispatch(() => Engine_OnPaused(generation));
+        engine.EndReached += generation => Dispatch(() => Engine_OnEndReached(generation));
+        engine.Error += (generation, message) => Dispatch(() => Engine_OnError(generation, message));
+        engine.TimeChanged += (generation, time) => Dispatch(() => UpdateTime(generation, time));
+        engine.LengthChanged += (generation, length) => Dispatch(() => UpdateLength(generation, length));
+        engine.AudioDeviceChanged += (generation, deviceId) => Dispatch(() => Engine_OnAudioDeviceChanged(generation, deviceId));
+        engine.EqualizerFailed += message => FileLogger.Error($"Falha ao aplicar equalizador; reprodução original preservada: {message}");
+        FileLogger.Info("GP-I11: LibVLC inicializado e callbacks associados.");
+        return engine;
     }
 
     private void FitToWorkArea()
@@ -329,12 +342,15 @@ public partial class MainWindow : Window
         CloseYouTubeWindow();
         _loadedPlaylistItemId = null;
         _audioReconfigurationRequired = false;
-        RefreshAudioDevices(force: true);
         try
         {
             SetControlsBusy(true);
             CloseOutputWindows();
             StatusText.Text = "Carregando mídia…";
+            // Creating the native engine is now part of the controlled media-load
+            // operation, not the initial WPF window / display discovery path.
+            _ = _engine;
+            RefreshAudioDevices(force: true);
             var audioOutput = (Application.Current as App)?.Settings.AudioOutput ?? AudioOutputPreference.Default;
             await _engine.LoadAsync(path, kind, _coordinator.Generation, audioOutput);
             _engine.Volume = (int)VolumeSlider.Value;
@@ -2906,9 +2922,9 @@ public partial class MainWindow : Window
             VolumeText.Text = state.Muted ? "mudo" : $"{state.Volume}%";
         }
 
-        if (_engine is not null)
+        if (_engineInstance is { } nativeEngine)
         {
-            _engine.Volume = state.Volume;
+            nativeEngine.Volume = state.Volume;
         }
 
         _youtubeWindow?.Command("volume", state.Volume);
@@ -3618,9 +3634,17 @@ public partial class MainWindow : Window
 
     private void RefreshAudioDevices(bool force)
     {
+        // Never initialize the native engine from a monitor-refresh timer.
+        // Device enumeration is available after the first local media request
+        // or when the user explicitly opens audio settings.
+        if (_engineInstance is not { } nativeEngine)
+        {
+            return;
+        }
+
         try
         {
-            _audioDevices = _engine.EnumerateAudioDevices();
+            _audioDevices = nativeEngine.EnumerateAudioDevices();
         }
         catch (Exception exception)
         {
@@ -4032,13 +4056,16 @@ public partial class MainWindow : Window
         CloseIdentifierWindows();
         CloseOutputWindows();
         LogDiagnosticSnapshot("Encerramento da aplicação");
-        try
+        if (_engineInstance is { } nativeEngine)
         {
-            await _engine.DisposeAsync();
-        }
-        catch (Exception exception)
-        {
-            FileLogger.Error("Falha ao encerrar o motor.", exception);
+            try
+            {
+                await nativeEngine.DisposeAsync();
+            }
+            catch (Exception exception)
+            {
+                FileLogger.Error("Falha ao encerrar o motor.", exception);
+            }
         }
 
         _allowClose = true;
