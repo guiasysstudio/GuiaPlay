@@ -2666,13 +2666,24 @@ public partial class MainWindow : Window
         var currentSettings = app.Settings;
         var playbackActive = _coordinator.IsActive || _youtubeWindow is not null;
         var names = currentSettings.MonitorNames;
-        RefreshAudioDevices(force: true);
+        // A license-only dialog MUST NOT instantiate the native playback engine.
+        // That previously defeated deferred loading and crashed some PCs while
+        // showing the activation screen, before any local video was requested.
+        if (_engineInstance is not null)
+        {
+            RefreshAudioDevices(force: true);
+        }
+
+        var equalizerCatalog = _engineInstance?.EqualizerCatalog ??
+            new LibVlcEqualizerCatalog(
+                false, [], [],
+                "O equalizador ficara disponivel apos o carregamento de uma midia local.");
         var dialog = new ScreenConfigurationWindow(
             _monitors,
             _operatorMonitor?.Id,
             currentSettings,
             _audioDevices,
-            _engine.EqualizerCatalog,
+            equalizerCatalog,
             updateManager,
             windowsIntegration,
             licensing,
@@ -2710,7 +2721,10 @@ public partial class MainWindow : Window
             }
 
             app.ApplyAppearance(result.Appearance, result.AccentColor, persist: false);
-            await _engine.ApplyEqualizerAsync(result.Equalizer);
+            if (_engineInstance is { } activeEngine)
+            {
+                await activeEngine.ApplyEqualizerAsync(result.Equalizer);
+            }
             StatusText.Text = "Aparência, equalizador e atualizações salvos; reprodução preservada.";
             RefreshAudioPanel();
             return;
@@ -2776,7 +2790,10 @@ public partial class MainWindow : Window
 
         app.ApplyAppearance(result.Appearance, result.AccentColor, persist: false);
 
-        await _engine.ApplyEqualizerAsync(result.Equalizer);
+        if (_engineInstance is { } engineForSettings)
+        {
+            await engineForSettings.ApplyEqualizerAsync(result.Equalizer);
+        }
 
         if (!recoveringOperatorDuringPlayback)
         {
@@ -2871,7 +2888,11 @@ public partial class MainWindow : Window
         var state = MediaControlBehavior.ToggleMute((int)VolumeSlider.Value, MuteButton.Tag as bool? ?? false);
         MuteButton.Tag = state.Muted;
         UpdateMuteVisual(state.Muted);
-        _engine.Muted = state.Muted;
+        if (_engineInstance is { } nativeEngine)
+        {
+            nativeEngine.Muted = state.Muted;
+        }
+
         _youtubeWindow?.Command(state.Muted ? "mute" : "unmute");
         VolumeText.Text = state.Muted ? "mudo" : $"{state.Volume}%";
         ScheduleSettingsSave();
