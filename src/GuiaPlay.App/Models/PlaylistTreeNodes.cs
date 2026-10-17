@@ -29,6 +29,7 @@ internal sealed class PlaylistItemNode(Guid groupId, PlaylistItem item) : INotif
     public string KindLabel => Item.Kind switch
     {
         MediaKind.Audio => "Áudio",
+        MediaKind.Image => "Imagem",
         MediaKind.YouTube => "YouTube",
         _ => "Vídeo"
     };
