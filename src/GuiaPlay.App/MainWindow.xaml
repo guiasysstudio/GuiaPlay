@@ -312,7 +312,7 @@
                     </Grid.RowDefinitions>
                     <!-- GP-I05: Operator and Program use one actual shared frame source.
                          Program is a transmission mirror, not a capture of the physical monitor. -->
-                    <Grid Margin="2,0,2,10">
+                    <Grid Margin="2,0,2,10" Visibility="Collapsed">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -747,8 +747,14 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/></Grid.ColumnDefinitions>
                                     <Button Grid.Column="0" Background="Transparent" BorderThickness="0" Padding="0"
                                             Click="MuteButton_OnClick" ToolTip="Ativar ou silenciar áudio">
-                                        <Path Data="{StaticResource GPVolumeUp}" Width="22" Height="22" Stretch="Uniform"
-                                              Fill="{DynamicResource GuiaPlayTextPrimaryBrush}"/>
+                                        <Grid Width="22" Height="22">
+                                            <Path x:Name="SideVolumeUpIcon" Data="{StaticResource GPVolumeUp}" Stretch="Uniform"
+                                                  Fill="{DynamicResource GuiaPlayTextPrimaryBrush}"/>
+                                            <Path x:Name="SideVolumeDownIcon" Data="{StaticResource GPVolumeDown}" Stretch="Uniform"
+                                                  Fill="{DynamicResource GuiaPlayTextPrimaryBrush}" Visibility="Collapsed"/>
+                                            <Path x:Name="SideVolumeMuteIcon" Data="{StaticResource GPVolumeMute}" Stretch="Uniform"
+                                                  Fill="{DynamicResource GuiaPlayTextPrimaryBrush}" Visibility="Collapsed"/>
+                                        </Grid>
                                     </Button>
                                     <Slider Grid.Column="1" Minimum="0" Maximum="100" Margin="6,0"
                                             Value="{Binding Value, ElementName=VolumeSlider, Mode=TwoWay}"
