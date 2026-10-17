@@ -1143,7 +1143,7 @@ public partial class MainWindow : Window
         _playlistCatalog.ApplyPersistedChanges(catalog.Snapshot);
         app.Playlist = _playlistCatalog.Snapshot;
         RebuildPlaylistTree();
-        SaveActivePlaylistPreset();
+        if (!SaveActivePlaylistPreset()) return;
         RefreshActivePlaylistMarkers();
         StatusText.Text = "Link YouTube salvo. Para reproduzir, selecione somente uma tela pública.";
     }
@@ -1239,7 +1239,7 @@ public partial class MainWindow : Window
             _playlistCatalog.ApplyPersistedChanges(merged.Playlist);
             app.Playlist = _playlistCatalog.Snapshot;
             RebuildPlaylistTree();
-            SaveActivePlaylistPreset();
+            if (!SaveActivePlaylistPreset()) return;
             RefreshActivePlaylistMarkers();
 
             FolderImportStatusText.Text = $"{merged.Added} mídia(s) importada(s)";
@@ -2012,7 +2012,7 @@ public partial class MainWindow : Window
         _playlistCatalog.ApplyPersistedChanges(stagedDocument);
         app.Playlist = _playlistCatalog.Snapshot;
         RebuildPlaylistTree();
-        SaveActivePlaylistPreset();
+        if (!SaveActivePlaylistPreset()) return;
         RefreshActivePlaylistMarkers();
         var ignored = result.Rejected.Count + duplicates;
         StatusText.Text = $"{result.Added.Count} mídia(s) em {targetGroup.Name}. " +
@@ -2140,12 +2140,12 @@ public partial class MainWindow : Window
 
     // Keep each named playlist's own folder/media tree up-to-date.
     // A failed preset save never discards the still-persisted working playlist.
-    private void SaveActivePlaylistPreset()
+    private bool SaveActivePlaylistPreset()
     {
         if (_playlistWorkspace.ActivePresetId is not { } id ||
             _playlistWorkspace.ActivePresetName is not { } name)
         {
-            return; // Legacy unnamed working lists are kept until explicitly saved.
+            return true; // Legacy unnamed working lists are kept until explicitly saved.
         }
 
         // Verify the original ID before using a name-based overwrite. Another
@@ -2156,7 +2156,7 @@ public partial class MainWindow : Window
         {
             FileLogger.Error($"A playlist ativa {id:D} não corresponde mais ao preset salvo.");
             StatusText.Text = "Lista de trabalho preservada; playlist ativa não encontrada. Use Salvar.";
-            return;
+            return false;
         }
 
         var result = _playlistPresetStore.Save(name, _playlistCatalog.Snapshot,
@@ -2165,11 +2165,12 @@ public partial class MainWindow : Window
         {
             _playlistWorkspace.AcceptSavedPreset(preset);
             RefreshSavedPlaylists(id);
-            return;
+            return true;
         }
 
         FileLogger.Error($"Não foi possível sincronizar a playlist ativa {id:D}: {result.Error}");
         StatusText.Text = "Lista de trabalho salva; não foi possível atualizar o preset ativo. Use Salvar.";
+        return false;
     }
 
     private void SavePlaylistAndRefresh(string successMessage)
@@ -2191,9 +2192,10 @@ public partial class MainWindow : Window
 
         app.Playlist = snapshot;
         RebuildPlaylistTree();
-        SaveActivePlaylistPreset();
+        var presetSynced = SaveActivePlaylistPreset();
         RefreshActivePlaylistMarkers();
-        StatusText.Text = successMessage;
+        StatusText.Text = presetSynced ? successMessage
+            : "Lista de trabalho atualizada, mas a playlist salva não sincronizou. Use Salvar.";
     }
 
     // GP-I06: playlist selection is independent of the search filter and is never
