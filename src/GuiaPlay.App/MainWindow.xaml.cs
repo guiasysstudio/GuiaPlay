@@ -1714,8 +1714,10 @@ public partial class MainWindow : Window
         _youtubeSnapshot = status;
         if (status.State != previousState)
         {
-            if (status.State == "PAUSADO")
+            if (status.State is "PAUSADO" or "INTERAÇÃO NECESSÁRIA" or "ERRO")
             {
+                // If the primary audio-bearing player is blocked, secondary
+                // muted players must not start presenting the video alone.
                 foreach (var mirror in _youtubeMirrors) mirror.Command("pause");
             }
             else if (status.State == "REPRODUZINDO")
