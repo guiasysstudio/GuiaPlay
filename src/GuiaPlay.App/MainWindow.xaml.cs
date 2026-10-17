@@ -2148,6 +2148,17 @@ public partial class MainWindow : Window
             return; // Legacy unnamed working lists are kept until explicitly saved.
         }
 
+        // Verify the original ID before using a name-based overwrite. Another
+        // preset with the same name must never be overwritten by an old workspace.
+        var current = _playlistPresetStore.Load(id).Preset;
+        if (current is null ||
+            !string.Equals(current.Name, name, StringComparison.OrdinalIgnoreCase))
+        {
+            FileLogger.Error($"A playlist ativa {id:D} não corresponde mais ao preset salvo.");
+            StatusText.Text = "Lista de trabalho preservada; playlist ativa não encontrada. Use Salvar.";
+            return;
+        }
+
         var result = _playlistPresetStore.Save(name, _playlistCatalog.Snapshot,
             overwriteExisting: true);
         if (result.Preset is { } preset && preset.Id == id)
