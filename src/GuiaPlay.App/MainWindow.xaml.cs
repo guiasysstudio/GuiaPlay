@@ -3510,8 +3510,8 @@ public partial class MainWindow : Window
             ? null
             : _mediaRows.FirstOrDefault(row =>
                 string.Equals(row.FilePath, path, StringComparison.OrdinalIgnoreCase));
-        TransportThumbnailImage.Source = matchingRow?.Thumbnail;
-        var showPlaceholder = matchingRow?.Thumbnail is null;
+        TransportThumbnailImage.Source = kind == MediaKind.Image ? _stillImage : matchingRow?.Thumbnail;
+        var showPlaceholder = TransportThumbnailImage.Source is null;
         TransportAudioPlaceholderIcon.Visibility = showPlaceholder && kind == MediaKind.Audio
             ? Visibility.Visible : Visibility.Collapsed;
         TransportVideoPlaceholderIcon.Visibility = showPlaceholder && kind != MediaKind.Audio
@@ -3949,6 +3949,24 @@ public partial class MainWindow : Window
         }
 
         YouTubeStatusHintText.Visibility = Visibility.Collapsed;
+        if (_coordinator.MediaKind == MediaKind.Image && _stillImage is not null)
+        {
+            var visible = _outputWindows.Count > 0 &&
+                _coordinator.Status is (PlaybackStatus.Playing or PlaybackStatus.Paused);
+            ProgramImage.Source = visible ? _stillImage : null;
+            ProgramImage.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            ProgramEmptyState.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
+            ProgramStatusBadgeText.Text = visible ? "IMAGEM NO AR" : "SEM TRANSMISSÃO";
+            PreviewLiveStateText.Text = "IMAGEM LOCAL";
+            ProgramPlaceholderText.Text = "Nenhuma imagem na tela pública";
+            ProgramDetailsText.Text = "Selecione a saída e clique em Reproduzir para exibir.";
+            OutputSelectedCountText.Text = $"{SelectedOutputCount()} selecionada(s)";
+            NoPublicMonitorsText.Visibility = _outputChoices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            SidebarOutputsList.IsEnabled = !_coordinator.IsActive;
+            OutputsList.IsEnabled = !_coordinator.IsActive;
+            return;
+        }
+
         // The program preview mirrors the frame used by the actual OutputWindow(s).
         // It never guesses what an external display physically shows.
         var selected = _outputChoices.Count(choice => choice.IsSelected);
