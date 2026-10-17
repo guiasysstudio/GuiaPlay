@@ -310,7 +310,7 @@ public partial class MainWindow : Window
         }
 
         var replacementConfirmed = true;
-        if (_coordinator.IsActive)
+        if (_coordinator.IsActive || _youtubeWindow is not null)
         {
             replacementConfirmed = MessageBox.Show(
                 this,
@@ -326,6 +326,7 @@ public partial class MainWindow : Window
             return MediaLoadOutcome.Cancelled;
         }
 
+        CloseYouTubeWindow();
         _loadedPlaylistItemId = null;
         _audioReconfigurationRequired = false;
         RefreshAudioDevices(force: true);
