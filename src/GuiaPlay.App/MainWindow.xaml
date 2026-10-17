@@ -95,7 +95,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="ActionSurface" CornerRadius="7"
+                        <Border x:Name="SecondaryActionSurface" CornerRadius="7"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
@@ -107,21 +107,21 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ActionSurface" Property="Background"
+                                <Setter TargetName="SecondaryActionSurface" Property="Background"
                                         Value="{DynamicResource GuiaPlayControlHoverBrush}"/>
-                                <Setter TargetName="ActionSurface" Property="BorderBrush"
+                                <Setter TargetName="SecondaryActionSurface" Property="BorderBrush"
                                         Value="{DynamicResource GuiaPlayAccentBorderBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ActionSurface" Property="Background"
+                                <Setter TargetName="SecondaryActionSurface" Property="Background"
                                         Value="{DynamicResource GuiaPlaySelectionBrush}"/>
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ActionSurface" Property="BorderBrush"
+                                <Setter TargetName="SecondaryActionSurface" Property="BorderBrush"
                                         Value="{DynamicResource GuiaPlayAccentBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="ActionSurface" Property="Opacity" Value="0.43"/>
+                                <Setter TargetName="SecondaryActionSurface" Property="Opacity" Value="0.43"/>
                                 <Setter Property="Cursor" Value="Arrow"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
