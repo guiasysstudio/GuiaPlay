@@ -368,6 +368,43 @@
                                           PreviewMouseMove="MediaGrid_OnPreviewMouseMove"
                                           PreviewDragOver="MediaGrid_OnPreviewDragOver"
                                           Drop="MediaGrid_OnDrop">
+                                    <DataGrid.Resources>
+                                        <Style TargetType="{x:Type DataGridColumnHeader}">
+                                            <Setter Property="Background" Value="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource GuiaPlayDividerBrush}" />
+                                            <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                            <Setter Property="FontSize" Value="11" />
+                                            <Setter Property="Padding" Value="6,8" />
+                                        </Style>
+                                        <Style TargetType="{x:Type DataGridRow}">
+                                            <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource GuiaPlayDividerBrush}" />
+                                            <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource GuiaPlaySelectionBrush}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                        <Style TargetType="{x:Type DataGridCell}">
+                                            <Setter Property="BorderThickness" Value="0" />
+                                            <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
+                                            <Setter Property="Padding" Value="4,3" />
+                                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                                                    <Setter Property="BorderThickness" Value="0" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.Resources>
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="#" Binding="{Binding OrderText}" Width="41" />
                                         <DataGridTemplateColumn Header="Mídia" Width="245">
