@@ -2631,6 +2631,15 @@ public partial class MainWindow : Window
         }
     }
 
+    // Chrome buttons follow the normal Window close pipeline and cleanup.
+    private void TitleBarMinimize_OnClick(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
+
+    private void TitleBarMaximize_OnClick(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    private void TitleBarClose_OnClick(object sender, RoutedEventArgs e) => Close();
+
     // GP-I01: every navigation control has a live destination, never a decorative placeholder.
     private void HeaderPlaylistButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -2924,11 +2933,17 @@ public partial class MainWindow : Window
         ScheduleSettingsSave();
     }
 
+    // GP-I13: user-supplied SVG levels; one indicator for local and YouTube audio.
+    // 0% or explicit mute = mute; 1-80% = down; 81-100% = up.
     private void UpdateMuteVisual(bool muted)
     {
-        SpeakerIcon.Visibility = muted ? Visibility.Collapsed : Visibility.Visible;
-        SpeakerMuteIcon.Visibility = muted ? Visibility.Visible : Visibility.Collapsed;
-        MuteButtonText.Text = muted ? "Ativar som" : "Mudo";
+        var value = VolumeSlider?.Value ?? 0;
+        var silent = muted || value <= 0;
+        SpeakerIcon.Visibility = !silent && value > 80 ? Visibility.Visible : Visibility.Collapsed;
+        SpeakerLowIcon.Visibility = !silent && value <= 80 ? Visibility.Visible : Visibility.Collapsed;
+        SpeakerMuteIcon.Visibility = silent ? Visibility.Visible : Visibility.Collapsed;
+        MuteButtonText.Text = silent ? "Ativar som" : "Mudo";
+        MuteButton.ToolTip = silent ? "Ativar som" : $"Silenciar áudio ({Math.Round(value)}%)";
     }
 
     private void UpdateOperatorIndicator()
@@ -2975,6 +2990,7 @@ public partial class MainWindow : Window
         }
 
         _youtubeWindow?.Command("volume", state.Volume);
+        UpdateMuteVisual(state.Muted);
         if (_settingsInitialized)
         {
             ScheduleSettingsSave();
@@ -3961,6 +3977,10 @@ public partial class MainWindow : Window
         LicenseBlockedMessageText.Text = (snapshot.Message ??
             "Inicie a avaliação gratuita ou ative uma licença para usar o GuiaPlay.") + errorSuffix;
         LicenseStatusButton.Content = FormatLicenseSummary(snapshot);
+        LicenseStatusDot.Fill = new SolidColorBrush(
+            snapshot.HasAccess
+                ? Color.FromRgb(0, 219, 130)
+                : Color.FromRgb(145, 157, 174));
 
         if (!snapshot.HasAccess)
         {
