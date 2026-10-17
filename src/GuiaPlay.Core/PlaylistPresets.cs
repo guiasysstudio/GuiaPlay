@@ -492,6 +492,24 @@ public sealed class PlaylistWorkspace
         return new PlaylistWorkspaceLoadResult(PlaylistWorkspaceLoadStatus.Loaded);
     }
 
+    /// <summary>
+    /// Starts a new empty working playlist without altering any previously saved preset
+    /// or the original media files. The caller persists the empty working document first.
+    /// </summary>
+    public PlaylistWorkspaceLoadResult StartNew(
+        PlaylistReplacementMode replacementMode = PlaylistReplacementMode.RequireCleanWorkspace)
+    {
+        if (IsDirty && replacementMode != PlaylistReplacementMode.DiscardUnsavedChanges)
+        {
+            return new PlaylistWorkspaceLoadResult(PlaylistWorkspaceLoadStatus.UnsavedChanges);
+        }
+
+        Catalog.Replace(PlaylistDocument.Empty);
+        ActivePresetId = null;
+        ActivePresetName = null;
+        return new PlaylistWorkspaceLoadResult(PlaylistWorkspaceLoadStatus.Loaded);
+    }
+
     public PlaylistPresetSaveResult SavePreset(
         PlaylistPresetStore store,
         string? name,
