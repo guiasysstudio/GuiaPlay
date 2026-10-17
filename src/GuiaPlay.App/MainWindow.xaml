@@ -150,8 +150,8 @@
                                 <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource GuiaPlaySelectionBrush}" />
-                                <Setter TargetName="ItemSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBorderBrush}" />
+                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource GuiaPlayAccentBrush}" />
+                                <Setter TargetName="ItemSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBrush}" />
                                 <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
@@ -255,7 +255,7 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
         <!-- GP-I13: immersive window chrome; no decorative navigation. -->
-        <Border Grid.Row="0" Background="#FF0A1626" BorderBrush="#FF253B54"
+        <Border Grid.Row="0" Background="{DynamicResource GuiaPlayWindowBackgroundBrush}" BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
                 BorderThickness="0,0,0,1" Height="78" Margin="0,0,0,11" Padding="26,0,20,0">
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
