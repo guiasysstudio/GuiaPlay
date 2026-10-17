@@ -382,7 +382,7 @@ public sealed class BrandingTests
         Assert.Contains("x:Name=\"PreviewProgressSlider\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"MediaGrid\"", main, StringComparison.Ordinal);
         Assert.Contains("SavePlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
-        Assert.Contains("LoadPlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
+        Assert.Contains("OpenSelectedPresetButton_OnClick", main, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"OutputChipStyle\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PlaylistEmptyState\"", main, StringComparison.Ordinal);
         Assert.Contains("Text=\"{Binding Items.Count}\"", main, StringComparison.Ordinal);
