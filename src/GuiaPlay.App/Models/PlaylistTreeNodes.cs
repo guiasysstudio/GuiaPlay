@@ -10,6 +10,11 @@ internal sealed class PlaylistGroupNode(PlaylistGroup group)
     public PlaylistGroup Group { get; } = group;
     public Guid Id => Group.Id;
     public string Name => Group.Name;
+    public bool IsWindowsLinked => !string.IsNullOrWhiteSpace(Group.SourceDirectory);
+    public string DisplayName => IsWindowsLinked ? Group.Name + "  ↗" : Group.Name;
+    public string FolderTooltip => IsWindowsLinked
+        ? "Pasta vinculada: " + Group.SourceDirectory
+        : "Pasta virtual do GuiaPlay (nenhuma pasta física é criada).";
     public ObservableCollection<PlaylistItemNode> Items { get; } =
         new(group.Items.OrderBy(item => item.Order).Select(item => new PlaylistItemNode(group.Id, item)));
 }
