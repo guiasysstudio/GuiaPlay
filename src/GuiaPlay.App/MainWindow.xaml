@@ -142,10 +142,88 @@
             <Setter Property="Height" Value="17" />
             <Setter Property="Margin" Value="0,0,7,0" />
         </Style>
+        <!-- GP-I22: custom seek slider. WPF's OS-dependent Slider template used
+             to clip/tint the thumb at the top edge. All track components have a
+             fixed 28-DIP vertical lane, and the thumb is centered inside it. -->
+        <Style x:Key="GPSeekDecreaseButtonStyle" TargetType="{x:Type RepeatButton}">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type RepeatButton}">
+                        <Grid Background="Transparent" Height="28">
+                            <Border Height="4" VerticalAlignment="Center" CornerRadius="2"
+                                    Background="#FF27A9F6"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="GPSeekIncreaseButtonStyle" TargetType="{x:Type RepeatButton}">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type RepeatButton}">
+                        <Grid Background="Transparent" Height="28">
+                            <Border Height="4" VerticalAlignment="Center" CornerRadius="2"
+                                    Background="#FF3A5068"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="GPSeekThumbStyle" TargetType="{x:Type Thumb}">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Grid Width="22" Height="22" Background="Transparent"
+                              SnapsToDevicePixels="True">
+                            <Ellipse Width="22" Height="22" Fill="#203AAEFF"/>
+                            <Ellipse Width="16" Height="16" Fill="#FF28AEFF"
+                                     Stroke="#FFDAF5FF" StrokeThickness="2"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="GPSeekSliderStyle" TargetType="{x:Type Slider}">
+            <Setter Property="Focusable" Value="True"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Slider}">
+                        <Grid Background="Transparent" SnapsToDevicePixels="True">
+                            <Track x:Name="PART_Track" Height="28"
+                                   Orientation="Horizontal" VerticalAlignment="Center"
+                                   Minimum="{TemplateBinding Minimum}"
+                                   Maximum="{TemplateBinding Maximum}"
+                                   Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                   IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}"
+                                                  Style="{StaticResource GPSeekDecreaseButtonStyle}"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource GPSeekThumbStyle}"/>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}"
+                                                  Style="{StaticResource GPSeekIncreaseButtonStyle}"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="GPRoundTransport" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
             <Setter Property="MinHeight" Value="0"/><Setter Property="MinWidth" Value="0"/>
-            <Setter Property="Width" Value="28"/><Setter Property="Height" Value="28"/>
-            <Setter Property="Margin" Value="1,0"/><Setter Property="Padding" Value="4"/>
+            <Setter Property="Width" Value="35"/><Setter Property="Height" Value="35"/>
+            <Setter Property="Margin" Value="1,0"/><Setter Property="Padding" Value="6"/>
             <Setter Property="Background" Value="{DynamicResource GuiaPlayControlSurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource GuiaPlayDividerBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -167,8 +245,8 @@
             </Setter.Value></Setter>
         </Style>
         <Style x:Key="GPPlayTransport" TargetType="Button" BasedOn="{StaticResource GPRoundTransport}">
-            <Setter Property="Height" Value="36"/><Setter Property="Width" Value="36"/>
-            <Setter Property="Padding" Value="5"/><Setter Property="Background">
+            <Setter Property="Height" Value="48"/><Setter Property="Width" Value="48"/>
+            <Setter Property="Padding" Value="8"/><Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                         <GradientStop Color="#FF158FFF" Offset="0"/>
@@ -183,7 +261,7 @@
                     <Border x:Name="Hero" Background="{TemplateBinding Background}" CornerRadius="90"
                             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                             Padding="{TemplateBinding Padding}">
-                        <Border.Effect><DropShadowEffect Color="#FF147FFF" BlurRadius="4" ShadowDepth="0" Opacity="0.50"/></Border.Effect>
+                        <Border.Effect><DropShadowEffect Color="#FF147FFF" BlurRadius="7" ShadowDepth="0" Opacity="0.57"/></Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -1125,20 +1203,22 @@
             </StackPanel>
         </Border>
 
-        <!-- GP-I21: transparent, isolated timeline row prevents the thumb from clipping or covering playback buttons. -->
+        <!-- GP-I22: purpose-built two-level transport. Full seek thumb and Play glow have their own ample rows. -->
         <Border x:Name="OperationalControlPanel" Grid.Row="2"
                 Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
                 BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="0,1,0,0"
-                Margin="0,5,0,0" Padding="8,4,8,4" Height="80" MinHeight="0">
+                Margin="0,5,0,0" Padding="10,5,10,5" Height="112" MinHeight="0">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="34"/>
+                    <RowDefinition Height="42"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <!-- Dedicated invisible seek card: its own 34-DIP row, internal 3-DIP
-                     safety padding for the full circular WPF slider thumb. -->
-                <Border Grid.Row="0" Background="Transparent" Padding="5,3,5,3"
-                        ClipToBounds="False" SnapsToDevicePixels="True">
+                <!-- Isolated seek band: fixed 42-DIP height, 28-DIP track lane.
+                     Thumb has clear space on EVERY side, even at higher DPI. -->
+                <Border Grid.Row="0" Background="Transparent" Padding="5,5,5,5"
+                        BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
+                        BorderThickness="0,0,0,1"
+                        ClipToBounds="True" SnapsToDevicePixels="True">
                     <Grid VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="57"/>
@@ -1149,8 +1229,9 @@
                                FontSize="11" VerticalAlignment="Center"
                                Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
                     <Slider x:Name="ProgressSlider" Grid.Column="1"
-                            Minimum="0" Maximum="1" Value="0" Height="24"
-                            Margin="4,0,6,0" VerticalAlignment="Center"
+                            Minimum="0" Maximum="1" Value="0" Height="28"
+                            Margin="6,0,7,0" VerticalAlignment="Center"
+                            Style="{StaticResource GPSeekSliderStyle}"
                             Foreground="{DynamicResource GuiaPlayAccentBrush}"
                             ToolTip="Arraste para avançar ou voltar na reprodução"
                             AutomationProperties.Name="Progresso da reprodução"
@@ -1163,9 +1244,8 @@
                                Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
                     </Grid>
                 </Border>
-                <!-- Dedicated transport card: row does not share any layout
-                     columns or hit-testing region with the seek slider. -->
-                <Border Grid.Row="1" Background="Transparent" ClipToBounds="True">
+                <!-- Transport row never overlaps the separate progress row. -->
+                <Border Grid.Row="1" Background="Transparent" Padding="0,3,0,3" ClipToBounds="True">
                     <Grid VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="0.90*" MinWidth="230"/>
@@ -1175,7 +1255,7 @@
                 <!-- Media identity stays below the seek bar. -->
                 <Grid Grid.Column="0" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="43"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Width="32" Height="32" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                    <Border Width="39" Height="39" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
                             CornerRadius="7" BorderThickness="1" ClipToBounds="True"
                             BorderBrush="{DynamicResource GuiaPlayDividerBrush}" VerticalAlignment="Center">
                         <Grid>
@@ -1217,9 +1297,9 @@
                                 ToolTip="Reproduzir (F5 / Espaço)" AutomationProperties.Name="Reproduzir ou pausar">
                             <Grid>
                                 <Path x:Name="MainPlayGlyph" Data="{StaticResource GPTransportTriangleGeometry}"
-                                      Width="24" Height="24" Stretch="Uniform" Fill="White"/>
+                                      Width="28" Height="28" Stretch="Uniform" Fill="White"/>
                                 <Path x:Name="MainPauseGlyph" Data="{StaticResource GPTransportPauseGeometry}"
-                                      Width="23" Height="23" Stretch="Uniform" Fill="White" Visibility="Collapsed"/>
+                                      Width="27" Height="27" Stretch="Uniform" Fill="White" Visibility="Collapsed"/>
                                 <TextBlock x:Name="PlayButtonText" Text="Reproduzir" Visibility="Collapsed"/>
                             </Grid>
                         </Button>
@@ -1288,7 +1368,7 @@
                               Stretch="Uniform" Fill="{DynamicResource GuiaPlayTextPrimaryBrush}"/>
                     </Button>
                     <!-- Secondary cover art in the reference always mirrors the loaded media. -->
-                    <Border Width="28" Height="32" Margin="6,0,0,0" CornerRadius="5"
+                    <Border Width="31" Height="38" Margin="6,0,0,0" CornerRadius="5"
                             BorderThickness="1" BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
                             Background="{DynamicResource GuiaPlayControlSurfaceBrush}" ClipToBounds="True"
                             VerticalAlignment="Center">
