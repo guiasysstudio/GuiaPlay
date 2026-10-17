@@ -22,7 +22,8 @@ internal sealed record ScreenConfigurationResult(
     AudioOutputPreference AudioOutput,
     EqualizerConfiguration Equalizer,
     bool CheckUpdatesAutomatically,
-    bool InstallUpdatesAutomatically);
+    bool InstallUpdatesAutomatically,
+    IReadOnlyList<OperatorShortcutAssignment> ShortcutAssignments);
 
 public partial class ScreenConfigurationWindow : Window
 {
@@ -38,6 +39,24 @@ public partial class ScreenConfigurationWindow : Window
     private readonly EqualizerConfiguration _savedEqualizer;
     private readonly ObservableCollection<EqualizerBandItem> _equalizerBands = [];
     private readonly IReadOnlyList<SettingsEqualizerPresetChoice> _equalizerPresets;
+    private readonly List<ShortcutEditor> _shortcutEditors = [];
+    private readonly ShortcutKeyChoice[] _shortcutKeys =
+        Enum.GetValues<OperatorShortcutKey>()
+            .Select(key => new ShortcutKeyChoice(key, key switch
+            {
+                OperatorShortcutKey.None => "Sem atalho",
+                OperatorShortcutKey.Space => "Espaço",
+                OperatorShortcutKey.Left => "← Esquerda",
+                OperatorShortcutKey.Right => "→ Direita",
+                _ => key.ToString()
+            })).ToArray();
+    private readonly ShortcutModifierChoice[] _shortcutModifiers =
+    [
+        new(OperatorShortcutModifiers.None, "Sem modificador"),
+        new(OperatorShortcutModifiers.Control, "Ctrl"),
+        new(OperatorShortcutModifiers.Shift, "Shift"),
+        new(OperatorShortcutModifiers.Control | OperatorShortcutModifiers.Shift, "Ctrl + Shift")
+    ];
     private bool _loadingEqualizer;
     private bool _licenseOperationBusy;
     private CancellationTokenSource? _downloadCancellation;
@@ -63,7 +82,8 @@ public partial class ScreenConfigurationWindow : Window
         bool operatorRecoveryRequired,
         bool openAbout = false,
         bool openAudio = false,
-        bool openMonitors = false)
+        bool openMonitors = false,
+        bool openShortcuts = false)
     {
         InitializeComponent();
         _updateManager = updateManager;
@@ -105,6 +125,7 @@ public partial class ScreenConfigurationWindow : Window
         AudioOutputCombo.ItemsSource = audioChoices;
         AudioOutputCombo.SelectedItem = audioChoices.First(choice => AudioPreferencesEqual(choice.Preference, settings.AudioOutput));
         AudioOutputCombo.IsEnabled = !playbackActive;
+        BuildShortcutEditor(settings.ShortcutAssignments);
         AudioHelpText.Text = audioDevices.Count == 0
             ? "O LibVLC não retornou dispositivos. Isso não prova ausência de áudio; o padrão do Windows permanece disponível."
             : "A seleção é aplicada pelo identificador fornecido pelo LibVLC no início de cada reprodução.";
@@ -135,6 +156,8 @@ public partial class ScreenConfigurationWindow : Window
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
         SettingsTabs.SelectedItem = openMonitors
             ? ScreensTab
+            : openShortcuts
+            ? ShortcutsTab
             : openAbout
             ? AboutTab
             : openLicense
@@ -164,7 +187,7 @@ public partial class ScreenConfigurationWindow : Window
             ScreensNavigationButton.IsEnabled = true;
             SettingsTabs.SelectedItem = ScreensTab;
         }
-        else if (!openAbout && !openLicense && !openUpdates && !openAudio)
+        else if (!openAbout && !openLicense && !openUpdates && !openAudio && !openShortcuts)
         {
             SettingsTabs.SelectedItem = AppearanceTab;
         }
@@ -199,6 +222,7 @@ public partial class ScreenConfigurationWindow : Window
             _ when ReferenceEquals(sender, ScreensNavigationButton) => ScreensTab,
             _ when ReferenceEquals(sender, AppearanceNavigationButton) => AppearanceTab,
             _ when ReferenceEquals(sender, AudioNavigationButton) => AudioTab,
+            _ when ReferenceEquals(sender, ShortcutsNavigationButton) => ShortcutsTab,
             _ when ReferenceEquals(sender, UpdatesNavigationButton) => UpdatesTab,
             _ when ReferenceEquals(sender, WindowsNavigationButton) => WindowsIntegrationTab,
             _ when ReferenceEquals(sender, UserNavigationButton) => UserTab,
@@ -220,6 +244,7 @@ public partial class ScreenConfigurationWindow : Window
         ScreensNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, ScreensTab);
         AppearanceNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, AppearanceTab);
         AudioNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, AudioTab);
+        ShortcutsNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, ShortcutsTab);
         UpdatesNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, UpdatesTab);
         WindowsNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, WindowsIntegrationTab);
         UserNavigationButton.IsChecked = ReferenceEquals(SettingsTabs.SelectedItem, UserTab);
@@ -248,6 +273,15 @@ public partial class ScreenConfigurationWindow : Window
             return;
         }
 
+        var shortcutAssignments = ReadShortcutAssignments();
+        if (!OperatorShortcutPolicy.TryValidateAssignments(shortcutAssignments, out var shortcutError))
+        {
+            ValidationText.Text = shortcutError ?? "Resolva as combinações repetidas nos atalhos.";
+            ShortcutValidationText.Text = ValidationText.Text;
+            SettingsTabs.SelectedItem = ShortcutsTab;
+            return;
+        }
+
         var names = _items
             .Where(item => item.Monitor.PersistenceKey is not null && !string.IsNullOrWhiteSpace(item.CustomName))
             .ToDictionary(
@@ -262,8 +296,74 @@ public partial class ScreenConfigurationWindow : Window
             audio.Preference,
             ReadEqualizerConfiguration(),
             CheckUpdatesAutomaticallyCheckBox.IsChecked == true,
-            InstallUpdatesAutomaticallyCheckBox.IsChecked == true);
+            InstallUpdatesAutomaticallyCheckBox.IsChecked == true,
+            shortcutAssignments);
         DialogResult = true;
+    }
+
+    private sealed record ShortcutKeyChoice(OperatorShortcutKey Key, string Label);
+    private sealed record ShortcutModifierChoice(OperatorShortcutModifiers Modifiers, string Label);
+    private sealed record ShortcutEditor(
+        OperatorShortcutAction Action,
+        ComboBox Key,
+        ComboBox Modifiers);
+
+    private void BuildShortcutEditor(IReadOnlyList<OperatorShortcutAssignment>? overrides)
+    {
+        ShortcutEditorRows.Children.Clear();
+        _shortcutEditors.Clear();
+        foreach (var binding in OperatorShortcutPolicy.Bindings)
+        {
+            var customized = overrides?.FirstOrDefault(value => value.Action == binding.Action);
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 7) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.25, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.25, GridUnitType.Star) });
+            row.Children.Add(new TextBlock
+            {
+                Text = binding.Description,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 8, 0)
+            });
+            var key = new ComboBox
+            {
+                ItemsSource = _shortcutKeys,
+                DisplayMemberPath = nameof(ShortcutKeyChoice.Label),
+                SelectedItem = _shortcutKeys.First(item => item.Key == (customized?.Key ?? binding.Key)),
+                MinHeight = 33,
+                Margin = new Thickness(0, 0, 6, 0),
+                ToolTip = "Tecla do comando"
+            };
+            Grid.SetColumn(key, 1);
+            row.Children.Add(key);
+            var modifiers = new ComboBox
+            {
+                ItemsSource = _shortcutModifiers,
+                DisplayMemberPath = nameof(ShortcutModifierChoice.Label),
+                SelectedItem = _shortcutModifiers.First(item =>
+                    item.Modifiers == (customized?.Modifiers ?? binding.Modifiers)),
+                MinHeight = 33,
+                ToolTip = "Ctrl e Shift; combinações do Windows/Alt não são interceptadas"
+            };
+            Grid.SetColumn(modifiers, 2);
+            row.Children.Add(modifiers);
+            ShortcutEditorRows.Children.Add(row);
+            _shortcutEditors.Add(new ShortcutEditor(binding.Action, key, modifiers));
+        }
+    }
+
+    private IReadOnlyList<OperatorShortcutAssignment> ReadShortcutAssignments() =>
+        _shortcutEditors.Select(row => new OperatorShortcutAssignment(
+            row.Action,
+            ((ShortcutKeyChoice)row.Key.SelectedItem!).Key,
+            ((ShortcutModifierChoice)row.Modifiers.SelectedItem!).Modifiers)).ToArray();
+
+    private void RestoreDefaultShortcutsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        BuildShortcutEditor(null);
+        ShortcutValidationText.Text = "Atalhos padrão restaurados. Clique em Salvar para aplicar.";
     }
 
     private void CancelButton_OnClick(object sender, RoutedEventArgs e) => DialogResult = false;
