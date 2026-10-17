@@ -328,7 +328,7 @@
                                         <Button x:Name="FullscreenPreviewButton" Content="⛶" IsEnabled="False"
                                                 Width="28" Height="24" MinWidth="28" Padding="3"
                                                 Style="{StaticResource CompactTransportButtonStyle}"
-                                                ToolTip="Abrir a prévia do operador em tela cheia (Esc para sair)"
+                                                ToolTip="Prévia do operador em tela cheia (F11; Esc para sair)"
                                                 AutomationProperties.Name="Prévia em tela cheia"
                                                 Click="FullscreenPreviewButton_OnClick" />
                                     </StackPanel>
@@ -448,7 +448,7 @@
                                 <TextBox x:Name="MediaSearchBox" Grid.Column="1" MinWidth="85"
                                          VerticalContentAlignment="Center" Margin="0,0,5,0"
                                          Height="30" TextChanged="MediaSearchBox_OnTextChanged"
-                                         ToolTip="Buscar por nome, grupo ou caminho; a busca não altera a ordem"
+                                         ToolTip="Buscar por nome, grupo ou caminho (Ctrl + F); a busca não altera a ordem"
                                          AutomationProperties.Name="Buscar mídias" />
                                 <Button Grid.Column="2" Content="Limpar" Margin="0,0,6,0"
                                         Style="{StaticResource CompactTransportButtonStyle}"
@@ -973,24 +973,24 @@
                     <WrapPanel VerticalAlignment="Center">
                         <Button x:Name="OpenButton" Content="Abrir mídia…" Click="OpenButton_OnClick" Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,6,0" />
                         <Button x:Name="PreviousMediaButton" Content="|◀" Click="PreviousMediaButton_OnClick"
-                                IsEnabled="False" ToolTip="Carregar a mídia anterior sem reproduzir automaticamente"
+                                IsEnabled="False" ToolTip="Carregar a mídia anterior sem reprodução automática (F8)"
                                 Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,5,0" />
                         <Button x:Name="BackFiveButton" Content="−5s" Click="BackFiveButton_OnClick"
-                                IsEnabled="False" ToolTip="Voltar cinco segundos"
+                                IsEnabled="False" ToolTip="Voltar cinco segundos (Ctrl + ←)"
                                 Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,5,0" />
-                        <Button x:Name="PlayButton" Click="PlayButton_OnClick" IsEnabled="False" Style="{StaticResource CompactPrimaryButtonStyle}" Margin="0,0,6,0" ToolTip="Reproduzir mídia">
+                        <Button x:Name="PlayButton" Click="PlayButton_OnClick" IsEnabled="False" Style="{StaticResource CompactPrimaryButtonStyle}" Margin="0,0,6,0" ToolTip="Reproduzir mídia (F5 / Espaço)">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource PlayIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock x:Name="PlayButtonText" Text="Reproduzir" VerticalAlignment="Center" /></StackPanel>
                         </Button>
-                        <Button x:Name="PauseButton" Click="PauseButton_OnClick" IsEnabled="False" Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,6,0" ToolTip="Pausar reprodução">
+                        <Button x:Name="PauseButton" Click="PauseButton_OnClick" IsEnabled="False" Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,6,0" ToolTip="Pausar reprodução (F6 / Espaço)">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource PauseIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Pausar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                         <Button x:Name="ForwardFiveButton" Content="+5s" Click="ForwardFiveButton_OnClick"
-                                IsEnabled="False" ToolTip="Avançar cinco segundos"
+                                IsEnabled="False" ToolTip="Avançar cinco segundos (Ctrl + →)"
                                 Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,5,0" />
                         <Button x:Name="NextMediaButton" Content="▶|" Click="NextMediaButton_OnClick"
-                                IsEnabled="False" ToolTip="Carregar a próxima mídia sem reproduzir automaticamente"
+                                IsEnabled="False" ToolTip="Carregar a próxima mídia sem reprodução automática (F9)"
                                 Style="{StaticResource CompactTransportButtonStyle}" Margin="0,0,5,0" />
-                        <Button x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False" Style="{StaticResource CompactTransportButtonStyle}" ToolTip="Parar reprodução">
+                        <Button x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False" Style="{StaticResource CompactTransportButtonStyle}" ToolTip="Parar reprodução (F7)">
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource StopIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Parar" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </WrapPanel>
