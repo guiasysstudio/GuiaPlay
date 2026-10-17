@@ -30,11 +30,19 @@ internal static class MediaGridMetadataService
         // duration/resolution/thumbnail when they have not been decoded safely.
         return Task.Run(async () =>
         {
-            foreach (var row in rows.Take(MaximumInspectedRows))
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var metadata = InspectManagedFileInfo(row);
-                await onResult(row, metadata).ConfigureAwait(false);
+                foreach (var row in rows.Take(MaximumInspectedRows))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var metadata = InspectManagedFileInfo(row);
+                    await onResult(row, metadata).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // A newer playlist replaced this batch. This is normal; nothing
+                // should escape a fire-and-forget UI refresh as a canceled task.
             }
         }, cancellationToken);
     }
