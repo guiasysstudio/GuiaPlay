@@ -524,7 +524,7 @@
                         <Button x:Name="HeaderSettingsButton" Click="HeaderSettingsButton_OnClick" Style="{StaticResource GPHeaderButton}" ToolTip="Configurações" AutomationProperties.Name="Configurações"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource SettingsIconGeometry}" Style="{StaticResource ButtonIconStyle}" Width="21" Height="21"/><TextBlock Text="Configurações" VerticalAlignment="Center" FontSize="14"/></StackPanel></Button>
                         <Button Click="HeaderMonitorsButton_OnClick" Style="{StaticResource GPHeaderButton}" ToolTip="Monitores" AutomationProperties.Name="Monitores"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPMonitors}" Style="{StaticResource ButtonIconStyle}" Width="21" Height="21"/><TextBlock Text="Monitores" VerticalAlignment="Center" FontSize="14"/></StackPanel></Button>
                         <Button Click="HeaderAboutButton_OnClick" Style="{StaticResource GPHeaderButton}" ToolTip="Sobre" AutomationProperties.Name="Sobre"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource InfoIconGeometry}" Style="{StaticResource ButtonIconStyle}" Width="21" Height="21"/><TextBlock Text="Sobre" VerticalAlignment="Center" FontSize="14"/></StackPanel></Button>
-                        <Button Click="KeyboardShortcutsButton_OnClick" Style="{StaticResource GPHeaderButton}" ToolTip="Atalhos (F1)"><StackPanel Orientation="Horizontal"><TextBlock Text="⌨" FontSize="18" Margin="0,0,7,0"/><TextBlock Text="Atalhos" VerticalAlignment="Center"/></StackPanel></Button>
+                        <!-- Atalhos agora ficam em Configurações; F1 também abre esta seção. -->
                     </StackPanel>
                 </ScrollViewer>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
@@ -957,11 +957,11 @@
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <TextBlock Text="Dispositivo de saída" FontSize="12"
                                        Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
-                            <Button Grid.Row="1" Click="ChangeAudioOutputButton_OnClick"
+                            <Button x:Name="ChangeAudioOutputButton" Grid.Row="1" Click="ChangeAudioOutputButton_OnClick"
                                     Margin="0,8,0,0" Padding="10,8" Height="39" MinWidth="0"
                                     HorizontalContentAlignment="Stretch"
                                     Style="{StaticResource CompactTransportButtonStyle}"
-                                    ToolTip="Selecionar o dispositivo de áudio nas configurações">
+                                    ToolTip="Selecionar dispositivo de saída diretamente">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock x:Name="AudioDeviceNameText" Text="Padrão do Windows" FontSize="12"
