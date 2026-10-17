@@ -661,6 +661,11 @@
                                 <TextBlock x:Name="FolderImportStatusText" Text="Importação de pasta não iniciada"
                                            FontSize="10" TextTrimming="CharacterEllipsis" Visibility="Collapsed"
                                            Foreground="{DynamicResource GuiaPlayAccentBrush}" />
+                                <Button x:Name="CancelFolderImportButton" Visibility="Collapsed" Content="Cancelar leitura"
+                                        HorizontalAlignment="Left" Margin="0,3,0,0"
+                                        Style="{StaticResource CompactTransportButtonStyle}"
+                                        ToolTip="Cancelar varredura sem modificar a playlist"
+                                        Click="CancelFolderImportButton_OnClick" />
                             </StackPanel>
                             <Button Grid.Column="1" Click="AddMediaMenuButton_OnClick"
                                     x:Name="AddMediaMenuButton"
@@ -673,19 +678,11 @@
                                     <TextBlock Text="Adicionar ▾" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button x:Name="CancelFolderImportButton" Visibility="Collapsed"
-                                        Content="Cancelar"
-                                        Margin="3,0,4,0"
-                                        Style="{StaticResource CompactTransportButtonStyle}"
-                                        ToolTip="Cancelar leitura de pasta antes de salvar na playlist"
-                                        Click="CancelFolderImportButton_OnClick" />
-                                <Button Click="RemovePlaylistItemButton_OnClick"
-                                        Style="{StaticResource CompactTransportButtonStyle}"
-                                        ToolTip="Remover referência à mídia, sem apagar o arquivo" Margin="3,0,0,0">
-                                    <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
-                                </Button>
-                            </StackPanel>
+                            <Button Grid.Column="2" Click="RemovePlaylistItemButton_OnClick"
+                                    Style="{StaticResource CompactTransportButtonStyle}"
+                                    ToolTip="Remover referência à mídia, sem apagar o arquivo" Margin="3,0,0,0">
+                                <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                            </Button>
                         </Grid>
                     </Grid>
                 </Border>
