@@ -50,6 +50,12 @@ internal static class MediaGridMetadataService
             foreach (var row in rows.Take(MaximumInspectedRows))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (row.Node.Item.Kind == MediaKind.YouTube)
+                {
+                    await onResult(row, new MediaGridMetadata("—", "Web", "—", null))
+                        .ConfigureAwait(false);
+                    continue;
+                }
                 MediaGridMetadata metadata;
                 try
                 {
