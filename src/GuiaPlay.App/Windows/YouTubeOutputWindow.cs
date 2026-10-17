@@ -39,7 +39,7 @@ internal sealed class YouTubeOutputWindow : Window
     private int? _error;
     private readonly DispatcherTimer _startupTimer = new() { Interval = TimeSpan.FromSeconds(25) };
 
-    public YouTubeOutputWindow(MonitorInfo monitor)
+    public YouTubeOutputWindow(MonitorInfo? monitor)
     {
         Monitor = monitor;
         _startupTimer.Tick += (_, _) =>
@@ -47,18 +47,26 @@ internal sealed class YouTubeOutputWindow : Window
             _startupTimer.Stop();
             if (!_closed && !_ready)
             {
-                _state = "ERRO";
-                PlaybackStateChanged?.Invoke(this, new YouTubePlaybackSnapshot(
-                    _state, false, 0, 0, null,
-                    "O YouTube não respondeu dentro do prazo. Verifique a conexão e o player público."));
+                ReportFailure("O YouTube não respondeu em 25 segundos. Verifique conexão, " +
+                    "WebView2 e acesso à API do YouTube.");
             }
         };
-        Title = "GuiaPlay — YouTube (player oficial)";
-        WindowStyle = WindowStyle.None;
-        ResizeMode = ResizeMode.NoResize;
+        Title = monitor is null
+            ? "GuiaPlay — YouTube (player oficial)"
+            : "GuiaPlay — YouTube (saída pública)";
+        WindowStyle = monitor is null ? WindowStyle.SingleBorderWindow : WindowStyle.None;
+        ResizeMode = monitor is null ? ResizeMode.CanResize : ResizeMode.NoResize;
         ShowInTaskbar = false;
         ShowActivated = true;
-        Topmost = true;
+        Topmost = monitor is not null;
+        if (monitor is null)
+        {
+            Width = 1000;
+            Height = 650;
+            MinWidth = 640;
+            MinHeight = 420;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        }
         Background = Brushes.Black;
 
         _browser = new WebView2
@@ -68,7 +76,10 @@ internal sealed class YouTubeOutputWindow : Window
             DefaultBackgroundColor = System.Drawing.Color.Black
         };
         Content = _browser;
-        SourceInitialized += (_, _) => WindowPlacement.FillMonitor(this, Monitor);
+        if (monitor is not null)
+        {
+            SourceInitialized += (_, _) => WindowPlacement.FillMonitor(this, monitor);
+        }
         Closed += (_, _) =>
         {
             _closed = true;
@@ -78,11 +89,12 @@ internal sealed class YouTubeOutputWindow : Window
                 core.WebMessageReceived -= Browser_WebMessageReceived;
             }
 
+            _ready = false;
             _browser.Dispose();
         };
     }
 
-    public MonitorInfo Monitor { get; private set; }
+    public MonitorInfo? Monitor { get; private set; }
     public bool Ready => _ready;
     public event EventHandler<YouTubePlaybackSnapshot>? PlaybackStateChanged;
 
@@ -104,6 +116,9 @@ internal sealed class YouTubeOutputWindow : Window
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GuiaSys", "GuiaPlay", "WebView2-YouTube");
         Directory.CreateDirectory(userData);
+        // The NuGet SDK does not install the WebView2 Runtime on Windows.
+        var runtimeVersion = CoreWebView2Environment.GetAvailableBrowserVersionString();
+        FileLogger.Info($"YouTube WebView2 Runtime: {runtimeVersion}; vídeo: {video.VideoId}.");
         var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: userData);
         if (_closed)
         {
@@ -168,6 +183,22 @@ internal sealed class YouTubeOutputWindow : Window
                 args.Request.Headers.SetHeader("Referer", HostOrigin + "/");
             }
         };
+        core.NavigationCompleted += (_, args) =>
+        {
+            if (!_closed && !args.IsSuccess)
+            {
+                ReportFailure("Página do YouTube não carregou (" +
+                    args.WebErrorStatus + "). Verifique conexão e bloqueios de rede.");
+            }
+        };
+        core.ProcessFailed += (_, args) =>
+        {
+            if (!_closed)
+            {
+                ReportFailure("Processo WebView2 falhou (" +
+                    args.ProcessFailedKind + "). Abra novamente o vídeo.");
+            }
+        };
         core.WebMessageReceived += Browser_WebMessageReceived;
         _startupTimer.Start();
         core.Navigate(HostOrigin + "/player.html?videoId=" +
@@ -193,8 +224,23 @@ internal sealed class YouTubeOutputWindow : Window
 
     public void Reposition(MonitorInfo monitor)
     {
+        if (Monitor is null)
+        {
+            return; // Operator player remains a freely movable window.
+        }
+
         Monitor = monitor;
         WindowPlacement.FillMonitor(this, monitor);
+    }
+
+    private void ReportFailure(string message)
+    {
+        _startupTimer.Stop();
+        _state = "ERRO";
+        _error = null;
+        FileLogger.Error("YouTube: " + message);
+        PlaybackStateChanged?.Invoke(this,
+            new YouTubePlaybackSnapshot(_state, _ready, _elapsed, _duration, null, message));
     }
 
     private void Browser_WebMessageReceived(
@@ -276,6 +322,7 @@ internal sealed class YouTubeOutputWindow : Window
 
                     message = _error switch
                     {
+                        2 => "Link ou identificador de vídeo inválido.",
                         100 => "Vídeo privado, removido ou indisponível.",
                         101 or 150 => "O proprietário não permite incorporar este vídeo.",
                         153 => "YouTube não recebeu identificação válida do aplicativo (Referer).",
@@ -285,6 +332,11 @@ internal sealed class YouTubeOutputWindow : Window
                     break;
                 default:
                     return;
+            }
+
+            if (type == "error")
+            {
+                FileLogger.Error($"YouTube IFrame erro {_error?.ToString() ?? "desconhecido"}: {message}");
             }
 
             PlaybackStateChanged?.Invoke(this, new YouTubePlaybackSnapshot(

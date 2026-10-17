@@ -28,8 +28,9 @@ internal sealed class YouTubeLinkPromptWindow : Window
         });
         root.Children.Add(new TextBlock
         {
-            Text = "A reprodução utiliza o player oficial visível em uma saída pública. " +
-                   "O operador recebe estado e tempo, não o mesmo quadro de prévia dos arquivos locais.",
+            Text = "Sem tela pública selecionada, o player abre em uma janela do GuiaPlay. " +
+                   "Com uma tela pública selecionada, o vídeo aparece nela. " +
+                   "O player oficial mantém os controles e a identificação do YouTube.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 5, 0, 12)
         });
@@ -62,7 +63,7 @@ internal sealed class YouTubeLinkPromptWindow : Window
         var cancel = new Button { Content = "Cancelar", MinWidth = 90, IsCancel = true };
         var add = new Button
         {
-            Content = "Adicionar link",
+            Content = "Adicionar e abrir",
             MinWidth = 125,
             IsDefault = true,
             Margin = new Thickness(8, 0, 0, 0)

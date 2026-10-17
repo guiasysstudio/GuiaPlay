@@ -1217,7 +1217,7 @@ public partial class MainWindow : Window
         await ImportFolderAsync(picker.FolderName);
     }
 
-    private void AddYouTubeLinkButton_OnClick(object sender, RoutedEventArgs e)
+    private async void AddYouTubeLinkButton_OnClick(object sender, RoutedEventArgs e)
     {
         if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
         {
@@ -1248,9 +1248,10 @@ public partial class MainWindow : Window
         var groupId = SelectedPlaylistGroup()?.Id ??
             catalog.Snapshot.Groups.FirstOrDefault()?.Id ??
             catalog.CreateGroup("YouTube").Id;
+        PlaylistItem addedItem;
         try
         {
-            catalog.AddYouTubeItem(groupId, dialog.Reference, dialog.DisplayName);
+            addedItem = catalog.AddYouTubeItem(groupId, dialog.Reference, dialog.DisplayName);
         }
         catch (ArgumentException exception)
         {
@@ -1271,7 +1272,13 @@ public partial class MainWindow : Window
         RebuildPlaylistTree();
         if (!SaveActivePlaylistPreset()) return;
         RefreshActivePlaylistMarkers();
-        StatusText.Text = "Link YouTube salvo. Para reproduzir, selecione somente uma tela pública.";
+        StatusText.Text = "Link salvo. Abrindo o player do YouTube…";
+        var addedNode = _playlistGroups.SelectMany(group => group.Items)
+            .FirstOrDefault(candidate => candidate.Item.Id == addedItem.Id);
+        if (addedNode is not null)
+        {
+            await LoadYouTubeItemAsync(addedNode);
+        }
     }
 
     private void CancelFolderImportButton_OnClick(object sender, RoutedEventArgs e) =>
@@ -1480,16 +1487,21 @@ public partial class MainWindow : Window
 
         var selected = _outputChoices.Where(choice => choice.IsSelected)
             .Select(choice => choice.Monitor).ToArray();
-        if (_operatorRequiresConfiguration || _operatorMonitor is null ||
-            selected.Length != 1 || selected[0].Id == _operatorMonitor.Id)
+        if (selected.Length > 1 ||
+            (selected.Length == 1 &&
+             (_operatorRequiresConfiguration || _operatorMonitor is null ||
+              selected[0].Id == _operatorMonitor.Id)))
         {
-            StatusText.Text = "YouTube exige uma única tela pública selecionada, separada do operador.";
+            StatusText.Text = "Selecione no máximo uma tela pública diferente da tela do operador.";
             return;
         }
 
-        var monitor = selected[0];
+        // Zero public screens: open the single visible official player in an
+        // operator-owned window. Do not make a tiny iframe inside the preview.
+        var monitor = selected.FirstOrDefault();
         var eligible = YouTubeEmbedGate.Assess(
-            monitor.Width, monitor.Height, hasAppIdentification: true,
+            monitor?.Width ?? 960, monitor?.Height ?? 540,
+            hasAppIdentification: true,
             isActuallyVisible: true, automaticPlayback: false,
             visibleViewportFraction: 1, otherAutoPlayingYouTubePlayersOnSameScreen: 0);
         if (!eligible.Allowed)
@@ -1500,7 +1512,7 @@ public partial class MainWindow : Window
 
         if ((_coordinator.IsActive || _youtubeWindow is not null) &&
             MessageBox.Show(this,
-                "Interromper a mídia atual e abrir o player oficial do YouTube na tela selecionada?",
+                "Interromper a mídia atual e abrir o player oficial do YouTube?",
                 "Trocar reprodução", MessageBoxButton.YesNo, MessageBoxImage.Warning)
                 != MessageBoxResult.Yes)
         {
@@ -1508,6 +1520,11 @@ public partial class MainWindow : Window
         }
 
         var window = new YouTubeOutputWindow(monitor);
+        if (monitor is null)
+        {
+            window.Owner = this;
+        }
+
         SetControlsBusy(true);
         _suppressAutoAdvance = true;
         try
@@ -1560,7 +1577,9 @@ public partial class MainWindow : Window
             PreviewImage.Source = null;
             ProgramImage.Source = null;
             PreviewPlaceholder.Text = "YouTube · prévia informativa";
-            PreviewEmptyHint.Text = "A imagem do YouTube aparece somente na tela pública.";
+            PreviewEmptyHint.Text = monitor is null
+                ? "Vídeo na janela do GuiaPlay. Use os controles da barra inferior."
+                : "Vídeo no player oficial da tela pública.";
             PreviewEmptyState.Visibility = Visibility.Visible;
             FileNameText.Text = node.Name;
             UpdateTransportArtwork(MediaKind.YouTube, node.Item.OriginalPath);
@@ -1568,14 +1587,21 @@ public partial class MainWindow : Window
             ProgressSlider.Value = 0;
             ProgressSlider.Maximum = 1;
             UpdateTimeLabels(0, 0);
-            StatusText.Text = "YouTube aberto. Pressione Reproduzir ou utilize o player visível no projetor.";
+            StatusText.Text = monitor is null
+                ? "Player aberto no GuiaPlay. Clique em Reproduzir ou no próprio vídeo."
+                : "Player aberto na tela pública. Clique em Reproduzir ou no próprio vídeo.";
             RefreshPlaybackControls();
         }
         catch (Exception exception)
         {
             FileLogger.Error("Falha ao preparar o player oficial do YouTube.", exception);
             CloseYouTubeWindow();
-            StatusText.Text = "WebView2/YouTube não disponível. Verifique Runtime Edge e conexão.";
+            StatusText.Text = "Falha ao abrir o YouTube. Verifique o WebView2, a conexão e o log.";
+            MessageBox.Show(this,
+                "Não foi possível iniciar o player oficial do YouTube.\n\n" +
+                "Verifique o Microsoft Edge WebView2 Runtime e o acesso ao YouTube.\n\n" +
+                "Detalhes: " + exception.Message,
+                "GuiaPlay — YouTube", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
@@ -2698,10 +2724,18 @@ public partial class MainWindow : Window
 
     private async Task StartOrResumePlaybackAsync()
     {
-        if (_youtubeWindow is { Ready: true } youtube && _licensingAllowsAccess && !_controlsBusy)
+        if (_youtubeWindow is { } youtube)
         {
-            youtube.Command("play");
-            StatusText.Text = "Reprodução solicitada ao YouTube.";
+            if (youtube.Ready && _licensingAllowsAccess && !_controlsBusy)
+            {
+                youtube.Command("play");
+                StatusText.Text = "Reprodução solicitada ao YouTube.";
+            }
+            else
+            {
+                StatusText.Text = "Aguarde o player do YouTube ficar pronto ou consulte o erro exibido.";
+            }
+
             return;
         }
 
@@ -3952,15 +3986,19 @@ public partial class MainWindow : Window
             var status = _youtubeSnapshot?.State ?? "CARREGANDO";
             PreviewLiveStateText.Text = "YOUTUBE " + status;
             ProgramStatusBadgeText.Text = status;
-            ProgramPlaceholderText.Text = "YouTube · player oficial na tela pública";
-            ProgramDetailsText.Text = "Sem espelho de vídeo: a API não fornece quadros ao operador.";
+            ProgramPlaceholderText.Text = youtube.Monitor is null
+                ? "YouTube · player oficial no GuiaPlay"
+                : "YouTube · player oficial na tela pública";
+            ProgramDetailsText.Text = "O vídeo fica somente no player visível, sem espelho de quadros.";
             YouTubeStatusHintText.Visibility = Visibility.Visible;
             YouTubeStatusHintText.Text = _youtubeSnapshot?.Message ??
-                "Controle pelo GuiaPlay. O player visível permanece na saída pública.";
+                "Controle pela barra do GuiaPlay ou diretamente pelo player visível.";
             ProgramImage.Source = null;
             ProgramImage.Visibility = Visibility.Collapsed;
             ProgramEmptyState.Visibility = Visibility.Visible;
-            ActiveOutputsText.Text = youtube.Monitor.ShortLabel + " (YouTube)";
+            ActiveOutputsText.Text = youtube.Monitor is { } outputMonitor
+                ? outputMonitor.ShortLabel + " (YouTube)"
+                : "Operador · janela do GuiaPlay";
             OutputSelectedCountText.Text = $"{SelectedOutputCount()} selecionada(s)";
             NoPublicMonitorsText.Visibility = Visibility.Collapsed;
             SidebarOutputsList.IsEnabled = false;
@@ -4058,14 +4096,14 @@ public partial class MainWindow : Window
     {
         var previousMonitors = _monitors;
         var current = MonitorService.GetActiveMonitors();
-        if (_youtubeWindow is { } activeYouTube &&
-            MonitorTopologyReconciler.FindCurrent(activeYouTube.Monitor, current) is null)
+        if (_youtubeWindow is { Monitor: { } youtubeMonitor } activeYouTube &&
+            MonitorTopologyReconciler.FindCurrent(youtubeMonitor, current) is null)
         {
             CloseYouTubeWindow();
             StatusText.Text = "Tela pública do YouTube desconectada; reprodução interrompida.";
         }
-        else if (_youtubeWindow is { } connectedYouTube &&
-                 MonitorTopologyReconciler.FindCurrent(connectedYouTube.Monitor, current) is { } routedMonitor)
+        else if (_youtubeWindow is { Monitor: { } connectedMonitor } connectedYouTube &&
+                 MonitorTopologyReconciler.FindCurrent(connectedMonitor, current) is { } routedMonitor)
         {
             connectedYouTube.Reposition(routedMonitor);
         }
