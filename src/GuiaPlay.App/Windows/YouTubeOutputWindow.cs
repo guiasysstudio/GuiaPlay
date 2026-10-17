@@ -37,6 +37,7 @@ internal sealed class YouTubeOutputWindow : Window
     private long _elapsed;
     private long _duration;
     private int? _error;
+    private bool _autoplayOnlyMuted;
     private readonly DispatcherTimer _startupTimer = new() { Interval = TimeSpan.FromSeconds(25) };
 
     public YouTubeOutputWindow(MonitorInfo monitor)
@@ -304,6 +305,7 @@ internal sealed class YouTubeOutputWindow : Window
 
                     break;
                 case "autoplayMutedRetry":
+                    _autoplayOnlyMuted = true;
                     // The official API reported a browser autoplay restriction.
                     // It will retry once muted; do not claim playback yet.
                     _state = "CARREGANDO";
@@ -346,6 +348,11 @@ internal sealed class YouTubeOutputWindow : Window
             if (type == "error")
             {
                 FileLogger.Error($"YouTube IFrame erro {_error?.ToString() ?? "desconhecido"}: {message}");
+            }
+
+            if (message is null && _autoplayOnlyMuted && _state == "REPRODUZINDO")
+            {
+                message = "Reproduzindo sem som: o navegador bloqueou o áudio automático.";
             }
 
             PlaybackStateChanged?.Invoke(this, new YouTubePlaybackSnapshot(
