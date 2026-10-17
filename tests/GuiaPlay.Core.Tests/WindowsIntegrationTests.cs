@@ -40,11 +40,17 @@ public sealed class WindowsIntegrationTests
         var registry = new InMemoryRegistryStore();
         new WindowsIntegrationService(registry, ExecutablePath).Configure(true, false);
 
-        Assert.Equal(23, MediaTypeDetector.SupportedExtensions.Count);
+        Assert.Equal(30, MediaTypeDetector.SupportedExtensions.Count);
         Assert.All(MediaTypeDetector.SupportedVideoExtensions, extension =>
             Assert.Equal(MediaKind.Video, MediaTypeDetector.Detect("media" + extension)));
         Assert.All(MediaTypeDetector.SupportedAudioExtensions, extension =>
             Assert.Equal(MediaKind.Audio, MediaTypeDetector.Detect("media" + extension)));
+        Assert.All(MediaTypeDetector.SupportedImageExtensions, extension =>
+        {
+            Assert.Equal(MediaKind.Image, MediaTypeDetector.Detect("media" + extension));
+            Assert.True(registry.HasValue($@"Software\Classes\{extension}\OpenWithProgids",
+                WindowsIntegrationService.ImageProgId));
+        });
         Assert.DoesNotContain(registry.Keys, key => key.Contains(".exe", StringComparison.OrdinalIgnoreCase) &&
             key.Contains("OpenWithProgids", StringComparison.OrdinalIgnoreCase));
     }
