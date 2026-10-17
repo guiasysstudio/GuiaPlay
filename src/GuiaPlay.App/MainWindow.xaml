@@ -4,7 +4,7 @@
         xmlns:models="clr-namespace:GuiaPlay.App.Models"
         Title="GuiaPlay"
         Icon="/GuiaPlay;component/Assets/Branding/Icons/GuiaPlay.ico"
-        Width="1120" Height="690" MinWidth="840" MinHeight="560"
+        Width="1450" Height="830" MinWidth="980" MinHeight="590"
         Background="{DynamicResource GuiaPlayWindowBackgroundBrush}"
         Foreground="{DynamicResource GuiaPlayTextPrimaryBrush}"
         WindowStartupLocation="CenterScreen"
@@ -24,6 +24,19 @@
             <Setter Property="MinHeight" Value="30" />
             <Setter Property="MinWidth" Value="30" />
             <Setter Property="Padding" Value="7,4" />
+        </Style>
+        <!-- GP-I01: all header actions map to existing, tested application workflows. -->
+        <Style x:Key="HeaderNavigationButtonStyle" TargetType="Button" BasedOn="{StaticResource StandardButtonStyle}">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Margin" Value="0,0,5,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="HeaderNavigationIconStyle" TargetType="Path" BasedOn="{StaticResource ButtonIconStyle}">
+            <Setter Property="Width" Value="17" />
+            <Setter Property="Height" Value="17" />
+            <Setter Property="Margin" Value="0,0,7,0" />
         </Style>
         <Style x:Key="OutputChipStyle" TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
@@ -112,35 +125,89 @@
     <Grid Margin="16">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfaceElevatedBrush}"
-                Padding="12,8" Margin="0,0,0,10">
+        <!-- GP-I01: top navigation follows Modelo 1 and keeps native Windows window chrome. -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}"
+                Background="{DynamicResource GuiaPlaySurfaceElevatedBrush}"
+                Padding="12,9" Margin="0,0,0,12">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
-                       Width="118" Height="34" Stretch="Uniform" VerticalAlignment="Center" ToolTip="GuiaPlay" />
-                <Border Grid.Column="1" Width="1" Height="30" Margin="13,0"
-                        Background="{DynamicResource GuiaPlayDividerBrush}" VerticalAlignment="Center" />
-                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock x:Name="FileNameText" Text="Nenhuma mídia carregada"
-                               FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Margin="0,3,0,0" FontSize="12" Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
-                               Text="{Binding Text, ElementName=StatusText}" TextTrimming="CharacterEllipsis" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
+                           Width="130" Height="41" Stretch="Uniform" ToolTip="GuiaPlay" />
+                    <TextBlock x:Name="VersionHeaderText" Text="v—" Margin="7,0,0,0"
+                               VerticalAlignment="Center" FontSize="11"
+                               Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                               AutomationProperties.Name="Versão instalada" />
                 </StackPanel>
-                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="LicenseStatusButton" Content="Verificando licença…" MinWidth="132" Height="36"
-                            Margin="0,0,7,0" Style="{StaticResource StandardButtonStyle}"
-                            ToolTip="Abrir usuário e licença" Click="LicenseStatusButton_OnClick" />
-                    <Button x:Name="UpdateAvailableButton" Visibility="Collapsed" Width="40" Height="36" Padding="9"
-                            MinWidth="40" Margin="0,0,7,0" Background="{DynamicResource GuiaPlayAccentBrush}"
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center"
+                              Focusable="False">
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="HeaderPlaylistButton" Click="HeaderPlaylistButton_OnClick"
+                                Style="{StaticResource HeaderNavigationButtonStyle}"
+                                Background="{DynamicResource GuiaPlayAccentBrush}"
+                                Foreground="{DynamicResource GuiaPlayAccentForegroundBrush}"
+                                BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}"
+                                ToolTip="Ir para a playlist de trabalho" AutomationProperties.Name="Playlist">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource FolderOpenIconGeometry}" Style="{StaticResource HeaderNavigationIconStyle}" />
+                                <TextBlock Text="Playlist" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="HeaderMediaButton" Click="HeaderMediaButton_OnClick"
+                                Style="{StaticResource HeaderNavigationButtonStyle}"
+                                ToolTip="Abrir um vídeo ou áudio local" AutomationProperties.Name="Mídia">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource VideoIconGeometry}" Style="{StaticResource HeaderNavigationIconStyle}" />
+                                <TextBlock Text="Mídia" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Click="HeaderSettingsButton_OnClick"
+                                Style="{StaticResource HeaderNavigationButtonStyle}"
+                                ToolTip="Abrir configurações" AutomationProperties.Name="Configurações">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource SettingsIconGeometry}" Style="{StaticResource HeaderNavigationIconStyle}" />
+                                <TextBlock Text="Configurações" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Click="HeaderMonitorsButton_OnClick"
+                                Style="{StaticResource HeaderNavigationButtonStyle}"
+                                ToolTip="Configurar operador e telas públicas" AutomationProperties.Name="Monitores">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource DisplayIconGeometry}" Style="{StaticResource HeaderNavigationIconStyle}" />
+                                <TextBlock Text="Monitores" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Click="HeaderAboutButton_OnClick"
+                                Style="{StaticResource HeaderNavigationButtonStyle}"
+                                ToolTip="Sobre o GuiaPlay" AutomationProperties.Name="Sobre">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource InfoIconGeometry}" Style="{StaticResource HeaderNavigationIconStyle}" />
+                                <TextBlock Text="Sobre" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <Button x:Name="LicenseStatusButton" Content="Verificando licença…"
+                            MinWidth="125" Height="38" Padding="9,5" Margin="0,0,8,0"
+                            Style="{StaticResource StandardButtonStyle}"
+                            ToolTip="Estado real do GuiaSys Licensing; clique para gerenciar"
+                            Click="LicenseStatusButton_OnClick" />
+                    <Button x:Name="UpdateAvailableButton" Visibility="Collapsed"
+                            Width="38" Height="38" Padding="8" MinWidth="38"
+                            Margin="0,0,7,0"
+                            Background="{DynamicResource GuiaPlayAccentBrush}"
                             Foreground="{DynamicResource GuiaPlayAccentForegroundBrush}"
                             BorderBrush="{DynamicResource GuiaPlayAccentBorderBrush}"
                             ToolTip="Atualização disponível" Click="UpdateAvailableButton_OnClick">
                         <Path Data="{StaticResource ArrowDownloadIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
                     </Button>
-                    <Button x:Name="ConfigureScreensButton" Width="40" Height="36" Padding="9" MinWidth="40"
+                    <Button x:Name="ConfigureScreensButton" Width="38" Height="38" Padding="8" MinWidth="38"
                             Style="{StaticResource StandardButtonStyle}" ToolTip="Configurações do programa"
                             Click="ConfigureScreensButton_OnClick">
                         <Path Data="{StaticResource SettingsIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
@@ -151,18 +218,23 @@
 
         <Grid x:Name="LicensedWorkspace" Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="54*" MinWidth="390" /><ColumnDefinition Width="12" />
-                <ColumnDefinition Width="46*" MinWidth="310" />
+                <ColumnDefinition Width="300" MinWidth="265" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" MinWidth="345" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="246" MinWidth="220" />
             </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
+            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <Grid Margin="2,0,2,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Prévia" FontSize="18" FontWeight="SemiBold" />
-                            <TextBlock Text="Uma sessão compartilhada com todas as saídas"
-                                       Style="{StaticResource SecondaryTextStyle}" Margin="0,3,0,0" />
+                            <TextBlock Text="PRÉVIA (OPERADOR)" FontSize="15" FontWeight="SemiBold" />
+                            <TextBlock x:Name="FileNameText" Text="Nenhuma mídia carregada"
+                                       FontSize="13" FontWeight="Medium" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                       Margin="0,3,0,0" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                         </StackPanel>
                         <Border Grid.Column="1" Padding="9,4" CornerRadius="12"
                                 Background="{DynamicResource GuiaPlayAccentSubtleBrush}"
@@ -189,7 +261,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
+            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" />
@@ -197,7 +269,7 @@
                     <Grid Margin="0,0,0,9">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Playlist" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="PLAYLIST" FontSize="15" FontWeight="SemiBold" />
                             <TextBlock Text="Organize e execute mídias sem copiar os arquivos"
                                        Style="{StaticResource SecondaryTextStyle}" Margin="0,3,0,0" />
                         </StackPanel>
@@ -253,6 +325,46 @@
                             <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Remover" VerticalAlignment="Center" /></StackPanel>
                         </Button>
                     </Grid>
+                </Grid>
+            </Border>
+            <!-- The same physical output choices shown by the operator controls; no mock monitors. -->
+            <Border Grid.Column="4" Style="{StaticResource CardStyle}"
+                    Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="11">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="SAÍDA DE VÍDEO" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="Telas públicas conectadas" Margin="0,5,0,12"
+                                   FontSize="11" Style="{StaticResource SecondaryTextStyle}" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl x:Name="SidebarOutputsList" Margin="0,0,2,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Vertical" /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              Content="{Binding ShortLabel}"
+                                              ToolTip="{Binding Label}"
+                                              Margin="0,0,0,8" Padding="8,6"
+                                              Style="{StaticResource OutputChipStyle}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <Button Grid.Row="2" Content="Identificar telas" Margin="0,12,0,8"
+                            Style="{StaticResource CompactTransportButtonStyle}"
+                            Click="IdentifyButton_OnClick" />
+                    <Button Grid.Row="3" Content="Configurar monitores"
+                            Style="{StaticResource CompactTransportButtonStyle}"
+                            Click="HeaderMonitorsButton_OnClick" />
                 </Grid>
             </Border>
         </Grid>
