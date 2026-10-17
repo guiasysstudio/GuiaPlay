@@ -85,6 +85,9 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _playlistAvailabilityCancellation;
     private Point _playlistDragStart;
     private object? _playlistDragSource;
+    private CancellationTokenSource? _folderImportCancellation;
+    private long _playlistRevision;
+    private bool _folderImportActive;
     private Point _mediaGridDragStart;
     private MediaGridRow? _mediaGridDragSource;
     private bool _autoInstallInProgress;
@@ -106,6 +109,7 @@ public partial class MainWindow : Window
         var settings = app?.Settings ?? AppSettings.Default;
         _playlistWorkspace = new PlaylistWorkspace(app?.Playlist ?? PlaylistDocument.Empty);
         _playlistCatalog = _playlistWorkspace.Catalog;
+        _playlistCatalog.Changed += (_, _) => _playlistRevision++;
         var presetPathOverride = Environment.GetEnvironmentVariable("GUIAPLAY_PLAYLIST_PRESETS_PATH");
         _playlistPresetStore = new PlaylistPresetStore(
             string.IsNullOrWhiteSpace(presetPathOverride)
@@ -768,12 +772,27 @@ public partial class MainWindow : Window
         return true;
     }
 
-    private void AddPlaylistItemButton_OnClick(object sender, RoutedEventArgs e)
+    private void AddMediaMenuButton_OnClick(object sender, RoutedEventArgs e)
     {
-        var group = SelectedPlaylistGroup();
-        if (group is null)
+        if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
         {
-            StatusText.Text = "Selecione primeiro o grupo que receberá a mídia.";
+            return;
+        }
+
+        var menu = new ContextMenu { PlacementTarget = AddMediaMenuButton, Placement = PlacementMode.Top };
+        var addFiles = new MenuItem { Header = "Adicionar arquivo(s)…" };
+        addFiles.Click += AddPlaylistItemButton_OnClick;
+        var addFolder = new MenuItem { Header = "Adicionar pasta e subpastas…" };
+        addFolder.Click += AddFolderButton_OnClick;
+        menu.Items.Add(addFiles);
+        menu.Items.Add(addFolder);
+        menu.IsOpen = true;
+    }
+
+    private async void AddPlaylistItemButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
+        {
             return;
         }
 
@@ -784,17 +803,152 @@ public partial class MainWindow : Window
             CheckFileExists = true,
             Multiselect = true
         };
-        if (dialog.ShowDialog(this) != true)
+        if (dialog.ShowDialog(this) == true)
+        {
+            await ImportDroppedFilesAsync(dialog.FileNames, SelectedPlaylistGroup());
+        }
+    }
+
+    private async void AddFolderButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
         {
             return;
         }
 
-        foreach (var path in dialog.FileNames)
+        var picker = new OpenFolderDialog
         {
-            _playlistCatalog.AddItem(group.Id, path);
+            Title = "Selecionar pasta de vídeos e músicas",
+            Multiselect = false
+        };
+        if (picker.ShowDialog(this) != true)
+        {
+            return;
         }
 
-        SavePlaylistAndRefresh($"{dialog.FileNames.Length} referência(s) adicionada(s); os arquivos não foram copiados.");
+        await ImportFolderAsync(picker.FolderName);
+    }
+
+    private void CancelFolderImportButton_OnClick(object sender, RoutedEventArgs e) =>
+        _folderImportCancellation?.Cancel();
+
+    private async Task ImportFolderAsync(string folder)
+    {
+        if (_folderImportActive || !_licensingAllowsAccess || _controlsBusy)
+        {
+            return;
+        }
+
+        using var cancellation = new CancellationTokenSource();
+        _folderImportCancellation = cancellation;
+        _folderImportActive = true;
+        var revisionAtStart = _playlistRevision;
+        CancelFolderImportButton.Visibility = Visibility.Visible;
+        FolderImportStatusText.Visibility = Visibility.Visible;
+        FolderImportStatusText.Text = "Lendo pasta e subpastas…";
+        StatusText.Text = "Procurando vídeos e músicas na pasta selecionada…";
+        SetControlsBusy(true);
+
+        try
+        {
+            var scanned = await FolderMediaScanner.ScanAsync(folder, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (!_licensingAllowsAccess || _isClosing || revisionAtStart != _playlistRevision)
+            {
+                StatusText.Text = "A lista mudou ou o acesso foi revogado; importação descartada.";
+                return;
+            }
+
+            if (scanned.Candidates.Count == 0)
+            {
+                FolderImportStatusText.Text = "Nenhuma mídia compatível encontrada";
+                StatusText.Text = "Nenhuma mídia compatível foi encontrada; a playlist não foi modificada.";
+                return;
+            }
+
+            var partial = scanned.Limited || scanned.Warnings.Count > 0 || scanned.SkippedUnsafe > 0;
+            if (partial)
+            {
+                var decision = MessageBox.Show(
+                    this,
+                    $"A varredura encontrou {scanned.Candidates.Count} mídia(s), mas nem todos os caminhos foram lidos. " +
+                    $"Pastas verificadas: {scanned.DirectoriesVisited}. Entradas ignoradas por proteção/erro: {scanned.SkippedUnsafe}. " +
+                    $"Limite alcançado: {(scanned.Limited ? "sim" : "não")}.\\n\\n" +
+                    "Deseja importar somente os arquivos encontrados?",
+                    "Importação parcial de pasta",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (decision != MessageBoxResult.Yes)
+                {
+                    StatusText.Text = "Importação parcial cancelada; playlist preservada.";
+                    return;
+                }
+            }
+
+            cancellation.Token.ThrowIfCancellationRequested();
+            var merged = FolderMediaPlaylistMerge.Merge(_playlistCatalog.Snapshot, scanned);
+            if (merged.Added == 0)
+            {
+                FolderImportStatusText.Text = "Todas as mídias já estavam na lista";
+                StatusText.Text = $"{merged.SkippedDuplicates} arquivo(s) duplicado(s) ignorado(s).";
+                return;
+            }
+
+            if (revisionAtStart != _playlistRevision || !_licensingAllowsAccess || _isClosing)
+            {
+                StatusText.Text = "A lista mudou antes de salvar; importação descartada.";
+                return;
+            }
+
+            if (Application.Current is not App app || app.PlaylistStore is null)
+            {
+                StatusText.Text = "O armazenamento da playlist não está disponível.";
+                return;
+            }
+
+            // Commit on disk first; the current playlist stays intact if persistence fails.
+            var persisted = app.PlaylistStore.Save(merged.Playlist);
+            if (!persisted.Succeeded)
+            {
+                FileLogger.Error($"Importação de pasta não persistida: {persisted.Error}");
+                StatusText.Text = "Erro ao salvar as mídias importadas; lista anterior preservada.";
+                return;
+            }
+
+            _playlistCatalog.ApplyPersistedChanges(merged.Playlist);
+            app.Playlist = _playlistCatalog.Snapshot;
+            RebuildPlaylistTree();
+            RefreshActivePlaylistMarkers();
+
+            FolderImportStatusText.Text = $"{merged.Added} mídia(s) importada(s)";
+            StatusText.Text = $"Pasta importada: {merged.Added} mídia(s), {merged.GroupsCreated} grupo(s) novo(s), " +
+                              $"{merged.SkippedDuplicates} duplicada(s), {scanned.SkippedUnsupported} incompatível(is).";
+            FileLogger.Info($"Importação de pasta: {folder}; {StatusText.Text}");
+            foreach (var warning in scanned.Warnings)
+            {
+                FileLogger.Info(warning);
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            FolderImportStatusText.Text = "Importação cancelada";
+            StatusText.Text = "Importação cancelada antes de salvar; playlist preservada.";
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or
+            ArgumentException or NotSupportedException)
+        {
+            FileLogger.Error("Falha ao importar pasta de mídias.", exception);
+            FolderImportStatusText.Text = "Importação não concluída";
+            StatusText.Text = "Não foi possível ler a pasta; playlist preservada. Consulte o log.";
+        }
+        finally
+        {
+            _folderImportActive = false;
+            _folderImportCancellation = null;
+            CancelFolderImportButton.Visibility = Visibility.Collapsed;
+            SetControlsBusy(false);
+        }
     }
 
     private void RemovePlaylistItemButton_OnClick(object sender, RoutedEventArgs e)
@@ -2794,6 +2948,7 @@ public partial class MainWindow : Window
         _playlistAvailabilityCancellation?.Cancel();
         _playlistAvailabilityCancellation?.Dispose();
         _playlistAvailabilityCancellation = null;
+        _folderImportCancellation?.Cancel();
         CloseIdentifierWindows();
         CloseOutputWindows();
         LogDiagnosticSnapshot("Encerramento da aplicação");
