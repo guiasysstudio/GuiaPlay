@@ -75,6 +75,8 @@ public partial class MainWindow : Window
     private readonly HashSet<string> _explicitOutputIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action _renderFrameCallback;
     private IReadOnlyList<MonitorInfo> _monitors = [];
+    private IReadOnlyList<ActiveDisplayCloneGroup> _windowsCloneGroups = [];
+    private string _windowsCloneSignature = string.Empty;
     private WriteableBitmap? _bitmap;
     private ImageSource? _stillImage;
     private long _frameGeneration;
@@ -3162,6 +3164,54 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ConfigureYouTubeMirrorButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        // Read-only probe. Changing display topology can move the operator UI
+        // and requires tested rollback/recovery; never do it implicitly.
+        var clones = MonitorService.GetActiveCloneGroups();
+        var selected = _outputChoices.Where(choice => choice.IsSelected)
+            .Select(choice => choice.Monitor).ToArray();
+        var active = clones.Where(group => selected.Any(monitor =>
+            string.Equals(group.SourceDeviceName, monitor.Id,
+                StringComparison.OrdinalIgnoreCase))).ToArray();
+
+        var report = active.Length > 0
+            ? "Duplicação já ativa nas saídas selecionadas: " +
+              string.Join("; ", active.Select(group =>
+                  $"{group.SourceDeviceName}: {group.PhysicalScreenCount} telas físicas")) +
+              ".\n\nO Windows apresenta cada grupo como uma única tela lógica ao GuiaPlay."
+            : "Não foi detectada uma saída selecionada já duplicada no Windows.";
+
+        FileLogger.Info($"GP-YT05: pré-verificação de duplicação: " +
+            $"selecionadas={selected.Length}; grupos={clones.Count}; ativos={active.Length}.");
+        var choice = MessageBox.Show(this,
+            report + "\n\nPara mostrar exatamente a mesma imagem em dois projetores, " +
+            "mantenha a tela do operador estendida e configure as duas telas " +
+            "públicas para DUPLICAR no Windows. Depois, volte ao GuiaPlay e " +
+            "selecione a saída lógica correspondente.\n\n" +
+            "Abrir as configurações de exibição do Windows agora? " +
+            "O GuiaPlay não modificará seus monitores.",
+            "GuiaPlay — YouTube · espelhamento seguro",
+            MessageBoxButton.YesNo, MessageBoxImage.Information);
+        if (choice != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo("ms-settings:display")
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception exception)
+        {
+            FileLogger.Error("GP-YT05: falha ao abrir configurações de exibição.", exception);
+            StatusText.Text = "Não foi possível abrir as configurações de exibição do Windows.";
+        }
+    }
+
     private async void IdentifyButton_OnClick(object sender, RoutedEventArgs e)
     {
         CloseIdentifierWindows();
@@ -4196,10 +4246,17 @@ public partial class MainWindow : Window
             var status = _youtubeSnapshot?.State ?? "CARREGANDO";
             PreviewLiveStateText.Text = "YOUTUBE " + status;
             ProgramStatusBadgeText.Text = status;
-            ProgramPlaceholderText.Text = $"YouTube · {1 + _youtubeMirrors.Count} tela(s) pública(s)";
+            var youtubeWindows = new[] { youtube }.Concat(_youtubeMirrors).ToArray();
+            var physicalCount = youtubeWindows.Sum(output =>
+                _windowsCloneGroups.FirstOrDefault(group => string.Equals(
+                    group.SourceDeviceName, output.Monitor.Id,
+                    StringComparison.OrdinalIgnoreCase))?.PhysicalScreenCount ?? 1);
+            ProgramPlaceholderText.Text = $"YouTube · {physicalCount} tela(s) física(s)";
             ProgramDetailsText.Text = _youtubeMirrors.Count > 0
-                ? "Players oficiais independentes; sincronização aproximada e som na primeira tela."
-                : "Player oficial na tela pública; sem espelho de quadros.";
+                ? "Players independentes em saídas lógicas: podem dessincronizar."
+                : physicalCount > 1
+                    ? "Um player oficial espelhado pelo Windows em várias saídas físicas."
+                    : "Player oficial na tela pública; sem espelho de quadros.";
             YouTubeStatusHintText.Visibility = Visibility.Visible;
             YouTubeStatusHintText.Text = _youtubeSnapshot?.Message ??
                 "Controle pela barra do GuiaPlay ou diretamente pelo player visível.";
@@ -4307,6 +4364,16 @@ public partial class MainWindow : Window
     {
         var previousMonitors = _monitors;
         var current = MonitorService.GetActiveMonitors();
+        _windowsCloneGroups = MonitorService.GetActiveCloneGroups();
+        var cloneSignature = string.Join(";", _windowsCloneGroups
+            .OrderBy(group => group.SourceDeviceName, StringComparer.OrdinalIgnoreCase)
+            .Select(group => $"{group.SourceDeviceName}:{group.PhysicalScreenCount}"));
+        if (!string.Equals(_windowsCloneSignature, cloneSignature, StringComparison.Ordinal))
+        {
+            _windowsCloneSignature = cloneSignature;
+            FileLogger.Info("GP-YT05: topologia de duplicação Windows alterada: " +
+                (cloneSignature.Length == 0 ? "nenhuma duplicação ativa" : cloneSignature));
+        }
         if (_youtubeWindow is { } activeYouTube)
         {
             var youtubeOutputs = new[] { activeYouTube }.Concat(_youtubeMirrors).ToArray();
@@ -4769,6 +4836,13 @@ public partial class MainWindow : Window
         var baseMessage = _monitors.Count <= 1
             ? "Somente o operador foi detectado. Vídeos exigem ao menos uma saída pública; áudio continua disponível."
             : "Marque uma ou mais saídas. Telas reconectadas ficam desmarcadas até nova seleção.";
+        if (_windowsCloneGroups.Count > 0)
+        {
+            baseMessage += " Duplicação Windows: " +
+                string.Join(", ", _windowsCloneGroups.Select(group =>
+                    $"{group.SourceDeviceName}: {group.PhysicalScreenCount} telas físicas")) +
+                ". Uma tela lógica do GuiaPlay controla cada grupo.";
+        }
         MonitorWarning.Text = unreliableCount == 0
             ? baseMessage
             : baseMessage + $" {unreliableCount} tela(s) têm identidade ambígua e não serão restauradas automaticamente.";
