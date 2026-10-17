@@ -443,6 +443,20 @@ public sealed class PlaylistCatalog(PlaylistDocument document)
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Publishes a successfully persisted working-document mutation while retaining
+    /// its unsaved-to-preset state and active preset association.
+    /// Call only after PlaylistStore.Save succeeds.
+    /// </summary>
+    public void ApplyPersistedChanges(PlaylistDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        var normalized = PlaylistDocumentCodec.Normalize(document);
+        _groups.Clear();
+        _groups.AddRange(normalized.Groups);
+        MarkChanged();
+    }
+
     public void AcceptChanges() => IsDirty = false;
 
     private void MarkChanged()
