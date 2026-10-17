@@ -37,6 +37,7 @@ internal sealed class MediaGridRow : INotifyPropertyChanged
     public string Glyph => Node.Item.Kind switch
     {
         MediaKind.Audio => "♫",
+        MediaKind.Image => "▧",
         MediaKind.YouTube => "▶",
         _ => "▶"
     };
