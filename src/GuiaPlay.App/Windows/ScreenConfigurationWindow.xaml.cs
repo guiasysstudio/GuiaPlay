@@ -60,7 +60,8 @@ public partial class ScreenConfigurationWindow : Window
         bool openUpdates,
         bool openLicense,
         bool playbackActive,
-        bool operatorRecoveryRequired)
+        bool operatorRecoveryRequired,
+        bool openAbout = false)
     {
         InitializeComponent();
         _updateManager = updateManager;
@@ -130,13 +131,15 @@ public partial class ScreenConfigurationWindow : Window
         AboutReleaseDateText.Text = $"Data da versão: {ProductInfo.ReleaseDate:dd/MM/yyyy}";
         CheckUpdatesAutomaticallyCheckBox.IsChecked = settings.CheckUpdatesAutomatically;
         InstallUpdatesAutomaticallyCheckBox.IsChecked = settings.InstallUpdatesAutomatically;
-        SettingsTabs.SelectedItem = openLicense
-            ? UserTab
-            : openUpdates
-                ? UpdatesTab
-                : _screensEditable && monitors.Count > 0
-                    ? ScreensTab
-                    : AppearanceTab;
+        SettingsTabs.SelectedItem = openAbout
+            ? AboutTab
+            : openLicense
+                ? UserTab
+                : openUpdates
+                    ? UpdatesTab
+                    : _screensEditable && monitors.Count > 0
+                        ? ScreensTab
+                        : AppearanceTab;
         ScreensTab.IsEnabled = _screensEditable;
         ScreensNavigationButton.IsEnabled = _screensEditable;
         SynchronizeNavigationSelection();
