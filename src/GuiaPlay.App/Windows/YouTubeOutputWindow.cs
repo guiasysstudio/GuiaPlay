@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -111,7 +112,26 @@ internal sealed class YouTubeOutputWindow : Window
 
         core.NewWindowRequested += (_, args) =>
         {
-            args.Handled = true; // popups cannot escape the public output window
+            args.Handled = true;
+            // User-initiated YouTube/Google links are opened in the system
+            // browser; never create another unsupervised player inside the app.
+            if (args.IsUserInitiated &&
+                Uri.TryCreate(args.Uri, UriKind.Absolute, out var destination) &&
+                destination.Scheme == Uri.UriSchemeHttps &&
+                destination.Host is "www.youtube.com" or "youtube.com" or "accounts.google.com")
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo(destination.AbsoluteUri)
+                    {
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception)
+                {
+                    // The browser link is optional; playback remains in place.
+                }
+            }
         };
         core.NavigationStarting += (_, args) =>
         {
