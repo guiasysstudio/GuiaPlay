@@ -247,7 +247,7 @@ public sealed class BrandingTests
         Assert.Contains("x:Name=\"VolumeSlider\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PlaylistTree\"", main, StringComparison.Ordinal);
         // Model 1 widened the workspace for three functional panes.
-        Assert.Contains("MinWidth=\"1120\"", main, StringComparison.Ordinal);
+        Assert.Contains("MinWidth=\"980\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"LicensedWorkspace\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ProgramImage\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"SidebarOutputsList\"", main, StringComparison.Ordinal);
@@ -376,9 +376,9 @@ public sealed class BrandingTests
         Assert.Contains("x:Key=\"CompactTransportButtonStyle\"", main, StringComparison.Ordinal);
         Assert.Contains("<Setter Property=\"MinHeight\" Value=\"30\" />", main, StringComparison.Ordinal);
         // GP-I10: The approved 3-panel UI supersedes M10.3's two-column layout.
-        Assert.Contains("<ColumnDefinition Width=\"280\" MinWidth=\"255\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"255\" MinWidth=\"240\" />", main, StringComparison.Ordinal);
         Assert.Contains("<ColumnDefinition Width=\"*\" MinWidth=\"345\" />", main, StringComparison.Ordinal);
-        Assert.Contains("<ColumnDefinition Width=\"294\" MinWidth=\"270\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"280\" MinWidth=\"240\" />", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PreviewProgressSlider\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"MediaGrid\"", main, StringComparison.Ordinal);
         Assert.Contains("SavePlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
@@ -435,7 +435,7 @@ public sealed class BrandingTests
         var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
 
         Assert.Contains("Grid.RowSpan=\"2\"", main, StringComparison.Ordinal);
-        Assert.Contains("<RowDefinition Height=\"49*\" MinHeight=\"225\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<RowDefinition Height=\"49*\" MinHeight=\"190\" />", main, StringComparison.Ordinal);
         Assert.Contains("Grid.Row=\"1\" Grid.Column=\"2\" Grid.ColumnSpan=\"3\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"MediaRemoveSelectedButton\"", main, StringComparison.Ordinal);
         Assert.Contains("Click=\"RemoveSelectedMediaButton_OnClick\"", main, StringComparison.Ordinal);
@@ -467,6 +467,29 @@ public sealed class BrandingTests
         Assert.Contains("GPVolumeMute", xaml, StringComparison.Ordinal);
         Assert.Contains("SpeakerLowIcon.Visibility", code, StringComparison.Ordinal);
         Assert.DoesNotContain("new LibVLC(", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GP_I15_ResponsiveCustomWindowRespectsTaskbarAndSeparatesPages()
+    {
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+        var settings = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
+        var native = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Services/WindowWorkAreaMaximizer.cs"));
+        var about = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/AboutWindow.xaml"));
+
+        Assert.Contains("Viewbox Stretch=\"Uniform\" StretchDirection=\"DownOnly\"", main, StringComparison.Ordinal);
+        Assert.Contains("GPVectorSymbol", main, StringComparison.Ordinal);
+        Assert.Contains("GPVectorWordmark", main, StringComparison.Ordinal);
+        Assert.Contains("WindowWorkAreaMaximizer.Apply(hwnd, lParam)", code, StringComparison.Ordinal);
+        Assert.Contains("work.Left - bounds.Left", native, StringComparison.Ordinal);
+        Assert.Contains("work.Right - work.Left", native, StringComparison.Ordinal);
+        Assert.Contains("ScreensNavigationButton.Visibility = Visibility.Collapsed;", settings, StringComparison.Ordinal);
+        Assert.Contains("AboutNavigationButton.Visibility = Visibility.Collapsed;", settings, StringComparison.Ordinal);
+        Assert.Contains("SettingsHeadingText.Text = \"Monitores\";", settings, StringComparison.Ordinal);
+        Assert.Contains("new AboutWindow", code, StringComparison.Ordinal);
+        Assert.Contains("Sobre o GuiaPlay", about, StringComparison.Ordinal);
+        Assert.Contains("Mídia movida na ordem de reprodução.", code, StringComparison.Ordinal);
     }
 
     [Fact]
