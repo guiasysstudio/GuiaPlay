@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="GuiaPlay.Core.Tests" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
   </ItemGroup>
 </Project>
