@@ -1165,7 +1165,7 @@
                 </Border>
                 <!-- Dedicated transport card: row does not share any layout
                      columns or hit-testing region with the seek slider. -->
-                <Border Grid.Row="1" Background="Transparent" ClipToBounds="False">
+                <Border Grid.Row="1" Background="Transparent" ClipToBounds="True">
                     <Grid VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="0.90*" MinWidth="230"/>
