@@ -1125,49 +1125,62 @@
             </StackPanel>
         </Border>
 
-        <!-- GP-I19: compact transport, fluid proportions and no fixed-width Viewbox. -->
+        <!-- GP-I20: full-width seek on top, compact transport and media title below. -->
         <Border x:Name="OperationalControlPanel" Grid.Row="2"
                 Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
                 BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="0,1,0,0"
                 Margin="0,5,0,0" Padding="8,4,8,4" Height="80" MinHeight="0">
-            <!-- Star columns distribute commands automatically on resize. -->
-            <Grid VerticalAlignment="Stretch">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="22"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid Grid.Row="0" Margin="4,0,4,0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="57"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="70"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="ElapsedText" Grid.Column="0" Text="00:00"
+                               FontSize="11" VerticalAlignment="Center"
+                               Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
+                    <Slider x:Name="ProgressSlider" Grid.Column="1"
+                            Minimum="0" Maximum="1" Value="0" Height="19"
+                            Margin="4,0,6,0" VerticalAlignment="Center"
+                            Foreground="{DynamicResource GuiaPlayAccentBrush}"
+                            ToolTip="Arraste para avançar ou voltar na reprodução"
+                            AutomationProperties.Name="Progresso da reprodução"
+                            ValueChanged="ProgressSlider_OnValueChanged" IsEnabled="False"
+                            PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
+                            PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted"
+                            PreviewMouseWheel="ProgressSlider_OnMouseWheel"/>
+                    <TextBlock x:Name="RemainingText" Grid.Column="2" Text="00:00"
+                               FontSize="11" TextAlignment="Right" VerticalAlignment="Center"
+                               Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
+                </Grid>
+                <Grid Grid.Row="1" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="0.90*" MinWidth="230"/>
                     <ColumnDefinition Width="1.55*" MinWidth="365"/>
                     <ColumnDefinition Width="1.18*" MinWidth="340"/>
                 </Grid.ColumnDefinitions>
-                <!-- Identity and actual progress of current media. -->
+                <!-- Media identity stays below the seek bar. -->
                 <Grid Grid.Column="0" VerticalAlignment="Center">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Width="52" Height="52" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="43"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Width="36" Height="36" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
                             CornerRadius="7" BorderThickness="1" ClipToBounds="True"
                             BorderBrush="{DynamicResource GuiaPlayDividerBrush}" VerticalAlignment="Center">
                         <Grid>
                             <Image x:Name="TransportThumbnailImage" Stretch="UniformToFill"/>
                             <Path x:Name="TransportVideoPlaceholderIcon" Data="{StaticResource GPVideo}"
-                                  Width="23" Height="23" Stretch="Uniform" Fill="{DynamicResource GuiaPlayAccentBrush}"
+                                  Width="17" Height="17" Stretch="Uniform" Fill="{DynamicResource GuiaPlayAccentBrush}"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <Path x:Name="TransportAudioPlaceholderIcon" Data="{StaticResource MusicIconGeometry}"
-                                  Width="23" Height="23" Stretch="Uniform" Fill="{DynamicResource GuiaPlayAccentBrush}"
+                                  Width="17" Height="17" Stretch="Uniform" Fill="{DynamicResource GuiaPlayAccentBrush}"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                         </Grid>
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
                         <TextBlock Text="{Binding Text, ElementName=FileNameText}" FontSize="12" FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, ElementName=FileNameText}"/>
-                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                            <TextBlock x:Name="ElapsedText" Text="00:00" FontSize="10"/>
-                            <TextBlock Text=" / " Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
-                            <TextBlock x:Name="RemainingText" Text="00:00" FontSize="10"
-                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"/>
-                        </StackPanel>
-                        <Slider x:Name="ProgressSlider" Minimum="0" Maximum="1" Value="0" Height="13"
-                                Foreground="{DynamicResource GuiaPlayAccentBrush}" ToolTip="Posição da mídia"
-                                ValueChanged="ProgressSlider_OnValueChanged" IsEnabled="False"
-                                PreviewMouseLeftButtonDown="ProgressSlider_OnDragStarted"
-                                PreviewMouseLeftButtonUp="ProgressSlider_OnDragCompleted"
-                                PreviewMouseWheel="ProgressSlider_OnMouseWheel"/>
+
                     </StackPanel>
                 </Grid>
                 <!-- PLAY and PAUSE share a single central circle. STOP occupies the old pause slot. -->
@@ -1180,12 +1193,12 @@
                     </Grid.ColumnDefinitions>
                         <Button Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="PreviousMediaButton" Click="PreviousMediaButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Mídia anterior (F8)">
-                                        <Path Data="{StaticResource GPSkipPrevious}" Width="20" Height="20"
+                                        <Path Data="{StaticResource GPSkipPrevious}" Width="17" Height="17"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
                         <Button Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="BackFiveButton" Click="BackFiveButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Voltar cinco segundos">
-                                        <Path Data="{StaticResource GPBackFive}" Width="20" Height="20"
+                                        <Path Data="{StaticResource GPBackFive}" Width="17" Height="17"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
                         <Button Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="PlayButton" Click="MainPlayPauseButton_OnClick"
@@ -1193,25 +1206,25 @@
                                 ToolTip="Reproduzir (F5 / Espaço)" AutomationProperties.Name="Reproduzir ou pausar">
                             <Grid>
                                 <Path x:Name="MainPlayGlyph" Data="{StaticResource GPTransportTriangleGeometry}"
-                                      Width="32" Height="32" Stretch="Uniform" Fill="White"/>
+                                      Width="24" Height="24" Stretch="Uniform" Fill="White"/>
                                 <Path x:Name="MainPauseGlyph" Data="{StaticResource GPTransportPauseGeometry}"
-                                      Width="30" Height="30" Stretch="Uniform" Fill="White" Visibility="Collapsed"/>
+                                      Width="23" Height="23" Stretch="Uniform" Fill="White" Visibility="Collapsed"/>
                                 <TextBlock x:Name="PlayButtonText" Text="Reproduzir" Visibility="Collapsed"/>
                             </Grid>
                         </Button>
                         <Button Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="StopButton" Click="StopButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Parar reprodução (F7)">
-                                        <Path Data="{StaticResource StopIconGeometry}" Width="20" Height="20"
+                                        <Path Data="{StaticResource StopIconGeometry}" Width="17" Height="17"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
                         <Button Grid.Column="5" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="ForwardFiveButton" Click="ForwardFiveButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Avançar cinco segundos">
-                                        <Path Data="{StaticResource GPForwardFive}" Width="20" Height="20"
+                                        <Path Data="{StaticResource GPForwardFive}" Width="17" Height="17"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
                         <Button Grid.Column="6" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="NextMediaButton" Click="NextMediaButton_OnClick" IsEnabled="False"
                                            Style="{StaticResource GPRoundTransport}" ToolTip="Próxima mídia (F9)">
-                                        <Path Data="{StaticResource GPSkipNext}" Width="20" Height="20"
+                                        <Path Data="{StaticResource GPSkipNext}" Width="17" Height="17"
                                               Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                     </Button>
                 </Grid>
@@ -1309,6 +1322,7 @@
                     <TextBlock x:Name="NextPlaylistItemText" Text="Próxima: nenhuma"/>
                     <TextBlock x:Name="StatusText" Text="Pronto"/>
                 </StackPanel>
+                </Grid>
             </Grid>
         </Border>
     </Grid>
