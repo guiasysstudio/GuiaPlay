@@ -1800,16 +1800,28 @@ public partial class MainWindow : Window
     {
         var target = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject)?.Item
             as MediaGridRow;
-        e.Effects = target is not null && e.Data.GetDataPresent(MediaGridDragFormat) &&
-                    _licensingAllowsAccess && !_controlsBusy
-            ? DragDropEffects.Move : DragDropEffects.None;
+        e.Effects = _licensingAllowsAccess && !_controlsBusy &&
+                    e.Data.GetDataPresent(DataFormats.FileDrop)
+            ? DragDropEffects.Link // copy/move never requested from Explorer
+            : target is not null && e.Data.GetDataPresent(MediaGridDragFormat) &&
+              _licensingAllowsAccess && !_controlsBusy
+                ? DragDropEffects.Move : DragDropEffects.None;
         e.Handled = true;
     }
 
-    private void MediaGrid_OnDrop(object sender, DragEventArgs e)
+    private async void MediaGrid_OnDrop(object sender, DragEventArgs e)
     {
         var target = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject)?.Item
             as MediaGridRow;
+        if (e.Data.GetDataPresent(DataFormats.FileDrop) &&
+            e.Data.GetData(DataFormats.FileDrop) is string[] windowsFiles)
+        {
+            e.Handled = true;
+            await ImportDroppedFilesAsync(windowsFiles,
+                target is null ? SelectedPlaylistGroup() : 
+                    _playlistGroups.FirstOrDefault(group => group.Id == target.GroupId));
+            return;
+        }
         var source = e.Data.GetDataPresent(MediaGridDragFormat)
             ? e.Data.GetData(MediaGridDragFormat) as MediaGridRow
             : null;
@@ -1947,6 +1959,12 @@ public partial class MainWindow : Window
         }
 
         if (!HasNamedPlaylist()) return;
+
+        if (_playlistCatalog.Snapshot.Groups.Count == 0)
+        {
+            StatusText.Text = "Crie uma pasta virtual ou vincule uma pasta do Windows antes de adicionar mídias.";
+            return;
+        }
 
         var receivedPaths = paths.Where(path => !string.IsNullOrWhiteSpace(path)).ToArray();
         if (receivedPaths.Length == 0)
