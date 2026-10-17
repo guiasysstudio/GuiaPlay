@@ -1217,7 +1217,7 @@ public partial class MainWindow : Window
         await ImportFolderAsync(picker.FolderName);
     }
 
-    private async void AddYouTubeLinkButton_OnClick(object sender, RoutedEventArgs e)
+    private void AddYouTubeLinkButton_OnClick(object sender, RoutedEventArgs e)
     {
         FileLogger.Info("GP-YT-02: botão Adicionar link do YouTube acionado.");
         if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
@@ -1269,7 +1269,7 @@ public partial class MainWindow : Window
             // The same video may have been tested earlier. Reuse it rather than
             // showing a duplicate error and silently refusing playback.
             addedItem = existing;
-            FileLogger.Info($"GP-YT-02: link já cadastrado; abrindo item {addedItem.Id:D}.");
+            FileLogger.Info($"GP-YT-03: link já cadastrado; apenas selecionando item {addedItem.Id:D}.");
         }
         else
         {
@@ -1305,18 +1305,16 @@ public partial class MainWindow : Window
             RefreshActivePlaylistMarkers();
         }
 
-        StatusText.Text = "Link do YouTube localizado. Abrindo o player…";
-        var addedNode = _playlistGroups.SelectMany(group => group.Items)
-            .FirstOrDefault(candidate => candidate.Item.Id == addedItem.Id);
-        if (addedNode is null)
+        // Registration is not playback. The user must press Play explicitly.
+        var addedRow = _mediaRows.FirstOrDefault(row => row.ItemId == addedItem.Id);
+        if (addedRow is not null)
         {
-            FileLogger.Error($"GP-YT-02: item {addedItem.Id:D} não encontrado na árvore atual.");
-            StatusText.Text = "Link salvo, mas item não encontrado. Feche e reabra a playlist.";
-            return;
+            MediaGrid.SelectedItem = addedRow;
+            MediaGrid.ScrollIntoView(addedRow);
         }
 
-        FileLogger.Info($"GP-YT-02: enviando item {addedItem.Id:D} ao player.");
-        await LoadYouTubeItemAsync(addedNode);
+        FileLogger.Info($"GP-YT-03: link salvo/selecionado sem abrir player; item={addedItem.Id:D}.");
+        StatusText.Text = "YouTube cadastrado. Selecione a tela pública e clique em Reproduzir.";
     }
 
     private void CancelFolderImportButton_OnClick(object sender, RoutedEventArgs e) =>
@@ -1529,20 +1527,30 @@ public partial class MainWindow : Window
         var selected = _outputChoices.Where(choice => choice.IsSelected)
             .Select(choice => choice.Monitor).ToArray();
 
-        // Exactly one valid public output: show the YouTube player there.
-        // Zero, multiple or unsafe outputs: always open one official visible
-        // player in an operator-owned window. Never pick an arbitrary projector.
-        var monitor = selected.Length == 1 && !_operatorRequiresConfiguration &&
-                      _operatorMonitor is not null &&
-                      selected[0].Id != _operatorMonitor.Id
-            ? selected[0]
-            : null;
-        FileLogger.Info($"GP-YT-02: vídeo={reference!.VideoId}; telas selecionadas={selected.Length}; " +
-            $"destino={(monitor is null ? "janela do operador" : monitor.ShortLabel)}.");
+        if (selected.Length != 1)
+        {
+            StatusText.Text = selected.Length == 0
+                ? "Selecione uma tela pública para reproduzir o YouTube."
+                : "Selecione exatamente uma tela pública para reproduzir o YouTube.";
+            FileLogger.Info($"GP-YT-03: saída não selecionada unicamente, total={selected.Length}.");
+            return;
+        }
+
+        if (_operatorMonitor is null ||
+            string.Equals(selected[0].Id, _operatorMonitor.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            StatusText.Text = "Configure a tela do operador e selecione outra tela pública.";
+            FileLogger.Info("GP-YT-03: saída recusada; monitor operador ausente ou mesma tela.");
+            return;
+        }
+
+        // Always route to the exact checked public monitor. Never fall back
+        // to a floating browser window on the operator monitor.
+        var monitor = selected[0];
+        FileLogger.Info($"GP-YT-03: vídeo={reference!.VideoId}; saída={monitor.ShortLabel}; id={monitor.Id}.");
         var eligible = YouTubeEmbedGate.Assess(
-            monitor?.Width ?? 960, monitor?.Height ?? 540,
-            hasAppIdentification: true,
-            isActuallyVisible: true, automaticPlayback: false,
+            monitor.Width, monitor.Height, hasAppIdentification: true,
+            isActuallyVisible: true, automaticPlayback: true,
             visibleViewportFraction: 1, otherAutoPlayingYouTubePlayersOnSameScreen: 0);
         if (!eligible.Allowed)
         {
@@ -1562,11 +1570,6 @@ public partial class MainWindow : Window
         }
 
         var window = new YouTubeOutputWindow(monitor);
-        if (monitor is null)
-        {
-            window.Owner = this;
-        }
-
         SetControlsBusy(true);
         _suppressAutoAdvance = true;
         try
@@ -1604,8 +1607,8 @@ public partial class MainWindow : Window
 
             window.Show();
             FileLogger.Info("GP-YT-02: janela exibida. Iniciando WebView2.");
-            await window.InitializeAsync(reference!);
-            FileLogger.Info("GP-YT-02: WebView2 configurado; aguardando carregamento do YouTube.");
+            await window.InitializeAsync(reference!, autoplayRequested: true);
+            FileLogger.Info("GP-YT-03: reprodução solicitada; aguardando estado da API do YouTube.");
             if (_isClosing || !_licensingAllowsAccess)
             {
                 CloseYouTubeWindow();
@@ -1614,16 +1617,15 @@ public partial class MainWindow : Window
 
             _loadedPlaylistItemId = node.Item.Id;
             _loadedPlaylistRevision = _playlistRevision;
-            // Official IFrame playback is manual-only in the constrained mode.
+            // Autoplay starts this video only after explicit Play, never on add.
+            // Disable automatic playlist advance for YouTube.
             PlaybackModeCombo.SelectedIndex = 0;
             RefreshAudioPanel();
             _bitmap = null;
             PreviewImage.Source = null;
             ProgramImage.Source = null;
             PreviewPlaceholder.Text = "YouTube · prévia informativa";
-            PreviewEmptyHint.Text = monitor is null
-                ? "Vídeo na janela do GuiaPlay. Use os controles da barra inferior."
-                : "Vídeo no player oficial da tela pública.";
+            PreviewEmptyHint.Text = "Vídeo no player oficial da tela pública selecionada.";
             PreviewEmptyState.Visibility = Visibility.Visible;
             FileNameText.Text = node.Name;
             UpdateTransportArtwork(MediaKind.YouTube, node.Item.OriginalPath);
@@ -1631,9 +1633,8 @@ public partial class MainWindow : Window
             ProgressSlider.Value = 0;
             ProgressSlider.Maximum = 1;
             UpdateTimeLabels(0, 0);
-            StatusText.Text = monitor is null
-                ? "Player aberto no GuiaPlay. Clique em Reproduzir ou no próprio vídeo."
-                : "Player aberto na tela pública. Clique em Reproduzir ou no próprio vídeo.";
+            StatusText.Text = "YouTube enviado para " + monitor.ShortLabel +
+                ". Aguardando confirmação de reprodução.";
             RefreshPlaybackControls();
         }
         catch (Exception exception)
@@ -1762,8 +1763,14 @@ public partial class MainWindow : Window
 
     private MediaGridRow? SelectedMediaRow() => MediaGrid.SelectedItem as MediaGridRow;
 
-    private void MediaGrid_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+    private void MediaGrid_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
         UpdateMediaGridActions();
+        if (_settingsInitialized)
+        {
+            RefreshPlaybackControls();
+        }
+    }
 
     private void UpdateMediaGridStatus()
     {
@@ -1864,7 +1871,16 @@ public partial class MainWindow : Window
             .Items.FirstOrDefault(item => item.Item.Id == row.ItemId);
         if (node is not null)
         {
+            MediaGrid.SelectedItem = row;
             await ActivatePlaylistItemAsync(node);
+        }
+    }
+
+    private async void MediaGridQuickPlayButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: MediaGridRow row })
+        {
+            await ActivateMediaGridRowAsync(row);
         }
     }
 
@@ -2746,6 +2762,12 @@ public partial class MainWindow : Window
     // a parallel state machine or assume YouTube command acknowledgement.
     private void MainPlayPauseButton_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_youtubeWindow is null && SelectedMediaRow()?.Node.Item.Kind == MediaKind.YouTube)
+        {
+            PlayButton_OnClick(sender, e);
+            return;
+        }
+
         if (_youtubeWindow is not null)
         {
             if (_youtubeSnapshot?.State == "REPRODUZINDO")
@@ -2792,6 +2814,14 @@ public partial class MainWindow : Window
 
         if (_isClosing || !_licensingAllowsAccess || _controlsBusy)
         {
+            return;
+        }
+
+        // YouTube is staged in the media grid; pressing Play launches its
+        // actual player on the chosen public monitor.
+        if (SelectedMediaRow() is { } row && row.Node.Item.Kind == MediaKind.YouTube)
+        {
+            await LoadYouTubeItemAsync(row.Node);
             return;
         }
 
@@ -4664,6 +4694,16 @@ public partial class MainWindow : Window
             StopButton.IsEnabled = true;
             PlayButtonText.Text = current == "PAUSADO" ? "Continuar" : "Reproduzir";
             UpdateUnifiedPlayPauseVisual(current == "REPRODUZINDO");
+            RefreshPlaylistTransport();
+            return;
+        }
+
+        if (SelectedMediaRow()?.Node.Item.Kind == MediaKind.YouTube)
+        {
+            PlayButton.IsEnabled = true;
+            PauseButton.IsEnabled = false;
+            StopButton.IsEnabled = _coordinator.MediaPath is not null;
+            UpdateUnifiedPlayPauseVisual(isPlaying: false);
             RefreshPlaylistTransport();
             return;
         }
