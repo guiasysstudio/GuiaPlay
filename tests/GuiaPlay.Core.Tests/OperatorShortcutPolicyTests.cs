@@ -186,6 +186,44 @@ public sealed class OperatorShortcutPolicyTests
     }
 
     [Fact]
+    public void ArbitraryCapturedKeysIncludeNumpadFunctionAndPunctuation()
+    {
+        OperatorShortcutAssignment[] overrides =
+        [
+            new(OperatorShortcutAction.PlayPause, OperatorShortcutKey.None,
+                OperatorShortcutModifiers.Control, "NumPad9"),
+            new(OperatorShortcutAction.SavePlaylist, OperatorShortcutKey.None,
+                OperatorShortcutModifiers.Shift, "OemSemicolon"),
+            new(OperatorShortcutAction.ToggleMute, OperatorShortcutKey.None,
+                OperatorShortcutModifiers.None, "F12")
+        ];
+        Assert.True(OperatorShortcutPolicy.TryValidateAssignments(overrides, out var error), error);
+        Assert.Equal(OperatorShortcutAction.PlayPause,
+            OperatorShortcutPolicy.Resolve("NumPad9", OperatorShortcutModifiers.Control,
+                false, false, false, overrides));
+        Assert.Equal(OperatorShortcutAction.SavePlaylist,
+            OperatorShortcutPolicy.Resolve("OemSemicolon", OperatorShortcutModifiers.Shift,
+                false, false, false, overrides));
+        Assert.Equal(OperatorShortcutAction.ToggleMute,
+            OperatorShortcutPolicy.Resolve("F12", OperatorShortcutModifiers.None,
+                false, false, false, overrides));
+        Assert.Equal(OperatorShortcutAction.None,
+            OperatorShortcutPolicy.Resolve("Space", OperatorShortcutModifiers.None,
+                false, false, false, overrides));
+    }
+
+    [Fact]
+    public void CapturedShortcutCannotShadowExistingDefault()
+    {
+        OperatorShortcutAssignment[] conflict =
+        [
+            new(OperatorShortcutAction.ToggleMute, OperatorShortcutKey.None,
+                OperatorShortcutModifiers.None, "F7")
+        ];
+        Assert.False(OperatorShortcutPolicy.TryValidateAssignments(conflict, out _));
+    }
+
+    [Fact]
     public void UnknownOrUnassignedKeysDoNothing()
     {
         Assert.Equal(OperatorShortcutAction.None,
