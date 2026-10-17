@@ -595,6 +595,53 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void GP_I23_GridSeparatesRealMediaPreviewFromFilenameWithoutClipping()
+    {
+        var xaml = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var table = xaml.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "MediaGrid");
+        var columns = table.Descendants().Single(e =>
+            e.Name.LocalName == "DataGrid.Columns").Elements().ToArray();
+        var headings = columns.Select(e => (string?)e.Attribute("Header")).ToArray();
+        Assert.Equal(new[]
+        {
+            "Nº", "Mídia", "Nome", "Duração", "Tipo",
+            "Resolução", "Data", "Grupo", "Ações"
+        }, headings);
+
+        var previewColumn = columns[1];
+        Assert.Equal("86", (string?)previewColumn.Attribute("Width"));
+        var previewFrame = previewColumn.Descendants().Single(e =>
+            e.Name.LocalName == "Border" && (string?)e.Attribute("Width") == "58");
+        Assert.Equal("38", (string?)previewFrame.Attribute("Height"));
+        Assert.Equal("True", (string?)previewFrame.Attribute("ClipToBounds"));
+        Assert.Contains(previewFrame.Descendants(), e =>
+            e.Name.LocalName == "Image" &&
+            (string?)e.Attribute("Source") == "{Binding Thumbnail}");
+        Assert.Contains(previewFrame.Descendants(), e =>
+            e.Name.LocalName == "TextBlock" &&
+            (string?)e.Attribute("Text") == "{Binding Glyph}");
+
+        var nameColumn = columns[2];
+        Assert.Contains(nameColumn.Descendants(), e => e.Name.LocalName == "TextBlock" &&
+            (string?)e.Attribute("Text") == "{Binding Name}");
+        Assert.Contains(nameColumn.Descendants(), e => e.Name.LocalName == "TextBlock" &&
+            (string?)e.Attribute("Text") == "{Binding AvailabilityLabel}");
+
+        var actions = columns[8];
+        Assert.Contains(actions.Descendants(), e => e.Name.LocalName == "Button" &&
+            (string?)e.Attribute("Click") == "MediaRowActionsButton_OnClick");
+        Assert.Equal("MediaGrid_OnMouseDoubleClick",
+            (string?)table.Attribute("MouseDoubleClick"));
+
+        Assert.Contains(xaml.Descendants(), e =>
+            (string?)e.Attribute(x + "Key") == "GPMediaToolbarButtonStyle");
+        Assert.Contains(xaml.Descendants(), e =>
+            (string?)e.Attribute(x + "Key") == "GPMediaRowActionButtonStyle");
+    }
+
+    [Fact]
     public void GP_I22_ExplicitSeekThumbTrackAndPlayHaveIndependentVisualClearance()
     {
         var source = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
