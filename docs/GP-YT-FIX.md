@@ -1,51 +1,32 @@
-# GP-YT-03 — YouTube: cadastro separado da reprodução por tela pública
+# GP-YT-04 — YouTube em múltiplas telas públicas
 
-Data: 17/10/2026. Branch: `feat/gp-interface-3-modelo1`.
-Substitui o fluxo provisório GP-YT-02 de janela flutuante.
+Implementação experimental, branch `feat/gp-interface-3-modelo1`. Não publicar na versão estável sem testar em Windows com 2, 3 e 4 monitores físicos.
 
-## Fluxo operacional
+## Fluxo
 
-1. Adicionar link do YouTube à pasta de uma playlist salva. O botão
-   **Adicionar link** apenas persiste e seleciona a linha; NÃO abre WebView2
-   nem inicia vídeo.
-2. Escolher exatamente uma tela pública na lista **Saída de vídeo**.
-   O monitor do operador não pode ser o destino. Se nenhuma tela ou várias
-   estiverem marcadas, mostrar mensagem, sem criar janela flutuante.
-3. Clicar **Reproduzir** na barra central, no ícone da mídia ou dar duplo clique
-   na mídia cadastrada. Esta ação explícita é que abre o único YouTube
-   IFrame Player oficial, **em tela cheia na saída pública escolhida**.
-4. O vídeo solicita `autoplay=1` à API oficial e um `playVideo()` após
-   `onReady`. Isso significa início automático APÓS o Play do GuiaPlay,
-   nunca ao colar o link. Bloqueio de autoplay com áudio pode ocorrer;
-   o evento `onAutoplayBlocked` informa ao operador que precisa clicar
-   no Play visível do player oficial da tela pública.
-5. Play, pause, seek, volume e mute permanecem na barra do GuiaPlay,
-   com estado confirmado pela IFrame API. Stop fecha o player público.
+- Adicionar um link **somente cadastra**, sem iniciar reprodução.
+- Selecionar 1 ou mais telas públicas e clicar em **Reproduzir** (ou dar dois cliques no vídeo).
+- É criado **um player oficial do YouTube por monitor físico selecionado**, cada janela preenchendo sua tela pública.
+- A primeira tela marcada é o player primário de referência e tem áudio conforme volume/mute do GuiaPlay. Os outros players são silenciados, evitando eco.
+- Play, pause, seek e stop são transmitidos a todas as saídas. Verificação de posição a cada 2 s com correção quando diferença >= 1,8 s e duração disponível. **Não é sincronização de quadros**.
+- O YouTube recebe uma tentativa de autoplay somente depois do clique Reproduzir do GuiaPlay. O navegador ou YouTube podem bloquear reprodução com som; o evento `onAutoplayBlocked` precisa ser exibido, nunca ocultado.
+- Nenhum player é oculto ou duplicado na tela do operador. Não se captura, extrai nem retransmite áudio/vídeo, anúncios ou quadros do YouTube.
+- Um único player com autoplay por tela física, conforme regras do YouTube.
 
-## Segurança/limitações
+## Limitações explícitas
 
-- Um único player oficial visível; sem duplicação oculta, captura de
-  quadros, remoção de marcas ou anúncios, re-streaming ou bypass de embed.
-- A prévia do operador só mostra informações/estado. Não oferece o mesmo
-  espelhamento do LibVLC ou sincronismo entre projetores.
-- O YouTube pode negar embed (erros 100, 101, 150, 153, etc.), exigir
-  ação direta do usuário, impedir autoplay com áudio ou depender de rede.
-- WebView2 Runtime precisa estar disponível no Windows. A tentativa de
-  instalação automática aplica-se aos instaladores, não ao `dotnet run`.
+- A API do YouTube não fornece uma fonte única de quadros para o app distribuir como o LibVLC. Players independentes podem sofrer buffering, diferenças de tempo, propagandas diferentes e bloqueios de autoplay/embedding.
+- A correção periódica é **best-effort**, não substitui vídeo com sincronização de frame. Reproduzir o mesmo YouTube em 4 players também gera 4 downloads e aumenta uso de CPU/RAM/rede.
+- Para múltiplos monitores mostrando **exatamente os mesmos quadros**, a alternativa é duplicar uma saída no Windows ou usar um divisor/distribuidor de vídeo externo (HDMI/DP), com só um player real.
+- Se uma tela pública ativa se desconectar ou uma das janelas for fechada, a sessão conjunta é encerrada por segurança.
 
-## Aceite manual obrigatório
+## Gate físico de validação
 
-- Adicionar link e confirmar que NENHUMA janela abre nesse momento.
-- Selecionar a Tela 2, pressionar Play; verificar que o vídeo abre SOMENTE
-  na Tela 2, em tela cheia, sem popup flutuante na tela do operador.
-- Pausar, retomar, procurar posição, ajustar volume e fechar a saída.
-- Com 0 ou 2 telas selecionadas, confirmar erro compreensível e
-  ausência de popup inesperado.
-- Repetir o link já salvo sem iniciar playback.
-- Confirmar que mídias locais LibVLC, configurações e licenciamento
-  permanecem sem regressões.
-- Validar o comportamento real do autoplay: sucesso ou indicação visível
-  de bloqueio; não afirmar que autoplay com áudio é garantido.
+1. Conferir `dotnet build`, `dotnet test` Debug/Release e publish smoke x64/x86.
+2. Com um monitor público: verificar que a reprodução anterior continua funcionando.
+3. Com 2, 3 e 4 saídas selecionadas (operador separado): conferir uma janela oficial em cada saída, nenhuma flutuante no operador.
+4. Testar autoplay com som (pode ser bloqueado), mensagens de erro por tela, pausa/continuar, seek e parar todas as saídas.
+5. Testar comportamento com bloqueio por idade, vídeo privado, anúncios, buffering lento, monitor desconectado e nova seleção de tela durante reprodução.
+6. Testar ao menos 20 minutos: estabilidade, áudio apenas na tela primária, posicionamento dos monitores, logs sem falhas críticas.
 
-Os testes automatizados não substituem a validação real de vídeo online
-no computador do operador.
+**Não afirmar sincronismo perfeito nem autoplay garantido.** Os testes automatizados de compilação não comprovam reprodução real do YouTube.
