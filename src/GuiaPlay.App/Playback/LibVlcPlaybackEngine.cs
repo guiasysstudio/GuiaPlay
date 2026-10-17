@@ -50,6 +50,18 @@ internal sealed class LibVlcPlaybackEngine : IAsyncDisposable
         }
     }
 
+    public bool IsSeekable
+    {
+        get
+        {
+            lock (_nativeGate)
+            {
+                return Volatile.Read(ref _current) is { IsDisposed: false } session &&
+                       session.Player.IsSeekable;
+            }
+        }
+    }
+
     public long Length
     {
         get
