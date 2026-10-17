@@ -417,6 +417,10 @@
                                                        Foreground="#FF9FA7B3" FontSize="10"
                                                        Margin="0,4,0,0" TextWrapping="Wrap"
                                                        TextAlignment="Center" />
+                                            <TextBlock x:Name="YouTubeStatusHintText" Text="" Visibility="Collapsed"
+                                                       Foreground="#FFF2A900" FontSize="10"
+                                                       Margin="0,6,0,0" TextWrapping="Wrap"
+                                                       TextAlignment="Center" />
                                         </StackPanel>
                                     </Grid>
                                 </Border>
