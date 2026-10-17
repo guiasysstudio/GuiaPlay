@@ -265,7 +265,11 @@
             </Grid.ColumnDefinitions>
             <Border Grid.Column="2" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="44*" />
+                        <RowDefinition Height="56*" />
+                    </Grid.RowDefinitions>
                     <Grid Margin="2,0,2,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
@@ -281,7 +285,7 @@
                             <TextBlock Text="PRÉVIA" FontSize="10" FontWeight="SemiBold" />
                         </Border>
                     </Grid>
-                    <Border Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True" MinHeight="180">
+                    <Border Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True" MinHeight="120" Margin="0,0,0,10">
                         <Grid>
                             <Image x:Name="PreviewImage" Stretch="Uniform" />
                             <StackPanel x:Name="PreviewEmptyState" Margin="28" HorizontalAlignment="Center"
@@ -295,6 +299,141 @@
                                            FontSize="12" Margin="0,5,0,0" TextWrapping="Wrap"
                                            HorizontalAlignment="Center" TextAlignment="Center" />
                             </StackPanel>
+                        </Grid>
+                    </Border>
+                    <!-- GP-I03: playback-order grid linked to the existing playlist catalog. -->
+                    <Border Grid.Row="2" CornerRadius="8" BorderThickness="1"
+                            Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                            BorderBrush="{DynamicResource GuiaPlayDividerBrush}" Padding="7">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid Margin="0,0,0,7">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Margin="3,0,9,0">
+                                    <TextBlock Text="MÍDIAS DA PLAYLIST" FontSize="13" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="MediaGridCountText" Text="0 mídias" FontSize="10"
+                                               Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                                </StackPanel>
+                                <TextBox x:Name="MediaSearchBox" Grid.Column="1" MinWidth="85"
+                                         VerticalContentAlignment="Center" Margin="0,0,5,0"
+                                         Height="30" TextChanged="MediaSearchBox_OnTextChanged"
+                                         ToolTip="Buscar por nome, grupo ou caminho; a busca não altera a ordem"
+                                         AutomationProperties.Name="Buscar mídias" />
+                                <Button Grid.Column="2" Content="Limpar" Margin="0,0,6,0"
+                                        Style="{StaticResource CompactTransportButtonStyle}"
+                                        ToolTip="Limpar busca" Click="ClearMediaSearchButton_OnClick" />
+                                <Button x:Name="MediaMoveUpButton" Grid.Column="3" Content="↑"
+                                        MinWidth="31" IsEnabled="False" Margin="0,0,4,0"
+                                        Style="{StaticResource CompactTransportButtonStyle}"
+                                        ToolTip="Subir a mídia selecionada dentro do grupo"
+                                        AutomationProperties.Name="Subir mídia"
+                                        Click="MediaMoveUpButton_OnClick" />
+                                <Button x:Name="MediaMoveDownButton" Grid.Column="4" Content="↓"
+                                        MinWidth="31" IsEnabled="False"
+                                        Style="{StaticResource CompactTransportButtonStyle}"
+                                        ToolTip="Descer a mídia selecionada dentro do grupo"
+                                        AutomationProperties.Name="Descer mídia"
+                                        Click="MediaMoveDownButton_OnClick" />
+                            </Grid>
+                            <Grid Grid.Row="1">
+                                <DataGrid x:Name="MediaGrid" AutoGenerateColumns="False"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          CanUserResizeRows="False" CanUserSortColumns="False"
+                                          CanUserReorderColumns="False" IsReadOnly="True"
+                                          RowHeaderWidth="0" HeadersVisibility="Column"
+                                          GridLinesVisibility="Horizontal"
+                                          BorderThickness="0" Background="Transparent"
+                                          Foreground="{DynamicResource GuiaPlayTextPrimaryBrush}"
+                                          BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
+                                          SelectionMode="Single" SelectionUnit="FullRow"
+                                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                                          AlternatingRowBackground="{DynamicResource GuiaPlaySurfaceSecondaryBrush}"
+                                          RowBackground="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto"
+                                          AllowDrop="True"
+                                          AutomationProperties.Name="Tabela de mídias em ordem de reprodução"
+                                          SelectionChanged="MediaGrid_OnSelectionChanged"
+                                          MouseDoubleClick="MediaGrid_OnMouseDoubleClick"
+                                          PreviewMouseLeftButtonDown="MediaGrid_OnPreviewMouseLeftButtonDown"
+                                          PreviewMouseMove="MediaGrid_OnPreviewMouseMove"
+                                          PreviewDragOver="MediaGrid_OnPreviewDragOver"
+                                          Drop="MediaGrid_OnDrop">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding OrderText}" Width="41" />
+                                        <DataGridTemplateColumn Header="Mídia" Width="245">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Grid ToolTip="{Binding FilePath}" Margin="2,3">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="57" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Width="52" Height="35" Background="#FF17232F"
+                                                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}"
+                                                                BorderThickness="1" CornerRadius="4"
+                                                                VerticalAlignment="Center" ClipToBounds="True">
+                                                            <Grid>
+                                                                <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                                                                <TextBlock Text="{Binding Glyph}" FontSize="18" FontWeight="SemiBold"
+                                                                           Foreground="{DynamicResource GuiaPlayAccentBrush}"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Thumbnail}" Value="{x:Null}">
+                                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </Grid>
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                                       TextTrimming="CharacterEllipsis" FontSize="12" />
+                                                            <TextBlock Text="{Binding AvailabilityLabel}" FontSize="10"
+                                                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Duração" Binding="{Binding Duration}" Width="76" />
+                                        <DataGridTextColumn Header="Tipo" Binding="{Binding Kind}" Width="66" />
+                                        <DataGridTextColumn Header="Resolução" Binding="{Binding Resolution}" Width="100" />
+                                        <DataGridTextColumn Header="Data" Binding="{Binding Date}" Width="92" />
+                                        <DataGridTextColumn Header="Grupo" Binding="{Binding GroupName}" Width="120" />
+                                        <DataGridTemplateColumn Header="Ações" Width="62">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="⋯" Width="31" MinWidth="0" Height="27"
+                                                            ToolTip="Abrir ações da mídia"
+                                                            Style="{StaticResource CompactTransportButtonStyle}"
+                                                            Tag="{Binding}" Click="MediaRowActionsButton_OnClick" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock x:Name="MediaGridEmptyText" Text="Crie um grupo e adicione mídias para montar a reprodução."
+                                           TextAlignment="Center" TextWrapping="Wrap" Margin="15"
+                                           Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           IsHitTestVisible="False" />
+                            </Grid>
                         </Grid>
                     </Border>
                 </Grid>
