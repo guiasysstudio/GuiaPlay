@@ -1166,6 +1166,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_playlistCatalog.Snapshot.Groups.Count == 0)
+        {
+            StatusText.Text = "Crie uma pasta na playlist antes de adicionar mídias.";
+            return;
+        }
+
         if (!HasNamedPlaylist()) return;
 
         var dialog = new OpenFileDialog
@@ -1207,6 +1213,12 @@ public partial class MainWindow : Window
     {
         if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
         {
+            return;
+        }
+
+        if (_playlistCatalog.Snapshot.Groups.Count == 0)
+        {
+            StatusText.Text = "Crie uma pasta na playlist antes de adicionar mídias.";
             return;
         }
 
