@@ -4,6 +4,7 @@ using System.IO;
 using System.Security;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -40,23 +41,6 @@ public partial class ScreenConfigurationWindow : Window
     private readonly ObservableCollection<EqualizerBandItem> _equalizerBands = [];
     private readonly IReadOnlyList<SettingsEqualizerPresetChoice> _equalizerPresets;
     private readonly List<ShortcutEditor> _shortcutEditors = [];
-    private readonly ShortcutKeyChoice[] _shortcutKeys =
-        Enum.GetValues<OperatorShortcutKey>()
-            .Select(key => new ShortcutKeyChoice(key, key switch
-            {
-                OperatorShortcutKey.None => "Sem atalho",
-                OperatorShortcutKey.Space => "Espaço",
-                OperatorShortcutKey.Left => "← Esquerda",
-                OperatorShortcutKey.Right => "→ Direita",
-                _ => key.ToString()
-            })).ToArray();
-    private readonly ShortcutModifierChoice[] _shortcutModifiers =
-    [
-        new(OperatorShortcutModifiers.None, "Sem modificador"),
-        new(OperatorShortcutModifiers.Control, "Ctrl"),
-        new(OperatorShortcutModifiers.Shift, "Shift"),
-        new(OperatorShortcutModifiers.Control | OperatorShortcutModifiers.Shift, "Ctrl + Shift")
-    ];
     private bool _loadingEqualizer;
     private bool _licenseOperationBusy;
     private CancellationTokenSource? _downloadCancellation;
@@ -301,12 +285,24 @@ public partial class ScreenConfigurationWindow : Window
         DialogResult = true;
     }
 
-    private sealed record ShortcutKeyChoice(OperatorShortcutKey Key, string Label);
-    private sealed record ShortcutModifierChoice(OperatorShortcutModifiers Modifiers, string Label);
-    private sealed record ShortcutEditor(
-        OperatorShortcutAction Action,
-        ComboBox Key,
-        ComboBox Modifiers);
+    private sealed class ShortcutEditor(
+        OperatorShortcutAction action, OperatorShortcutKey legacyKey,
+        OperatorShortcutModifiers modifiers, string? capturedKey, Button button)
+    {
+        public OperatorShortcutAction Action { get; } = action;
+        public OperatorShortcutKey LegacyKey { get; set; } = legacyKey;
+        public OperatorShortcutModifiers Modifiers { get; set; } = modifiers;
+        public string? CapturedKey { get; set; } = capturedKey;
+        public Button Button { get; } = button;
+    }
+
+    private static string DescribeShortcut(string key, OperatorShortcutModifiers modifiers)
+    {
+        if (key == nameof(OperatorShortcutKey.None)) return "Sem atalho";
+        return (modifiers.HasFlag(OperatorShortcutModifiers.Control) ? "Ctrl + " : "") +
+               (modifiers.HasFlag(OperatorShortcutModifiers.Shift) ? "Shift + " : "") +
+               (key == "Space" ? "Espaço" : key);
+    }
 
     private void BuildShortcutEditor(IReadOnlyList<OperatorShortcutAssignment>? overrides)
     {
@@ -314,57 +310,96 @@ public partial class ScreenConfigurationWindow : Window
         _shortcutEditors.Clear();
         foreach (var binding in OperatorShortcutPolicy.Bindings)
         {
-            var customized = overrides?.FirstOrDefault(value => value.Action == binding.Action);
-            var row = new Grid { Margin = new Thickness(0, 0, 0, 7) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.25, GridUnitType.Star) });
+            var custom = overrides?.FirstOrDefault(x => x.Action == binding.Action);
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.7, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.25, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.Children.Add(new TextBlock
             {
                 Text = binding.Description,
-                TextWrapping = TextWrapping.Wrap,
                 VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
                 FontSize = 12,
-                Margin = new Thickness(0, 0, 8, 0)
+                Margin = new Thickness(0, 0, 10, 0)
             });
-            var key = new ComboBox
+            var capture = new Button
             {
-                ItemsSource = _shortcutKeys,
-                DisplayMemberPath = nameof(ShortcutKeyChoice.Label),
-                SelectedItem = _shortcutKeys.First(item => item.Key == (customized?.Key ?? binding.Key)),
-                MinHeight = 33,
-                Margin = new Thickness(0, 0, 6, 0),
-                ToolTip = "Tecla do comando"
+                MinHeight = 35,
+                MinWidth = 130,
+                Margin = new Thickness(0, 0, 8, 0),
+                ToolTip = "Clique aqui e pressione qualquer tecla, combinada opcionalmente com Ctrl ou Shift."
             };
-            Grid.SetColumn(key, 1);
-            row.Children.Add(key);
-            var modifiers = new ComboBox
+            var editor = new ShortcutEditor(binding.Action, custom?.Key ?? binding.Key,
+                custom?.Modifiers ?? binding.Modifiers, custom?.CapturedKey, capture);
+            capture.Content = DescribeShortcut(editor.CapturedKey ?? editor.LegacyKey.ToString(), editor.Modifiers);
+            capture.Click += (_, _) =>
             {
-                ItemsSource = _shortcutModifiers,
-                DisplayMemberPath = nameof(ShortcutModifierChoice.Label),
-                SelectedItem = _shortcutModifiers.First(item =>
-                    item.Modifiers == (customized?.Modifiers ?? binding.Modifiers)),
-                MinHeight = 33,
-                ToolTip = "Ctrl e Shift; combinações do Windows/Alt não são interceptadas"
+                ShortcutValidationText.Text = "Pressione agora a tecla desejada (Ctrl/Shift opcionais). Esc cancela.";
+                capture.Content = "Pressione a tecla…";
+                _ = capture.Focus();
             };
-            Grid.SetColumn(modifiers, 2);
-            row.Children.Add(modifiers);
+            capture.PreviewKeyDown += (_, e) =>
+            {
+                var key = e.Key == Key.System ? e.SystemKey : e.Key;
+                if (key == Key.Escape)
+                {
+                    capture.Content = DescribeShortcut(editor.CapturedKey ?? editor.LegacyKey.ToString(), editor.Modifiers);
+                    ShortcutValidationText.Text = "Captura cancelada.";
+                    e.Handled = true;
+                    return;
+                }
+                if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or
+                    Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin ||
+                    (Keyboard.Modifiers & ModifierKeys.Alt) != 0 ||
+                    Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin))
+                {
+                    e.Handled = true;
+                    return;
+                }
+                editor.LegacyKey = Enum.TryParse<OperatorShortcutKey>(key.ToString(), out var legacy)
+                    ? legacy : OperatorShortcutKey.None;
+                editor.CapturedKey = key.ToString();
+                editor.Modifiers = OperatorShortcutModifiers.None;
+                if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+                    editor.Modifiers |= OperatorShortcutModifiers.Control;
+                if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+                    editor.Modifiers |= OperatorShortcutModifiers.Shift;
+                capture.Content = DescribeShortcut(editor.CapturedKey, editor.Modifiers);
+                ShortcutValidationText.Text = "Atalho capturado. Clique em Salvar para aplicar.";
+                e.Handled = true;
+            };
+            Grid.SetColumn(capture, 1);
+            row.Children.Add(capture);
+            var clear = new Button
+            {
+                Content = "Limpar", MinHeight = 35,
+                Padding = new Thickness(10, 4, 10, 4),
+                ToolTip = "Remover apenas esta combinação de teclas."
+            };
+            clear.Click += (_, _) =>
+            {
+                editor.LegacyKey = OperatorShortcutKey.None;
+                editor.CapturedKey = null;
+                editor.Modifiers = OperatorShortcutModifiers.None;
+                capture.Content = "Sem atalho";
+            };
+            Grid.SetColumn(clear, 2);
+            row.Children.Add(clear);
             ShortcutEditorRows.Children.Add(row);
-            _shortcutEditors.Add(new ShortcutEditor(binding.Action, key, modifiers));
+            _shortcutEditors.Add(editor);
         }
     }
 
     private IReadOnlyList<OperatorShortcutAssignment> ReadShortcutAssignments() =>
-        _shortcutEditors.Select(row => new OperatorShortcutAssignment(
-            row.Action,
-            ((ShortcutKeyChoice)row.Key.SelectedItem!).Key,
-            ((ShortcutModifierChoice)row.Modifiers.SelectedItem!).Modifiers))
-            // Persist only deviations, so restoring defaults truly removes
-            // overrides and future default-key improvements can be adopted.
+        _shortcutEditors.Select(row => new OperatorShortcutAssignment(row.Action,
+            row.LegacyKey, row.Modifiers, row.CapturedKey))
             .Where(custom =>
             {
-                var original = OperatorShortcutPolicy.Bindings.Single(b => b.Action == custom.Action);
-                return original.Key != custom.Key || original.Modifiers != custom.Modifiers;
+                var original = OperatorShortcutPolicy.Bindings.Single(x => x.Action == custom.Action);
+                return !string.Equals(custom.CapturedKey ?? custom.Key.ToString(),
+                            original.Key.ToString(), StringComparison.OrdinalIgnoreCase) ||
+                       custom.Modifiers != original.Modifiers;
             }).ToArray();
 
     private void RestoreDefaultShortcutsButton_OnClick(object sender, RoutedEventArgs e)
