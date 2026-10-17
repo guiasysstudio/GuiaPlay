@@ -1008,8 +1008,12 @@
                                 BorderThickness="1" ClipToBounds="True" VerticalAlignment="Center">
                             <Grid>
                                 <Image x:Name="TransportThumbnailImage" Stretch="UniformToFill"/>
-                                <Path Data="{StaticResource GPVideo}" Width="30" Height="30"
+                                <Path x:Name="TransportVideoPlaceholderIcon" Data="{StaticResource GPVideo}" Width="30" Height="30"
                                       Fill="{DynamicResource GuiaPlayAccentBrush}" Stretch="Uniform"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Path x:Name="TransportAudioPlaceholderIcon" Data="{StaticResource MusicIconGeometry}"
+                                      Visibility="Collapsed" Width="30" Height="30" Stretch="Uniform"
+                                      Fill="{DynamicResource GuiaPlayAccentBrush}"
                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
