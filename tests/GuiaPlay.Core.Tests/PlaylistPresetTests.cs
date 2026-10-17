@@ -287,6 +287,49 @@ public sealed class PlaylistPresetTests : IDisposable
     }
 
     [Fact]
+    public void NewWorkspaceRequiresExplicitDiscardOfUnsavedChanges()
+    {
+        var workspace = new PlaylistWorkspace(Document("Antes"));
+        workspace.Catalog.CreateGroup("Não salvo");
+
+        var blocked = workspace.StartNew();
+
+        Assert.Equal(PlaylistWorkspaceLoadStatus.UnsavedChanges, blocked.Status);
+        Assert.True(workspace.IsDirty);
+        Assert.Equal(2, workspace.Catalog.Snapshot.Groups.Count);
+
+        var started = workspace.StartNew(PlaylistReplacementMode.DiscardUnsavedChanges);
+
+        Assert.True(started.Succeeded);
+        Assert.Empty(workspace.Catalog.Snapshot.Groups);
+        Assert.False(workspace.IsDirty);
+        Assert.Null(workspace.ActivePresetId);
+        Assert.Null(workspace.ActivePresetName);
+    }
+
+    [Fact]
+    public void NewWorkspaceDoesNotDeleteSavedPresetOrOriginalMedia()
+    {
+        Directory.CreateDirectory(_root);
+        var mediaPath = Path.Combine(_root, "original.mp4");
+        File.WriteAllText(mediaPath, "arquivo que deve continuar");
+        var store = new PlaylistPresetStore(PresetDirectory);
+        var preset = Assert.IsType<PlaylistPreset>(
+            store.Save("Biblioteca", DocumentWithItem("Abertura", mediaPath)).Preset);
+        var workspace = new PlaylistWorkspace(PlaylistDocument.Empty);
+        Assert.True(workspace.LoadPreset(preset).Succeeded);
+
+        var started = workspace.StartNew();
+
+        Assert.True(started.Succeeded);
+        Assert.Empty(workspace.Catalog.Snapshot.Groups);
+        Assert.Null(workspace.ActivePresetId);
+        Assert.Null(workspace.ActivePresetName);
+        Assert.Equal(preset.Id, Assert.Single(store.LoadAll().Presets).Id);
+        Assert.True(File.Exists(mediaPath));
+    }
+
+    [Fact]
     public void SavingWorkspaceSetsActivePresetAndClearsDirtyState()
     {
         var workspace = new PlaylistWorkspace(PlaylistDocument.Empty);
