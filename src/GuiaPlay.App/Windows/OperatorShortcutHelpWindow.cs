@@ -85,7 +85,7 @@ internal sealed class OperatorShortcutHelpWindow : Window
         Grid.SetRow(scroll, 1);
         layout.Children.Add(scroll);
 
-        var footer = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
+        var footer = new DockPanel { Margin = new Thickness(0, 12, 0, 0), LastChildFill = false };
         footer.Children.Add(new TextBlock
         {
             Text = "Esc fecha esta janela. Nenhum atalho controla outras aplicações.",
