@@ -61,7 +61,8 @@ public partial class ScreenConfigurationWindow : Window
         bool openLicense,
         bool playbackActive,
         bool operatorRecoveryRequired,
-        bool openAbout = false)
+        bool openAbout = false,
+        bool openAudio = false)
     {
         InitializeComponent();
         _updateManager = updateManager;
@@ -137,9 +138,11 @@ public partial class ScreenConfigurationWindow : Window
                 ? UserTab
                 : openUpdates
                     ? UpdatesTab
-                    : _screensEditable && monitors.Count > 0
-                        ? ScreensTab
-                        : AppearanceTab;
+                    : openAudio
+                        ? AudioTab
+                        : _screensEditable && monitors.Count > 0
+                            ? ScreensTab
+                            : AppearanceTab;
         ScreensTab.IsEnabled = _screensEditable;
         ScreensNavigationButton.IsEnabled = _screensEditable;
         SynchronizeNavigationSelection();
