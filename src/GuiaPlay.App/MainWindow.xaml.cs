@@ -2486,6 +2486,7 @@ public partial class MainWindow : Window
             : _licensingAllowsAccess &&
         !_controlsBusy &&
         _coordinator.MediaPath is not null &&
+        _coordinator.MediaKind != MediaKind.Image &&
         _engine.Length > 0 &&
         _engine.IsSeekable &&
         _coordinator.Status is (PlaybackStatus.Ready or PlaybackStatus.Preparing or
@@ -2696,6 +2697,36 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Images remain visible indefinitely until Stop; no fake video duration
+        // and no native decoder/volume device required for still media.
+        if (_coordinator.MediaKind == MediaKind.Image && _stillImage is not null)
+        {
+            if (_operatorRequiresConfiguration || selected.Length == 0)
+            {
+                StatusText.Text = "Configure o operador e selecione ao menos uma tela pública.";
+                return;
+            }
+
+            if (_coordinator.Status == PlaybackStatus.Paused)
+            {
+                _coordinator.Resume();
+            }
+            else
+            {
+                var generation = _coordinator.BeginPlayback();
+                PrepareOutputWindows(selected);
+                foreach (var window in _outputWindows.Values)
+                    window.SetSource(_stillImage);
+                _outputsAwaitingFirstFrame = false;
+                _coordinator.MarkPlaying(generation);
+            }
+
+            StatusText.Text = "Imagem em exibição nas telas públicas.";
+            SetConfigurationControlsEnabled(false);
+            RefreshPlaybackControls();
+            return;
+        }
+
         if (_coordinator.Status == PlaybackStatus.Paused)
         {
             if (!CanStartPlayback(_coordinator.MediaKind, selected.Length))
@@ -2773,6 +2804,14 @@ public partial class MainWindow : Window
 
         if (_coordinator.Status == PlaybackStatus.Playing)
         {
+            if (_coordinator.MediaKind == MediaKind.Image && _stillImage is not null)
+            {
+                _coordinator.Pause();
+                StatusText.Text = "Imagem em pausa; a imagem permanece na tela.";
+                RefreshPlaybackControls();
+                return;
+            }
+
             _engine.Pause();
             _coordinator.Pause();
             StatusText.Text = "Pausado — o quadro atual permanece nas saídas";
@@ -2795,6 +2834,16 @@ public partial class MainWindow : Window
 
         if (_coordinator.MediaPath is null)
         {
+            return;
+        }
+
+        if (_coordinator.MediaKind == MediaKind.Image && _stillImage is not null)
+        {
+            CloseOutputWindows();
+            _coordinator.Stop();
+            StatusText.Text = "Exibição da imagem encerrada.";
+            SetConfigurationControlsEnabled(true);
+            RefreshPlaybackControls();
             return;
         }
 
