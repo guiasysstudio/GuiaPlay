@@ -3007,6 +3007,7 @@ public partial class MainWindow : Window
 
     private void HandleOperatorDisconnection()
     {
+        _fullscreenPreviewWindow?.Close();
         _operatorRequiresConfiguration = true;
         _operatorRecoverySettingsAllowed = false;
         _operatorMonitor = _monitors.FirstOrDefault(monitor => monitor.IsPrimary) ?? _monitors.FirstOrDefault();
@@ -3364,6 +3365,11 @@ public partial class MainWindow : Window
         LicenseBlockedMessageText.Text = (snapshot.Message ??
             "Inicie a avaliação gratuita ou ative uma licença para usar o GuiaPlay.") + errorSuffix;
         LicenseStatusButton.Content = FormatLicenseSummary(snapshot);
+
+        if (!snapshot.HasAccess)
+        {
+            _fullscreenPreviewWindow?.Close();
+        }
 
         if (!snapshot.HasAccess && previouslyAllowed && _coordinator.IsActive)
         {
