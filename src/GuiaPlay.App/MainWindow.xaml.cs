@@ -1201,6 +1201,8 @@ public partial class MainWindow : Window
 
             _loadedPlaylistItemId = node.Item.Id;
             _loadedPlaylistRevision = _playlistRevision;
+            // Official IFrame playback is manual-only in the constrained mode.
+            PlaybackModeCombo.SelectedIndex = 0;
             RefreshAudioPanel();
             _bitmap = null;
             PreviewImage.Source = null;
