@@ -6,6 +6,24 @@ namespace GuiaPlay.Core.Tests;
 public sealed class PlaybackCoordinatorTests
 {
     [Fact]
+    public void StaticImageRequiresPublicScreenAndSupportsPlayPauseStop()
+    {
+        var state = new PlaybackCoordinator();
+        Assert.Equal(MediaKind.Image, MediaTypeDetector.Detect("cartaz.PNG"));
+        Assert.True(PlaybackRouting.UsesVideoOutputs(MediaKind.Image));
+        state.TryLoad(@"C:\cartaz.png", MediaKind.Image, replacementConfirmed: true);
+        Assert.False(state.CanPlay(0));
+        Assert.True(state.CanPlay(1));
+        var generation = state.BeginPlayback();
+        Assert.True(state.MarkPlaying(generation));
+        Assert.True(state.Pause().Accepted);
+        Assert.Equal(PlaybackStatus.Paused, state.Status);
+        Assert.True(state.Resume().Accepted);
+        Assert.True(state.Stop().Accepted);
+        Assert.Equal(PlaybackStatus.Stopped, state.Status);
+    }
+
+    [Fact]
     public void VideoWithoutSelectedOutputCannotPlay()
     {
         var sut = new PlaybackCoordinator();
