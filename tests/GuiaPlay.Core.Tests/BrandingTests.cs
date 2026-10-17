@@ -362,7 +362,7 @@ public sealed class BrandingTests
         Assert.DoesNotContain("TabStripPlacement=", settings, StringComparison.Ordinal);
         Assert.Contains("SelectionIndicator", settings, StringComparison.Ordinal);
         Assert.Contains("IsKeyboardFocused", settings, StringComparison.Ordinal);
-        Assert.Equal(7, settings.Split("GroupName=\"SettingsNavigation\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(8, settings.Split("GroupName=\"SettingsNavigation\"", StringSplitOptions.None).Length - 1);
         Assert.Contains("SynchronizeNavigationSelection", settingsCode, StringComparison.Ordinal);
         Assert.Contains("ScreensNavigationButton.IsEnabled = _screensEditable", settingsCode, StringComparison.Ordinal);
         Assert.Contains("SettingsAccessPolicy.CanConfigureScreens", settingsCode, StringComparison.Ordinal);
