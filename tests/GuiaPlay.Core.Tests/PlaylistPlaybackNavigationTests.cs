@@ -88,6 +88,36 @@ public sealed class PlaylistPlaybackNavigationTests
     }
 
     [Fact]
+    public void ShuffleWithoutRepeatStopsAtEndOfUnplayedCandidates()
+    {
+        var playlist = OrderedPlaylist();
+        var visited = new HashSet<Guid> { _first, _second, _third };
+
+        Assert.Null(PlaylistPlaybackNavigation.Next(
+            playlist, _third, PlaylistPlaybackMode.Sequential,
+            PlaylistRepeatMode.Off, shuffle: true, automatic: true,
+            playedInShuffleCycle: visited));
+        Assert.NotNull(PlaylistPlaybackNavigation.Next(
+            playlist, _third, PlaylistPlaybackMode.Sequential,
+            PlaylistRepeatMode.All, shuffle: true, automatic: true,
+            playedInShuffleCycle: visited));
+    }
+
+    [Fact]
+    public void ShuffleOnlyChoosesNotYetPlayedItemsWithinCycle()
+    {
+        var playlist = OrderedPlaylist();
+        var visited = new HashSet<Guid> { _first, _second };
+
+        var next = PlaylistPlaybackNavigation.Next(
+            playlist, _second, PlaylistPlaybackMode.Sequential,
+            PlaylistRepeatMode.Off, shuffle: true, automatic: true,
+            playedInShuffleCycle: visited);
+
+        Assert.Equal(_third, next);
+    }
+
+    [Fact]
     public void NavigationFailsClosedForMissingItemOrEmptyPlaylist()
     {
         var playlist = OrderedPlaylist();
