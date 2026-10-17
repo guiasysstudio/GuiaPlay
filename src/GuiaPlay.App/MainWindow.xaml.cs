@@ -662,6 +662,11 @@ public partial class MainWindow : Window
 
     private void SavedPlaylistsList_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton != MouseButton.Left)
+        {
+            return;
+        }
+
         if (e.OriginalSource is DependencyObject origin &&
             ItemsControl.ContainerFromElement(SavedPlaylistsList, origin) is ListBoxItem)
         {
@@ -1260,6 +1265,11 @@ public partial class MainWindow : Window
 
     private async void PlaylistTree_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton != MouseButton.Left)
+        {
+            return;
+        }
+
         if (PlaylistTree.SelectedItem is not PlaylistItemNode item)
         {
             return;
