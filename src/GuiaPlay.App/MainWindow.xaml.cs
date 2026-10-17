@@ -1624,6 +1624,251 @@ public partial class MainWindow : Window
         StatusText.Text = successMessage;
     }
 
+    // GP-I06: playlist selection is independent of the search filter and is never
+    // treated as a queued automatic command unless the operator enables Sequencial.
+    private void PlaybackModeCombo_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _playbackMode = PlaybackModeCombo.SelectedIndex == 1
+            ? PlaylistPlaybackMode.Sequential
+            : PlaylistPlaybackMode.Manual;
+        if (_settingsInitialized)
+        {
+            RefreshPlaylistTransport();
+            StatusText.Text = _playbackMode == PlaylistPlaybackMode.Manual
+                ? "Modo manual: nenhuma mídia será iniciada automaticamente ao terminar."
+                : "Modo sequencial: a próxima mídia será iniciada ao terminar, se a playlist não mudar.";
+        }
+    }
+
+    private void RepeatModeButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy)
+        {
+            return;
+        }
+
+        _repeatMode = _repeatMode switch
+        {
+            PlaylistRepeatMode.Off => PlaylistRepeatMode.Current,
+            PlaylistRepeatMode.Current => PlaylistRepeatMode.All,
+            _ => PlaylistRepeatMode.Off
+        };
+        RefreshPlaylistTransport();
+        StatusText.Text = _repeatMode == PlaylistRepeatMode.Off
+            ? "Repetição desativada."
+            : _repeatMode == PlaylistRepeatMode.Current
+                ? "Repetir mídia: aplicado somente no modo sequencial ao terminar."
+                : "Repetir playlist: a última mídia retorna à primeira no modo sequencial.";
+    }
+
+    private void ShufflePlaylistCheckBox_OnChanged(object sender, RoutedEventArgs e)
+    {
+        _shufflePlayback = ShufflePlaylistCheckBox.IsChecked == true;
+        if (_settingsInitialized)
+        {
+            RefreshPlaylistTransport();
+            StatusText.Text = _shufflePlayback
+                ? "Próxima mídia aleatória habilitada. No modo manual nada será iniciado automaticamente."
+                : "Ordem original da playlist restaurada para a próxima seleção.";
+        }
+    }
+
+    private async void PreviousMediaButton_OnClick(object sender, RoutedEventArgs e) =>
+        await NavigatePlaylistAsync(previous: true);
+
+    private async void NextMediaButton_OnClick(object sender, RoutedEventArgs e) =>
+        await NavigatePlaylistAsync(previous: false);
+
+    private async Task NavigatePlaylistAsync(bool previous)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || _automaticAdvanceInProgress)
+        {
+            return;
+        }
+
+        var playlist = _playlistCatalog.Snapshot;
+        var id = previous
+            ? PlaylistPlaybackNavigation.Previous(playlist, _loadedPlaylistItemId)
+            : PlaylistPlaybackNavigation.Next(
+                playlist, _loadedPlaylistItemId, _playbackMode, _repeatMode,
+                _shufflePlayback, automatic: false, randomCandidateIndex: Random.Shared.Next());
+        if (id is not { } target)
+        {
+            StatusText.Text = previous
+                ? "Não existe mídia anterior na playlist."
+                : "Não existe próxima mídia na playlist.";
+            return;
+        }
+
+        var item = _playlistGroups.SelectMany(group => group.Items)
+            .FirstOrDefault(candidate => candidate.Item.Id == target);
+        if (item is null)
+        {
+            StatusText.Text = "A mídia de destino não está mais na playlist.";
+            return;
+        }
+
+        // Explicit Previous/Next only loads and cues the media. Never autoplay here.
+        await LoadMediaAsync(item.Item.OriginalPath, playImmediately: false, playlistItemId: target);
+    }
+
+    private void BackFiveButton_OnClick(object sender, RoutedEventArgs e) =>
+        SeekRelative(-5_000);
+
+    private void ForwardFiveButton_OnClick(object sender, RoutedEventArgs e) =>
+        SeekRelative(5_000);
+
+    private void SeekRelative(long delta)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || !CanSeekNow())
+        {
+            return;
+        }
+
+        var current = Math.Clamp(_engine.Time, 0, _engine.Length);
+        _ = TrySeek(Math.Clamp(current + delta, 0, _engine.Length));
+    }
+
+    private bool CanSeekNow() =>
+        _licensingAllowsAccess &&
+        !_controlsBusy &&
+        _coordinator.MediaPath is not null &&
+        _engine.Length > 0 &&
+        _engine.IsSeekable &&
+        _coordinator.Status is (PlaybackStatus.Ready or PlaybackStatus.Preparing or
+            PlaybackStatus.Playing or PlaybackStatus.Paused or PlaybackStatus.Stopped);
+
+    private void RefreshSeekAvailability()
+    {
+        if (!_settingsInitialized)
+        {
+            return;
+        }
+
+        var enabled = CanSeekNow();
+        ProgressSlider.IsEnabled = enabled;
+        PreviewProgressSlider.IsEnabled = enabled;
+        BackFiveButton.IsEnabled = enabled;
+        ForwardFiveButton.IsEnabled = enabled;
+    }
+
+    private void RefreshPlaylistTransport()
+    {
+        if (!_settingsInitialized)
+        {
+            return;
+        }
+
+        RepeatModeButtonText.Text = _repeatMode switch
+        {
+            PlaylistRepeatMode.Current => "Repetir: Atual",
+            PlaylistRepeatMode.All => "Repetir: Lista",
+            _ => "Repetir: Não"
+        };
+        var eligible = _licensingAllowsAccess && !_controlsBusy &&
+                       !_automaticAdvanceInProgress;
+        var playlist = _playlistCatalog.Snapshot;
+        var previous = PlaylistPlaybackNavigation.Previous(playlist, _loadedPlaylistItemId);
+        var next = PlaylistPlaybackNavigation.Next(
+            playlist, _loadedPlaylistItemId, _playbackMode, _repeatMode,
+            _shufflePlayback, automatic: false);
+        PreviousMediaButton.IsEnabled = eligible && previous is not null;
+        NextMediaButton.IsEnabled = eligible && next is not null;
+        RepeatModeButton.IsEnabled = _licensingAllowsAccess && !_controlsBusy;
+        ShufflePlaylistCheckBox.IsEnabled = _licensingAllowsAccess && !_controlsBusy;
+        PlaybackModeCombo.IsEnabled = _licensingAllowsAccess && !_controlsBusy;
+        RefreshSeekAvailability();
+
+        if (_loadedPlaylistItemId is null)
+        {
+            NextPlaylistItemText.Text = "Próxima: abra uma mídia da playlist";
+            return;
+        }
+
+        if (!PlaylistPlaybackNavigation.Contains(playlist, _loadedPlaylistItemId))
+        {
+            NextPlaylistItemText.Text = "Mídia atual removida da playlist";
+            return;
+        }
+
+        if (_playbackMode == PlaylistPlaybackMode.Sequential &&
+            _loadedPlaylistRevision != _playlistRevision)
+        {
+            NextPlaylistItemText.Text = "Próxima automática suspensa: playlist foi alterada";
+            return;
+        }
+
+        if (_shufflePlayback && next is not null)
+        {
+            NextPlaylistItemText.Text = _playbackMode == PlaylistPlaybackMode.Manual
+                ? "Próxima: aleatória ao clicar (manual)"
+                : "Próxima: aleatória ao terminar";
+            return;
+        }
+
+        var name = next is { } id
+            ? playlist.Groups.SelectMany(group => group.Items)
+                .FirstOrDefault(item => item.Id == id)?.DisplayName
+            : null;
+        NextPlaylistItemText.Text = name is null
+            ? "Próxima: fim da playlist"
+            : $"Próxima: {name}{(_playbackMode == PlaylistPlaybackMode.Manual ? " (manual)" : "")}";
+    }
+
+    private async Task<bool> TryAutomaticAdvanceAsync(long endedGeneration)
+    {
+        if (_playbackMode != PlaylistPlaybackMode.Sequential ||
+            !_licensingAllowsAccess || _controlsBusy || _isClosing ||
+            _automaticAdvanceInProgress || _loadedPlaylistItemId is null ||
+            _playlistRevision != _loadedPlaylistRevision ||
+            endedGeneration != _coordinator.Generation)
+        {
+            return false;
+        }
+
+        var playlist = _playlistCatalog.Snapshot;
+        var nextId = PlaylistPlaybackNavigation.Next(
+            playlist, _loadedPlaylistItemId, _playbackMode, _repeatMode,
+            _shufflePlayback, automatic: true, randomCandidateIndex: Random.Shared.Next());
+        if (nextId is not { } targetId)
+        {
+            return false;
+        }
+
+        var item = _playlistGroups.SelectMany(group => group.Items)
+            .FirstOrDefault(candidate => candidate.Item.Id == targetId);
+        if (item is null)
+        {
+            return false;
+        }
+
+        _automaticAdvanceInProgress = true;
+        try
+        {
+            var result = await LoadMediaAsync(
+                item.Item.OriginalPath, playImmediately: true, playlistItemId: targetId);
+            if (result != MediaLoadOutcome.Loaded)
+            {
+                StatusText.Text = $"Reprodução sequencial interrompida: {item.Name} não foi carregada.";
+                return false;
+            }
+
+            FileLogger.Info($"Avanço sequencial para {item.Name}, mídia {targetId:D}.");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            FileLogger.Error("Não foi possível avançar automaticamente a playlist.", exception);
+            StatusText.Text = "A sequência foi interrompida; reprodução manual permanece disponível.";
+            return false;
+        }
+        finally
+        {
+            _automaticAdvanceInProgress = false;
+            RefreshPlaylistTransport();
+        }
+    }
+
     private async void PlayButton_OnClick(object sender, RoutedEventArgs e)
         => await StartOrResumePlaybackAsync();
 
