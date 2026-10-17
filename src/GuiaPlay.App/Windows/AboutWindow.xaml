@@ -1,0 +1,45 @@
+<Window x:Class="GuiaPlay.App.Windows.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sobre o GuiaPlay" Icon="/GuiaPlay;component/Assets/Branding/Icons/GuiaPlay.ico"
+        Width="530" Height="360" MinWidth="470" MinHeight="325" ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{DynamicResource GuiaPlayWindowBackgroundBrush}"
+        Foreground="{DynamicResource GuiaPlayTextPrimaryBrush}">
+    <Border Margin="17" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
+            BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1" CornerRadius="12" Padding="24">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Image Source="/GuiaPlay;component/Assets/Branding/GuiaPlay-Wordmark-UI.png"
+                   Width="208" Height="57" Stretch="Uniform" HorizontalAlignment="Left"/>
+            <TextBlock Grid.Row="1" Margin="0,15,0,0" Text="GuiaPlay"
+                       FontSize="23" FontWeight="SemiBold"/>
+            <TextBlock Grid.Row="2" Margin="0,5,0,0" Text="Reprodutor multimídia e operador de múltiplas telas"
+                       FontSize="13" Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                       TextWrapping="Wrap"/>
+            <StackPanel Grid.Row="3" Margin="0,17,0,0">
+                <TextBlock x:Name="VersionText" FontSize="13"/>
+                <TextBlock x:Name="ReleaseDateText" Margin="0,5,0,0" FontSize="12"/>
+                <TextBlock Text="Desenvolvido pela GuiaSys Studio"
+                           Margin="0,9,0,0" FontSize="13"/>
+            </StackPanel>
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Content="Página da GuiaSys Studio" HorizontalAlignment="Left"
+                        Style="{StaticResource StandardButtonStyle}"
+                        Click="StudioPage_OnClick"/>
+                <Button Grid.Column="1" Content="Fechar" Width="100" Click="Close_OnClick"
+                        Style="{StaticResource PrimaryButtonStyle}"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
