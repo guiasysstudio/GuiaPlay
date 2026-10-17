@@ -3545,7 +3545,8 @@ public partial class MainWindow : Window
         elapsed = Math.Max(0, elapsed);
         total = Math.Max(0, total);
         ElapsedText.Text = FormatTime(elapsed);
-        RemainingText.Text = $"-{FormatTime(Math.Max(0, total - elapsed))} / {FormatTime(total)}";
+        // The full-width footer displays elapsed on the left, total on the right.
+        RemainingText.Text = FormatTime(total);
     }
 
     private static string FormatTime(long milliseconds)
