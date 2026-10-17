@@ -52,6 +52,15 @@ public partial class MainWindow : Window
     private readonly PlaylistCatalog _playlistCatalog;
     private readonly Dictionary<string, OutputWindow> _outputWindows = new(StringComparer.OrdinalIgnoreCase);
     private YouTubeOutputWindow? _youtubeWindow;
+    // Each physical display hosts one visible official IFrame Player. The
+    // first selected screen is the audio-bearing primary; other screens
+    // are muted independent players with best-effort time alignment.
+    private readonly List<YouTubeOutputWindow> _youtubeMirrors = [];
+    private readonly Dictionary<YouTubeOutputWindow, YouTubePlaybackSnapshot> _youtubeMirrorSnapshots = [];
+    private readonly DispatcherTimer _youtubeSyncTimer = new()
+    {
+        Interval = TimeSpan.FromSeconds(2)
+    };
     private YouTubeVideoReference? _youtubeReference;
     private YouTubePlaybackSnapshot? _youtubeSnapshot;
     private readonly List<IdentifierWindow> _identifierWindows = [];
@@ -114,6 +123,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _youtubeSyncTimer.Tick += YouTubeSyncTimer_OnTick;
         Title = $"GuiaPlay {ProductInfo.Version}";
         VersionHeaderText.Text = $"v{ProductInfo.Version}";
         _renderFrameCallback = RenderLatestFrame;
@@ -1527,37 +1537,44 @@ public partial class MainWindow : Window
         var selected = _outputChoices.Where(choice => choice.IsSelected)
             .Select(choice => choice.Monitor).ToArray();
 
-        if (selected.Length != 1)
+        if (selected.Length == 0)
         {
-            StatusText.Text = selected.Length == 0
-                ? "Selecione uma tela pública para reproduzir o YouTube."
-                : "Selecione exatamente uma tela pública para reproduzir o YouTube.";
-            FileLogger.Info($"GP-YT-03: saída não selecionada unicamente, total={selected.Length}.");
+            StatusText.Text = "Selecione uma ou mais telas públicas para reproduzir o YouTube.";
+            FileLogger.Info("GP-YT-04: sem saída pública selecionada.");
             return;
         }
 
-        if (_operatorMonitor is null ||
-            string.Equals(selected[0].Id, _operatorMonitor.Id, StringComparison.OrdinalIgnoreCase))
+        if (_operatorMonitor is null || _operatorRequiresConfiguration ||
+            selected.Any(output => string.Equals(
+                output.Id, _operatorMonitor.Id, StringComparison.OrdinalIgnoreCase)))
         {
-            StatusText.Text = "Configure a tela do operador e selecione outra tela pública.";
-            FileLogger.Info("GP-YT-03: saída recusada; monitor operador ausente ou mesma tela.");
+            StatusText.Text = "Configure o operador e selecione apenas telas públicas distintas.";
+            FileLogger.Info("GP-YT-04: saída recusada: tela do operador indefinida ou incluída.");
             return;
         }
 
-        // Always route to the exact checked public monitor. Never fall back
-        // to a floating browser window on the operator monitor.
+        // A screen may host one auto-playing YouTube player; the selected
+        // monitors are distinct physical screens, not multiple players on
+        // one screen. No frame capture/rebroadcast or hidden background video.
+        foreach (var output in selected)
+        {
+            var assessment = YouTubeEmbedGate.Assess(
+                output.Width, output.Height, hasAppIdentification: true,
+                isActuallyVisible: true, automaticPlayback: true,
+                visibleViewportFraction: 1,
+                otherAutoPlayingYouTubePlayersOnSameScreen: 0);
+            if (!assessment.Allowed)
+            {
+                StatusText.Text = $"{output.ShortLabel}: {assessment.Reason}";
+                FileLogger.Info("GP-YT-04: saída não autorizada: " + StatusText.Text);
+                return;
+            }
+        }
+
         var monitor = selected[0];
-        FileLogger.Info($"GP-YT-03: vídeo={reference!.VideoId}; saída={monitor.ShortLabel}; id={monitor.Id}.");
-        var eligible = YouTubeEmbedGate.Assess(
-            monitor.Width, monitor.Height, hasAppIdentification: true,
-            isActuallyVisible: true, automaticPlayback: true,
-            visibleViewportFraction: 1, otherAutoPlayingYouTubePlayersOnSameScreen: 0);
-        if (!eligible.Allowed)
-        {
-            StatusText.Text = eligible.Reason ?? "A janela não atende às exigências do YouTube.";
-            FileLogger.Error("GP-YT-02: player não autorizado: " + StatusText.Text);
-            return;
-        }
+        FileLogger.Info($"GP-YT-04: vídeo={reference!.VideoId}; " +
+            $"telas={string.Join(", ", selected.Select(output => output.ShortLabel))}; " +
+            $"áudio principal={monitor.ShortLabel}; sincronização aproximada.");
 
         if ((_coordinator.IsActive || _youtubeWindow is not null) &&
             MessageBox.Show(this,
@@ -1569,7 +1586,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        var window = new YouTubeOutputWindow(monitor);
+        // Allocate all official windows before switching the active backend.
+        var windows = selected.Select(output => new YouTubeOutputWindow(output)).ToArray();
+        var window = windows[0];
         SetControlsBusy(true);
         _suppressAutoAdvance = true;
         try
@@ -1584,6 +1603,7 @@ public partial class MainWindow : Window
             CloseOutputWindows();
             CloseYouTubeWindow();
             _youtubeWindow = window;
+            _youtubeMirrors.AddRange(windows.Skip(1));
             _youtubeReference = reference;
             _youtubeSnapshot = new YouTubePlaybackSnapshot(
                 "CARREGANDO", false, 0, 0, null, null);
@@ -1592,23 +1612,50 @@ public partial class MainWindow : Window
             {
                 if (ReferenceEquals(_youtubeWindow, window))
                 {
-                    _youtubeWindow = null;
-                    _youtubeReference = null;
-                    _youtubeSnapshot = null;
+                    CloseYouTubeWindow();
                     if (!_isClosing)
                     {
-                        StatusText.Text = "Player do YouTube fechado; conteúdo local preservado.";
-                        RefreshAudioPanel();
-                        UpdateActiveOutputs();
+                        StatusText.Text = "Player do YouTube fechado; saídas de vídeo encerradas.";
                         RefreshPlaybackControls();
                     }
                 }
             };
 
-            window.Show();
-            FileLogger.Info("GP-YT-02: janela exibida. Iniciando WebView2.");
-            await window.InitializeAsync(reference!, autoplayRequested: true);
-            FileLogger.Info("GP-YT-03: reprodução solicitada; aguardando estado da API do YouTube.");
+            foreach (var mirror in _youtubeMirrors)
+            {
+                mirror.PlaybackStateChanged += YouTubeMirror_OnStateChanged;
+                mirror.Closed += (_, _) =>
+                {
+                    if (_youtubeMirrors.Contains(mirror))
+                    {
+                        CloseYouTubeWindow();
+                        if (!_isClosing)
+                        {
+                            StatusText.Text = "Uma tela pública foi fechada; reprodução conjunta encerrada.";
+                            RefreshPlaybackControls();
+                        }
+                    }
+                };
+            }
+
+            // Show the official players on every target screen before any
+            // scripted autoplay attempt, as required by YouTube.
+            foreach (var outputWindow in windows)
+            {
+                outputWindow.Show();
+            }
+
+            FileLogger.Info($"GP-YT-04: {windows.Length} janela(s) pública(s) visível(is). Iniciando WebView2.");
+            await Task.WhenAll(windows.Select((outputWindow, index) =>
+                outputWindow.InitializeAsync(reference!, autoplayRequested: true,
+                    initiallyMuted: index > 0)));
+            if (!ReferenceEquals(_youtubeWindow, window))
+            {
+                return; // A screen was closed while asynchronous setup ran.
+            }
+
+            _youtubeSyncTimer.Start();
+            FileLogger.Info("GP-YT-04: players inicializados; acompanhando estado e alinhamento aproximado.");
             if (_isClosing || !_licensingAllowsAccess)
             {
                 CloseYouTubeWindow();
@@ -1633,8 +1680,8 @@ public partial class MainWindow : Window
             ProgressSlider.Value = 0;
             ProgressSlider.Maximum = 1;
             UpdateTimeLabels(0, 0);
-            StatusText.Text = "YouTube enviado para " + monitor.ShortLabel +
-                ". Aguardando confirmação de reprodução.";
+            StatusText.Text = $"YouTube enviado a {windows.Length} tela(s). " +
+                "Aguardando autoplay; caso bloqueado, será necessário clicar no player.";
             RefreshPlaybackControls();
         }
         catch (Exception exception)
