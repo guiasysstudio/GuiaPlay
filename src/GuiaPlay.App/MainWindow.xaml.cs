@@ -3489,6 +3489,7 @@ public partial class MainWindow : Window
 
     private void HandleOperatorDisconnection()
     {
+        CloseYouTubeWindow();
         _fullscreenPreviewWindow?.Close();
         _operatorRequiresConfiguration = true;
         _operatorRecoverySettingsAllowed = false;
