@@ -5,7 +5,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="GuiaPlay"
         Icon="/GuiaPlay;component/Assets/Branding/Icons/GuiaPlay.ico"
-        Width="1536" Height="1024" MinWidth="1120" MinHeight="700" WindowStyle="None" ResizeMode="CanResize" FontFamily="Segoe UI" FontSize="13"
+        Width="1536" Height="954" MinWidth="980" MinHeight="620" WindowStyle="None" ResizeMode="CanResize" FontFamily="Segoe UI" FontSize="13"
         Background="{DynamicResource GuiaPlayWindowBackgroundBrush}"
         Foreground="{DynamicResource GuiaPlayTextPrimaryBrush}"
         WindowStartupLocation="CenterScreen"
@@ -351,15 +351,15 @@
 
         <Grid x:Name="LicensedWorkspace" Grid.Row="1" Margin="14,0,14,0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="49*" MinHeight="225" />
-                <RowDefinition Height="51*" MinHeight="200" />
+                <RowDefinition Height="49*" MinHeight="190" />
+                <RowDefinition Height="51*" MinHeight="185" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280" MinWidth="255" />
+                <ColumnDefinition Width="255" MinWidth="240" />
                 <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="*" MinWidth="345" />
                 <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="294" MinWidth="270" />
+                <ColumnDefinition Width="280" MinWidth="240" />
             </Grid.ColumnDefinitions>
             <Border Grid.Column="2" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
@@ -1071,7 +1071,11 @@
                 Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
                 BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="0,1,0,0"
                 Margin="0,10,0,0" Padding="17,8,17,8" MinHeight="111">
-            <Grid>
+            <!-- Scale the ENTIRE transport composition together on narrow screens.
+                 No horizontal scrolling/cropped Play button, and no control overlaps. -->
+            <Viewbox Stretch="Uniform" StretchDirection="DownOnly"
+                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch" SnapsToDevicePixels="True">
+              <Grid Width="1485" Height="94">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="350"/>
                     <ColumnDefinition Width="*" MinWidth="370"/>
@@ -1246,7 +1250,8 @@
                     <TextBlock x:Name="NextPlaylistItemText" Text="Próxima: nenhuma"/>
                     <TextBlock x:Name="StatusText" Text="Pronto"/>
                 </StackPanel>
-            </Grid>
+              </Grid>
+            </Viewbox>
         </Border>
     </Grid>
 </Window>
