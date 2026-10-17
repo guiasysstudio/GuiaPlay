@@ -1740,12 +1740,80 @@ public partial class MainWindow : Window
         RefreshPlaybackControls();
     }
 
+    private void YouTubeMirror_OnStateChanged(object? sender, YouTubePlaybackSnapshot status)
+    {
+        if (sender is not YouTubeOutputWindow mirror ||
+            !_youtubeMirrors.Contains(mirror) || _isClosing) return;
+
+        var previous = _youtubeMirrorSnapshots.TryGetValue(mirror, out var old)
+            ? old.State : null;
+        _youtubeMirrorSnapshots[mirror] = status;
+        if (previous != status.State || status.State is "ERRO" or "INTERAÇÃO NECESSÁRIA")
+        {
+            FileLogger.Info($"GP-YT-04: {mirror.Monitor.ShortLabel}: {status.State}; " +
+                $"detalhes={status.Message ?? "nenhum"}");
+        }
+
+        if (old?.Ready != true && status.Ready)
+        {
+            mirror.Command("mute");
+            if (_youtubeSnapshot?.State == "REPRODUZINDO") mirror.Command("play");
+        }
+
+        if (status.State is "ERRO" or "INTERAÇÃO NECESSÁRIA")
+            StatusText.Text = $"{mirror.Monitor.ShortLabel}: " +
+                (status.Message ?? "o player requer atenção.");
+    }
+
+    // Independent YouTube network players cannot share decoded frames. Align
+    // their clocks approximately, without claiming frame-perfect sync.
+    private void YouTubeSyncTimer_OnTick(object? sender, EventArgs e)
+    {
+        if (_isClosing || !_licensingAllowsAccess || _youtubeWindow is null ||
+            _youtubeSnapshot is not { State: "REPRODUZINDO" } primary) return;
+
+        foreach (var mirror in _youtubeMirrors)
+        {
+            if (!_youtubeMirrorSnapshots.TryGetValue(mirror, out var state) ||
+                !state.Ready || state.State is "ERRO" or "INTERAÇÃO NECESSÁRIA") continue;
+            if (state.State is "PAUSADO" or "PRONTO") mirror.Command("play");
+            var drift = Math.Abs(primary.ElapsedMilliseconds - state.ElapsedMilliseconds);
+            if (primary.DurationMilliseconds > 0 && state.DurationMilliseconds > 0 &&
+                drift >= 1800)
+            {
+                mirror.Command("seek", primary.ElapsedMilliseconds / 1000d);
+                FileLogger.Info($"GP-YT-04: sincronização aproximada " +
+                    $"{mirror.Monitor.ShortLabel}, desvio={drift}ms");
+            }
+        }
+    }
+
+    private void SendYouTubeCommand(string action, double? value = null)
+    {
+        _youtubeWindow?.Command(action, value);
+        // Only the first selected screen has audible playback.
+        if (action is "play" or "pause" or "stop" or "seek")
+        {
+            foreach (var mirror in _youtubeMirrors) mirror.Command(action, value);
+        }
+    }
+
     private void CloseYouTubeWindow()
     {
+        _youtubeSyncTimer.Stop();
         var old = _youtubeWindow;
         _youtubeWindow = null;
         _youtubeReference = null;
         _youtubeSnapshot = null;
+        var mirrors = _youtubeMirrors.ToArray();
+        _youtubeMirrors.Clear();
+        _youtubeMirrorSnapshots.Clear();
+        foreach (var mirror in mirrors)
+        {
+            mirror.PlaybackStateChanged -= YouTubeMirror_OnStateChanged;
+            mirror.Close();
+        }
+
         if (old is not null)
         {
             old.PlaybackStateChanged -= YouTubeWindow_OnStateChanged;
