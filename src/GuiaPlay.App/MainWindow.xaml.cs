@@ -2186,6 +2186,13 @@ public partial class MainWindow : Window
 
     private async Task StartOrResumePlaybackAsync()
     {
+        if (_youtubeWindow is { Ready: true } youtube && _licensingAllowsAccess && !_controlsBusy)
+        {
+            youtube.Command("play");
+            StatusText.Text = "Reprodução solicitada ao YouTube.";
+            return;
+        }
+
         if (_isClosing || !_licensingAllowsAccess || _controlsBusy)
         {
             return;
