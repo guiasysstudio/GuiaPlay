@@ -1233,7 +1233,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        var firstReady = _youtubeSnapshot?.Ready != true && status.Ready;
         _youtubeSnapshot = status;
+        if (firstReady && _youtubeWindow is { } readyWindow)
+        {
+            readyWindow.Command("volume", VolumeSlider.Value);
+            readyWindow.Command(MuteButton.Tag as bool? == true ? "mute" : "unmute");
+        }
+
         if (!_isDraggingProgress)
         {
             ProgressSlider.Maximum = Math.Max(1, status.DurationMilliseconds);
