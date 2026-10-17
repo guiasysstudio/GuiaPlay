@@ -150,7 +150,12 @@ public partial class MainWindow : Window
         VolumeText.Text = settings.Muted ? "mudo" : $"{settings.Volume}%";
         FileLogger.Info("GP-I11: Janela iniciada sem carregar o motor LibVLC antecipadamente.");
 
-        _monitorTimer = new DispatcherTimer(MonitorRefreshPolicy.SafetyPollInterval, DispatcherPriority.Background, (_, _) => RefreshConnectedDevices(false), Dispatcher);
+        _monitorTimer = new DispatcherTimer(MonitorRefreshPolicy.SafetyPollInterval, DispatcherPriority.Background, (_, _) =>
+        {
+            FileLogger.Info("GP-I11: monitor safety poll start");
+            RefreshConnectedDevices(false);
+            FileLogger.Info("GP-I11: monitor safety poll end");
+        }, Dispatcher);
         _settingsSaveTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(650), DispatcherPriority.Background, (_, _) => FlushDeferredSettings(), Dispatcher)
         {
             IsEnabled = false
@@ -170,13 +175,23 @@ public partial class MainWindow : Window
         Loaded += (_, _) =>
         {
             FitToWorkArea();
+            FileLogger.Info("GP-I11: initial monitor + audio refresh begins");
             RefreshConnectedDevices(false);
+            FileLogger.Info("GP-I11: initial monitor + audio refresh finished");
             if (_operatorMonitor is not null)
             {
                 WindowPlacement.PlaceOperatorPanel(this, _operatorMonitor);
             }
 
-            _monitorTimer.Start();
+            if (!DevelopmentDiagnostics.SkipMonitorPolling)
+            {
+                _monitorTimer.Start();
+            }
+            else
+            {
+                FileLogger.Info("GP-I11: periodic monitor refresh isolated in Debug.");
+            }
+
             if ((Application.Current as App)?.StartupSettingsWarning is { } warning)
             {
                 StatusText.Text = "Configurações recuperadas com valores seguros; consulte o log.";
@@ -196,7 +211,14 @@ public partial class MainWindow : Window
             }
             RefreshUpdateIndicator();
             ApplyLicensingState((Application.Current as App)?.Licensing?.Current ?? LicensingSnapshot.Checking);
-            _ = CheckForUpdatesOnStartupAsync();
+            if (!DevelopmentDiagnostics.SkipStartupUpdate)
+            {
+                _ = CheckForUpdatesOnStartupAsync();
+            }
+            else
+            {
+                FileLogger.Info("GP-I11: startup GitHub updater isolated in Debug.");
+            }
         };
         SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessageHook);
         Closing += MainWindow_OnClosing;
