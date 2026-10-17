@@ -483,7 +483,7 @@
                 </Grid.ColumnDefinitions>
                 <Path Data="{StaticResource FolderOpenIconGeometry}" Width="15" Height="15"
                       Fill="{DynamicResource GuiaPlayAccentBrush}" Stretch="Uniform" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="5,0,0,0"
+                <TextBlock Grid.Column="1" Text="{Binding DisplayName}" ToolTip="{Binding FolderTooltip}" Margin="5,0,0,0"
                            FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                 <Border Grid.Column="2" Margin="6,0,2,0" Padding="7,2" CornerRadius="9"
                         Background="{DynamicResource GuiaPlayAccentSubtleBrush}">
@@ -838,8 +838,8 @@
                                            Margin="0,3,0,0" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Click="NewGroupButton_OnClick" ToolTip="Criar pasta / grupo virtual"
-                                        AutomationProperties.Name="Criar grupo"
+                                <Button x:Name="FolderAddMenuButton" Click="FolderAddMenuButton_OnClick" ToolTip="Criar pasta virtual ou vincular pasta do Windows"
+                                        AutomationProperties.Name="Adicionar pasta"
                                         Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,3,0">
                                     <Path Data="{StaticResource FolderAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
                                 </Button>
