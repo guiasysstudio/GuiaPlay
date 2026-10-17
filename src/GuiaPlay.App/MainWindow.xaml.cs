@@ -2081,6 +2081,7 @@ public partial class MainWindow : Window
         var eligible = _licensingAllowsAccess && !_controlsBusy &&
                        !_automaticAdvanceInProgress;
         FullscreenPreviewButton.IsEnabled = _licensingAllowsAccess && !_controlsBusy &&
+                                           _youtubeWindow is null &&
                                            _operatorMonitor is not null && !_operatorRequiresConfiguration;
         var playlist = _playlistCatalog.Snapshot;
         var previous = PlaylistPlaybackNavigation.Previous(playlist, _loadedPlaylistItemId);
