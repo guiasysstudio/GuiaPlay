@@ -61,7 +61,7 @@ O **controle remoto Android/LAN** é projeto futuro separado, após conclusão e
 **Grade:** índice é a ordem operacional de reprodução, e ordenação visual de metadados não deve alterar essa ordem silenciosamente. Miniaturas e metadados são coletados com cancelamento/cotas de recursos e fallback para áudio, arquivo ausente ou mídia não decodificável. Datas são provenientes de metadados locais verificados, não valores inventados.
 
 **Ações:** Adicionar é menu com `Arquivo(s)`, `Pasta` e `Link do YouTube` (este último só fica disponível quando GP-I09 for aprovado); Nova Playlist, Salvar, Remover, subir/descer, filtro/busca. Remover referência não exclui original. 
-**Transporte:** anterior, retroceder 5 s, play/pausa, avançar 5 s, próximo, parar, mute/volume, progresso, duração/decorrido. Ícones extras da imagem (aleatório, repetição, tela cheia etc.) só serão exibidos quando as suas ações tiverem implementação real e acordada; manter modo manual padrão.
+**Transporte:** anterior, retroceder 5 s, play/pausa, avançar 5 s, próximo, parar, mute/volume, progresso, duração/decorrido. Implementar também todos os botões retratados no Modelo 1 que integrarem a barra final, incluindo aleatório, repetição e tela cheia, cada qual com comando efetivo, indicadores de estado e testes; manter reprodução manual como padrão e evitar avanço automático não solicitado.
 
 ## Particularidades do YouTube (bloqueios técnicos)
 
