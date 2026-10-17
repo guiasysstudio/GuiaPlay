@@ -466,11 +466,11 @@
                                         
                                     </StackPanel>
                                 </Grid>
-                                <Border Grid.Row="1" Background="Black" CornerRadius="6" ClipToBounds="True"
+                                <Border Grid.Row="1" Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" CornerRadius="6" ClipToBounds="True"
                                         MinHeight="110">
                                     <Grid>
                                     <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                      <Grid Width="1600" Height="900">
+                                      <Grid Width="1600" Height="900" Background="Black">
                                         <Image x:Name="PreviewImage" Stretch="Uniform" />
                                       </Grid>
                                     </Viewbox>
@@ -533,11 +533,11 @@
                                                Margin="5,0,0,0" VerticalAlignment="Center"
                                                Foreground="{DynamicResource GuiaPlayAccentBrush}" />
                                 </Grid>
-                                <Border Grid.Row="1" Background="Black" CornerRadius="6"
+                                <Border Grid.Row="1" Background="{DynamicResource GuiaPlaySurfaceSecondaryBrush}" CornerRadius="6"
                                         ClipToBounds="True" MinHeight="110">
                                     <Grid>
                                     <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                      <Grid Width="1600" Height="900">
+                                      <Grid Width="1600" Height="900" Background="Black">
                                         <Image x:Name="ProgramImage" Stretch="Uniform" Visibility="Collapsed"
                                                ToolTip="Espelho do quadro entregue pelo GuiaPlay às janelas públicas; não é captura física do monitor" />
                                       </Grid>
