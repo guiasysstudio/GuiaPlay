@@ -3298,6 +3298,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_youtubeWindow is not null)
+        {
+            AudioDeviceNameText.Text = "YouTube / padrão do Windows";
+            AudioAvailabilityText.Text = "WEBVIEW2";
+            AudioWarningText.Text =
+                "Dispositivo escolhido no LibVLC não se aplica ao YouTube. " +
+                "Selecione a saída do navegador pelo mixer de volume do Windows.";
+            return;
+        }
+
         var preference = (Application.Current as App)?.Settings.AudioOutput ?? AudioOutputPreference.Default;
         AudioDeviceNameText.Text = preference.IsExplicit
             ? preference.DisplayName ?? preference.DeviceId ?? "Dispositivo selecionado"
