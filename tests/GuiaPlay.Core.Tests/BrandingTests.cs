@@ -551,6 +551,37 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void GP_I20_FullWidthSeekBarAndDurationSitAboveCompactPlayer()
+    {
+        var xaml = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var panel = xaml.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "OperationalControlPanel");
+        var body = panel.Elements().Single();
+        Assert.Equal("Grid", body.Name.LocalName);
+        var progress = body.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "ProgressSlider");
+        var elapsed = body.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "ElapsedText");
+        var total = body.Descendants().Single(e =>
+            (string?)e.Attribute(x + "Name") == "RemainingText");
+        var seekRow = progress.Parent;
+        Assert.NotNull(seekRow);
+        Assert.Same(seekRow, elapsed.Parent);
+        Assert.Same(seekRow, total.Parent);
+        Assert.Same(body, seekRow!.Parent);
+        Assert.Equal("0", (string?)seekRow.Attribute("Grid.Row"));
+        Assert.Equal("1", (string?)progress.Attribute("Grid.Column"));
+        Assert.Equal("0", (string?)elapsed.Attribute("Grid.Column"));
+        Assert.Equal("2", (string?)total.Attribute("Grid.Column"));
+        Assert.Equal("ProgressSlider_OnDragStarted", (string?)progress.Attribute("PreviewMouseLeftButtonDown"));
+        Assert.Equal("ProgressSlider_OnDragCompleted", (string?)progress.Attribute("PreviewMouseLeftButtonUp"));
+        Assert.Equal("80", (string?)panel.Attribute("Height"));
+        Assert.Contains("RemainingText.Text = FormatTime(total);", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GP_I19_CompactFooterResizesNaturallyWithItsHostWindow()
     {
         var document = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
