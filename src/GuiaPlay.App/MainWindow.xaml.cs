@@ -2292,6 +2292,16 @@ public partial class MainWindow : Window
 
     private async void StopButton_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_youtubeWindow is not null)
+        {
+            CloseYouTubeWindow();
+            ProgressSlider.Value = 0;
+            UpdateTimeLabels(0, 0);
+            StatusText.Text = "Player oficial do YouTube fechado na tela pública.";
+            RefreshPlaybackControls();
+            return;
+        }
+
         if (_coordinator.MediaPath is null)
         {
             return;
