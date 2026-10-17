@@ -1343,6 +1343,13 @@ public partial class MainWindow : Window
 
     private void MediaSearchBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
+        if (MediaSearchHint is not null)
+        {
+            MediaSearchHint.Visibility = string.IsNullOrWhiteSpace(MediaSearchBox.Text)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
         if (_mediaGridView is null)
         {
             return;
