@@ -8,6 +8,36 @@ public sealed class FolderMediaImportTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "GuiaPlay-GP-I04", Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public async Task LinkedWindowsFolderSurvivesSaveAndReadsMediaWithoutCopying()
+    {
+        var mediaFolder = Path.Combine(_root, "Eventos", "2026");
+        Directory.CreateDirectory(mediaFolder);
+        var catalog = new PlaylistCatalog(PlaylistDocument.Empty);
+        var linked = catalog.CreateLinkedGroup(mediaFolder);
+        Assert.Equal(Path.GetFullPath(mediaFolder), linked.SourceDirectory);
+        Assert.Empty(linked.Items);
+        Assert.Equal(linked.Id, catalog.CreateLinkedGroup(mediaFolder).Id);
+        Assert.Single(catalog.Snapshot.Groups);
+
+        var store = new PlaylistStore(Path.Combine(_root, "playlist.json"));
+        Assert.True(store.Save(catalog.Snapshot).Succeeded);
+        var loaded = store.Load().Playlist;
+        Assert.Equal(linked.SourceDirectory, Assert.Single(loaded.Groups).SourceDirectory);
+
+        var image = Path.Combine(mediaFolder, "cartaz.png");
+        File.WriteAllBytes(image, [1, 2, 3]);
+        var imported = FolderMediaPlaylistMerge.Merge(loaded,
+            await FolderMediaScanner.ScanAsync(mediaFolder));
+        Assert.Equal(1, imported.Added);
+        var group = Assert.Single(imported.Playlist.Groups);
+        Assert.Equal(linked.Id, group.Id);
+        Assert.Equal(mediaFolder, group.SourceDirectory);
+        Assert.Equal(image, Assert.Single(group.Items).OriginalPath);
+        Assert.Equal(MediaKind.Image, group.Items.Single().Kind);
+        Assert.True(File.Exists(image));
+    }
+
+    [Fact]
     public async Task ScannerFindsSupportedMediaInDeterministicFolderOrderWithoutModifyingFiles()
     {
         var firstFolder = Path.Combine(_root, "01 - Vídeos");
