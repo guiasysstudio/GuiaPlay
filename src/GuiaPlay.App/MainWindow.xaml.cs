@@ -308,6 +308,7 @@ public partial class MainWindow : Window
             _engine.Muted = MuteButton.Tag as bool? ?? false;
             _bitmap = null;
             PreviewImage.Source = null;
+            ProgramImage.Source = null;
             PreviewPlaceholder.Text = kind == MediaKind.Audio ? "Áudio carregado" : "Prévia de vídeo";
             PreviewEmptyHint.Text = kind == MediaKind.Audio
                 ? "A reprodução de áudio não exibe imagem na prévia"
@@ -2217,8 +2218,10 @@ public partial class MainWindow : Window
 
         using (frame)
         {
+            var stageNeedsRefresh = false;
             if (_bitmap is null || _bitmap.PixelWidth != frame.Width || _bitmap.PixelHeight != frame.Height)
             {
+                stageNeedsRefresh = true;
                 _bitmap = new WriteableBitmap((int)frame.Width, (int)frame.Height, 96, 96, System.Windows.Media.PixelFormats.Bgr32, null);
                 PreviewImage.Source = _bitmap;
                 foreach (var window in _outputWindows.Values)
@@ -2247,6 +2250,12 @@ public partial class MainWindow : Window
                 }
 
                 _outputsAwaitingFirstFrame = false;
+                stageNeedsRefresh = true;
+            }
+
+            if (stageNeedsRefresh)
+            {
+                RefreshStageDashboard();
             }
         }
     }
@@ -2393,6 +2402,65 @@ public partial class MainWindow : Window
         ActiveOutputsText.Text = _outputWindows.Count == 0
             ? "Nenhuma"
             : string.Join(Environment.NewLine, _outputWindows.Values.Select(window => window.Monitor.ShortLabel));
+        RefreshStageDashboard();
+    }
+
+    private void RefreshStageDashboard()
+    {
+        if (ProgramImage is null || ProgramEmptyState is null)
+        {
+            return;
+        }
+
+        // The program preview mirrors the frame used by the actual OutputWindow(s).
+        // It never guesses what an external display physically shows.
+        var selected = _outputChoices.Count(choice => choice.IsSelected);
+        var active = _outputWindows.Count;
+        var publicFrameReady = _bitmap is not null && !_outputsAwaitingFirstFrame &&
+                               PlaybackRouting.UsesVideoOutputs(_coordinator.MediaKind);
+        var presentation = ProgramStagePresentationPolicy.Resolve(
+            _coordinator.Status, _coordinator.MediaKind, selected, active, publicFrameReady);
+        PreviewLiveStateText.Text = presentation.OperatorBadge;
+        ProgramStatusBadgeText.Text = presentation.Badge;
+        ProgramPlaceholderText.Text = presentation.Message;
+        ProgramDetailsText.Text = presentation.Hint;
+        ProgramImage.Source = presentation.ShowFrame ? _bitmap : null;
+        ProgramImage.Visibility = presentation.ShowFrame ? Visibility.Visible : Visibility.Collapsed;
+        ProgramEmptyState.Visibility = presentation.ShowFrame ? Visibility.Collapsed : Visibility.Visible;
+
+        OutputSelectedCountText.Text = $"{selected} selecionada(s)";
+        NoPublicMonitorsText.Visibility = _outputChoices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Selecting a different set during playback could make the chips disagree
+        // with already-open windows. Changes take effect only before starting.
+        var editable = _licensingAllowsAccess && !_controlsBusy && !_coordinator.IsActive;
+        SidebarOutputsList.IsEnabled = editable;
+        OutputsList.IsEnabled = editable;
+        SidebarOutputsList.ToolTip = editable
+            ? "Escolha as telas para a próxima reprodução pública."
+            : "Para trocar as telas públicas, pare a reprodução.";
+    }
+
+    private void RefreshAudioPanel()
+    {
+        if (AudioDeviceNameText is null)
+        {
+            return;
+        }
+
+        var preference = (Application.Current as App)?.Settings.AudioOutput ?? AudioOutputPreference.Default;
+        AudioDeviceNameText.Text = preference.IsExplicit
+            ? preference.DisplayName ?? preference.DeviceId ?? "Dispositivo selecionado"
+            : "Padrão do Windows";
+        AudioDeviceNameText.ToolTip = preference.IsExplicit
+            ? $"Saída configurada: {preference.Module} / {preference.DeviceId}"
+            : "O Windows escolhe o dispositivo padrão quando a reprodução começa.";
+
+        AudioAvailabilityText.Text = _audioReconfigurationRequired
+            ? "RECONFIGURAR"
+            : _audioPreferenceAvailable
+                ? "DISPONÍVEL"
+                : "INDISPONÍVEL";
+        AudioAvailabilityText.ToolTip = AudioWarningText.Text;
     }
 
     private void RefreshConnectedDevices(bool causedByDisplayChange)
@@ -2607,6 +2675,7 @@ public partial class MainWindow : Window
         }
 
         RefreshPlaybackControls();
+        RefreshStageDashboard();
     }
 
     private void OutputChoice_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -2661,7 +2730,8 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             FileLogger.Error("Falha ao enumerar saídas de áudio do LibVLC.", exception);
-            AudioWarningText.Text = "Não foi possível atualizar as saídas de áudio. O padrão do Windows continua disponível.";
+            AudioWarningText.Text = "Não foi possível atualizar as saídas de áudio. O dispositivo configurado foi preservado.";
+            RefreshAudioPanel();
             return;
         }
 
@@ -2694,10 +2764,12 @@ public partial class MainWindow : Window
                 _ => "O dispositivo padrão será resolvido pelo Windows no início de cada reprodução."
             };
 
+        RefreshAudioPanel();
         if (availability == AudioPreferenceAvailability.Missing && wasAvailable && _coordinator.IsActive)
         {
             _audioReconfigurationRequired = true;
             _audioPreferenceAvailable = false;
+            RefreshAudioPanel();
             var transition = _coordinator.RequiredDeviceLost(_coordinator.Generation);
             if (transition.PauseEngine)
             {
@@ -2738,6 +2810,7 @@ public partial class MainWindow : Window
         _audioReconfigurationRequired = true;
         PauseForRequiredReconfiguration();
         AudioWarningText.Text = "O LibVLC informou que a saída explícita deixou de ser a saída ativa.";
+        RefreshAudioPanel();
         StatusText.Text = "A saída de áudio mudou externamente; reprodução pausada.";
         MessageBox.Show(
             this,
@@ -2871,6 +2944,7 @@ public partial class MainWindow : Window
 
     private void RefreshPlaybackControls()
     {
+        RefreshStageDashboard();
         if (_controlsBusy || !_licensingAllowsAccess)
         {
             PlayButton.IsEnabled = false;
@@ -2937,6 +3011,7 @@ public partial class MainWindow : Window
         HeaderPlaylistButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
         RefreshSavedPlaylistActions();
         UpdateMediaGridActions();
+        RefreshAudioPanel();
         RefreshPlaybackControls();
     }
 
