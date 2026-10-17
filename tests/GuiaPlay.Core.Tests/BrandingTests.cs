@@ -470,6 +470,30 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void GP_I15_OfficialSvgShapesConvertToParseableWpfVectorGeometry()
+    {
+        var xaml = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var vectorGroups = xaml.Descendants()
+            .Where(element => element.Name.LocalName == "DrawingImage" &&
+                              ((string?)element.Attribute(XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"))) is
+                              "GPVectorSymbol" or "GPVectorWordmark")
+            .ToArray();
+
+        Assert.Equal(2, vectorGroups.Length);
+        Assert.Equal(11, vectorGroups.Sum(group =>
+            group.Descendants().Count(element => element.Name.LocalName == "GeometryDrawing")));
+
+        foreach (var shape in vectorGroups.SelectMany(group =>
+                     group.Descendants().Where(element => element.Name.LocalName == "GeometryDrawing")))
+        {
+            var path = (string?)shape.Attribute("Geometry");
+            Assert.False(string.IsNullOrWhiteSpace(path));
+            var geometry = System.Windows.Media.Geometry.Parse(path!);
+            Assert.False(geometry.Bounds.IsEmpty);
+        }
+    }
+
+    [Fact]
     public void GP_I15_ResponsiveCustomWindowRespectsTaskbarAndSeparatesPages()
     {
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
