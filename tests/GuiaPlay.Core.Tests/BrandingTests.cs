@@ -247,7 +247,7 @@ public sealed class BrandingTests
         Assert.Contains("x:Name=\"VolumeSlider\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PlaylistTree\"", main, StringComparison.Ordinal);
         // Model 1 widened the workspace for three functional panes.
-        Assert.Contains("MinWidth=\"980\"", main, StringComparison.Ordinal);
+        Assert.Contains("MinWidth=\"1120\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"LicensedWorkspace\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ProgramImage\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"SidebarOutputsList\"", main, StringComparison.Ordinal);
@@ -372,13 +372,13 @@ public sealed class BrandingTests
         var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
 
         Assert.Contains("x:Name=\"OperationalControlPanel\"", main, StringComparison.Ordinal);
-        Assert.Contains("Background=\"{DynamicResource GuiaPlaySurfaceSecondaryBrush}\" Padding=\"8,6\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"GPPlayTransport\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Key=\"CompactTransportButtonStyle\"", main, StringComparison.Ordinal);
         Assert.Contains("<Setter Property=\"MinHeight\" Value=\"30\" />", main, StringComparison.Ordinal);
         // GP-I10: The approved 3-panel UI supersedes M10.3's two-column layout.
-        Assert.Contains("<ColumnDefinition Width=\"300\" MinWidth=\"265\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"280\" MinWidth=\"255\" />", main, StringComparison.Ordinal);
         Assert.Contains("<ColumnDefinition Width=\"*\" MinWidth=\"345\" />", main, StringComparison.Ordinal);
-        Assert.Contains("<ColumnDefinition Width=\"286\" MinWidth=\"260\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"294\" MinWidth=\"270\" />", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PreviewProgressSlider\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"MediaGrid\"", main, StringComparison.Ordinal);
         Assert.Contains("SavePlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
@@ -435,7 +435,7 @@ public sealed class BrandingTests
         var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
 
         Assert.Contains("Grid.RowSpan=\"2\"", main, StringComparison.Ordinal);
-        Assert.Contains("<RowDefinition Height=\"46*\" MinHeight=\"160\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<RowDefinition Height=\"49*\" MinHeight=\"225\" />", main, StringComparison.Ordinal);
         Assert.Contains("Grid.Row=\"1\" Grid.Column=\"2\" Grid.ColumnSpan=\"3\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"MediaRemoveSelectedButton\"", main, StringComparison.Ordinal);
         Assert.Contains("Click=\"RemoveSelectedMediaButton_OnClick\"", main, StringComparison.Ordinal);
@@ -446,6 +446,27 @@ public sealed class BrandingTests
         Assert.Contains("x:Name=\"AddMediaMenuButton\"", main, StringComparison.Ordinal);
         Assert.Equal(1, main.Split("x:Name=\"MediaGrid\"", StringSplitOptions.None).Length - 1);
         Assert.Equal(1, main.Split("x:Name=\"AddMediaMenuButton\"", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
+    public void GP_I13_UsesNativeWpfChromeAndRealApprovedModelLayout()
+    {
+        var xaml = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+
+        Assert.Contains("WindowStyle=\"None\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("shell:WindowChrome.WindowChrome", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"LicenseStatusDot\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("TitleBarMaximize_OnClick", xaml, StringComparison.Ordinal);
+        Assert.Contains("TitleBarClose_OnClick", code, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"TransportThumbnailImage\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("x:Key=\"GPPlayTransport\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Grid.ColumnSpan=\"3\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("SAÍDA DE VÍDEO", xaml, StringComparison.Ordinal);
+        Assert.Contains("GPVolumeDown", xaml, StringComparison.Ordinal);
+        Assert.Contains("GPVolumeMute", xaml, StringComparison.Ordinal);
+        Assert.Contains("SpeakerLowIcon.Visibility", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("new LibVLC(", code, StringComparison.Ordinal);
     }
 
     [Fact]
