@@ -10,6 +10,35 @@ public sealed class AppSettingsStoreTests : IDisposable
     private string SettingsPath => Path.Combine(_directory, "settings.json");
 
     [Fact]
+    public void ShortcutOverridesArePersistentWithoutChangingUnknownPreferences()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(SettingsPath, """{"future":{"retain":"yes"},"appearance":"Dark"}""");
+        var settingsStore = new AppSettingsStore(SettingsPath);
+        var loaded = settingsStore.Load().Settings;
+        var preferences = loaded with
+        {
+            ShortcutAssignments =
+            [
+                new OperatorShortcutAssignment(
+                    OperatorShortcutAction.ToggleMute, OperatorShortcutKey.F11,
+                    OperatorShortcutModifiers.Control),
+                new OperatorShortcutAssignment(
+                    OperatorShortcutAction.PlayPause, OperatorShortcutKey.None,
+                    OperatorShortcutModifiers.None)
+            ]
+        };
+        Assert.True(settingsStore.Save(preferences).Succeeded);
+        var saved = new AppSettingsStore(SettingsPath).Load();
+        Assert.False(saved.RecoveredFromInvalidFile);
+        Assert.Equal(2, saved.Settings.ShortcutAssignments?.Count);
+        Assert.Equal(OperatorShortcutKey.F11, saved.Settings.ShortcutAssignments![0].Key);
+        Assert.Equal(OperatorShortcutKey.None, saved.Settings.ShortcutAssignments[1].Key);
+        var json = JsonNode.Parse(File.ReadAllText(SettingsPath))!.AsObject();
+        Assert.Equal("yes", json["future"]!["retain"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void MigratesM02SchemaWithoutLosingPreferences()
     {
         Directory.CreateDirectory(_directory);
