@@ -111,6 +111,60 @@ public sealed class OperatorShortcutPolicyTests
     }
 
     [Fact]
+    public void CustomBindingsReplaceOldDefaultsWithoutAddingHiddenDuplicates()
+    {
+        OperatorShortcutAssignment[] customized =
+        [
+            new(OperatorShortcutAction.PlayPause, OperatorShortcutKey.F5, OperatorShortcutModifiers.Control),
+            new(OperatorShortcutAction.Play, OperatorShortcutKey.F5, OperatorShortcutModifiers.None)
+        ];
+        Assert.True(OperatorShortcutPolicy.TryValidateAssignments(customized, out var error), error);
+        Assert.Equal(OperatorShortcutAction.PlayPause,
+            OperatorShortcutPolicy.Resolve(OperatorShortcutKey.F5, OperatorShortcutModifiers.Control,
+                false, false, false, customized));
+        Assert.Equal(OperatorShortcutAction.None,
+            OperatorShortcutPolicy.Resolve(OperatorShortcutKey.Space, OperatorShortcutModifiers.None,
+                false, false, false, customized));
+        Assert.Equal(OperatorShortcutAction.Play,
+            OperatorShortcutPolicy.Resolve(OperatorShortcutKey.F5, OperatorShortcutModifiers.None,
+                false, false, false, customized));
+    }
+
+    [Fact]
+    public void DuplicateOrSystemWideShortcutsAreRejected()
+    {
+        OperatorShortcutAssignment[] duplicates =
+        [
+            new(OperatorShortcutAction.PlayPause, OperatorShortcutKey.F5, OperatorShortcutModifiers.None)
+        ];
+        Assert.False(OperatorShortcutPolicy.TryValidateAssignments(duplicates, out var err));
+        Assert.False(string.IsNullOrWhiteSpace(err));
+
+        OperatorShortcutAssignment[] invalid =
+        [
+            new(OperatorShortcutAction.Help, OperatorShortcutKey.O, OperatorShortcutModifiers.Alt)
+        ];
+        Assert.False(OperatorShortcutPolicy.TryValidateAssignments(invalid, out _));
+        Assert.True(OperatorShortcutPolicy.TryValidateAssignments([], out _));
+    }
+
+    [Fact]
+    public void ACommandCanBeDisabledWithoutChangingOtherDefaults()
+    {
+        OperatorShortcutAssignment[] customized =
+        [
+            new(OperatorShortcutAction.ToggleMute, OperatorShortcutKey.None, OperatorShortcutModifiers.None)
+        ];
+        Assert.True(OperatorShortcutPolicy.TryValidateAssignments(customized, out _));
+        Assert.Equal(OperatorShortcutAction.None,
+            OperatorShortcutPolicy.Resolve(OperatorShortcutKey.M, OperatorShortcutModifiers.Control,
+                false, false, false, customized));
+        Assert.Equal(OperatorShortcutAction.SavePlaylist,
+            OperatorShortcutPolicy.Resolve(OperatorShortcutKey.S, OperatorShortcutModifiers.Control,
+                false, false, false, customized));
+    }
+
+    [Fact]
     public void UnknownOrUnassignedKeysDoNothing()
     {
         Assert.Equal(OperatorShortcutAction.None,
