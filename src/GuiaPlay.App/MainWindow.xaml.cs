@@ -2137,12 +2137,178 @@ public partial class MainWindow : Window
         }
     }
 
+    // GP-I07: shortcuts are exclusively window-scoped. Editing fields and native
+    // Space interactions never trigger playback; Esc still closes monitor IDs.
     private void MainWindow_OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape && _identifierWindows.Count > 0)
         {
             CloseIdentifierWindows();
             e.Handled = true;
+            return;
+        }
+
+        if (e.Handled || _isClosing || !IsActive || _identifierWindows.Count > 0)
+        {
+            return;
+        }
+
+        var focused = Keyboard.FocusedElement as DependencyObject ??
+                      e.OriginalSource as DependencyObject;
+        var textEditing = FindAncestor<TextBoxBase>(focused) is not null ||
+                          FindAncestor<PasswordBox>(focused) is not null ||
+                          FindAncestor<ComboBox>(focused) is not null;
+        var nativeSpace = FindAncestor<ButtonBase>(focused) is not null ||
+                          FindAncestor<Slider>(focused) is not null ||
+                          FindAncestor<ScrollBar>(focused) is not null ||
+                          FindAncestor<TreeViewItem>(focused) is not null ||
+                          FindAncestor<DataGrid>(focused) is not null ||
+                          FindAncestor<ListBox>(focused) is not null ||
+                          FindAncestor<TabItem>(focused) is not null ||
+                          FindAncestor<MenuItem>(focused) is not null;
+
+        var modifiers = OperatorShortcutModifiers.None;
+        if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+        {
+            modifiers |= OperatorShortcutModifiers.Control;
+        }
+
+        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+        {
+            modifiers |= OperatorShortcutModifiers.Shift;
+        }
+
+        if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0)
+        {
+            modifiers |= OperatorShortcutModifiers.Alt;
+        }
+
+        if (Keyboard.IsKeyDown(Key.LWin) || Keyboard.IsKeyDown(Key.RWin))
+        {
+            modifiers |= OperatorShortcutModifiers.Windows;
+        }
+
+        var action = OperatorShortcutPolicy.Resolve(
+            ToOperatorShortcutKey(e.Key == Key.System ? e.SystemKey : e.Key),
+            modifiers, textEditing, nativeSpace, e.IsRepeat);
+        if (action == OperatorShortcutAction.None)
+        {
+            return;
+        }
+
+        // Mark handled only when a shortcut was actually performed. Disabled
+        // actions remain disabled through keyboard as they are through mouse.
+        if (ExecuteOperatorShortcut(action))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private static OperatorShortcutKey ToOperatorShortcutKey(Key key) => key switch
+    {
+        Key.Space => OperatorShortcutKey.Space,
+        Key.F1 => OperatorShortcutKey.F1,
+        Key.F5 => OperatorShortcutKey.F5,
+        Key.F6 => OperatorShortcutKey.F6,
+        Key.F7 => OperatorShortcutKey.F7,
+        Key.F8 => OperatorShortcutKey.F8,
+        Key.F9 => OperatorShortcutKey.F9,
+        Key.F11 => OperatorShortcutKey.F11,
+        Key.Left => OperatorShortcutKey.Left,
+        Key.Right => OperatorShortcutKey.Right,
+        Key.O => OperatorShortcutKey.O,
+        Key.S => OperatorShortcutKey.S,
+        Key.N => OperatorShortcutKey.N,
+        Key.F => OperatorShortcutKey.F,
+        Key.L => OperatorShortcutKey.L,
+        Key.M => OperatorShortcutKey.M,
+        _ => OperatorShortcutKey.None
+    };
+
+    private void KeyboardShortcutsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var help = new OperatorShortcutHelpWindow { Owner = this };
+        _ = help.ShowDialog();
+    }
+
+    private bool ExecuteOperatorShortcut(OperatorShortcutAction action)
+    {
+        if (action == OperatorShortcutAction.Help)
+        {
+            KeyboardShortcutsButton_OnClick(this, new RoutedEventArgs());
+            return true;
+        }
+
+        if (!_licensingAllowsAccess || _controlsBusy || _isClosing)
+        {
+            return false;
+        }
+
+        var click = new RoutedEventArgs(ButtonBase.ClickEvent);
+        switch (action)
+        {
+            case OperatorShortcutAction.PlayPause:
+                if (PauseButton.IsEnabled)
+                {
+                    PauseButton_OnClick(PauseButton, click);
+                    return true;
+                }
+
+                if (PlayButton.IsEnabled)
+                {
+                    PlayButton_OnClick(PlayButton, click);
+                    return true;
+                }
+
+                return false;
+            case OperatorShortcutAction.Play when PlayButton.IsEnabled:
+                PlayButton_OnClick(PlayButton, click);
+                return true;
+            case OperatorShortcutAction.Pause when PauseButton.IsEnabled:
+                PauseButton_OnClick(PauseButton, click);
+                return true;
+            case OperatorShortcutAction.Stop when StopButton.IsEnabled:
+                StopButton_OnClick(StopButton, click);
+                return true;
+            case OperatorShortcutAction.Previous when PreviousMediaButton.IsEnabled:
+                PreviousMediaButton_OnClick(PreviousMediaButton, click);
+                return true;
+            case OperatorShortcutAction.Next when NextMediaButton.IsEnabled:
+                NextMediaButton_OnClick(NextMediaButton, click);
+                return true;
+            case OperatorShortcutAction.SeekBackwardFiveSeconds when BackFiveButton.IsEnabled:
+                BackFiveButton_OnClick(BackFiveButton, click);
+                return true;
+            case OperatorShortcutAction.SeekForwardFiveSeconds when ForwardFiveButton.IsEnabled:
+                ForwardFiveButton_OnClick(ForwardFiveButton, click);
+                return true;
+            case OperatorShortcutAction.ToggleFullscreenPreview when FullscreenPreviewButton.IsEnabled:
+                FullscreenPreviewButton_OnClick(FullscreenPreviewButton, click);
+                return true;
+            case OperatorShortcutAction.OpenMedia when OpenButton.IsEnabled:
+                OpenButton_OnClick(OpenButton, click);
+                return true;
+            case OperatorShortcutAction.ImportFolder when !_folderImportActive:
+                AddFolderButton_OnClick(this, click);
+                return true;
+            case OperatorShortcutAction.SavePlaylist when !_folderImportActive:
+                SavePlaylistPresetButton_OnClick(this, click);
+                return true;
+            case OperatorShortcutAction.NewPlaylist when !_folderImportActive:
+                NewPlaylistButton_OnClick(this, click);
+                return true;
+            case OperatorShortcutAction.Search when MediaSearchBox.IsEnabled:
+                _ = MediaSearchBox.Focus();
+                MediaSearchBox.SelectAll();
+                return true;
+            case OperatorShortcutAction.FocusPlaylists when SavedPlaylistsList.IsEnabled:
+                _ = SavedPlaylistsList.Focus();
+                return true;
+            case OperatorShortcutAction.ToggleMute when MuteButton.IsEnabled:
+                MuteButton_OnClick(MuteButton, click);
+                return true;
+            default:
+                return false;
         }
     }
 
