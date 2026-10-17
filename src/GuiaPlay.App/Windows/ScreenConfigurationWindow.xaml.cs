@@ -358,7 +358,14 @@ public partial class ScreenConfigurationWindow : Window
         _shortcutEditors.Select(row => new OperatorShortcutAssignment(
             row.Action,
             ((ShortcutKeyChoice)row.Key.SelectedItem!).Key,
-            ((ShortcutModifierChoice)row.Modifiers.SelectedItem!).Modifiers)).ToArray();
+            ((ShortcutModifierChoice)row.Modifiers.SelectedItem!).Modifiers))
+            // Persist only deviations, so restoring defaults truly removes
+            // overrides and future default-key improvements can be adopted.
+            .Where(custom =>
+            {
+                var original = OperatorShortcutPolicy.Bindings.Single(b => b.Action == custom.Action);
+                return original.Key != custom.Key || original.Modifiers != custom.Modifiers;
+            }).ToArray();
 
     private void RestoreDefaultShortcutsButton_OnClick(object sender, RoutedEventArgs e)
     {
