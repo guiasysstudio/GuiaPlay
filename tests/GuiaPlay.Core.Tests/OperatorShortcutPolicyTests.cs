@@ -111,6 +111,27 @@ public sealed class OperatorShortcutPolicyTests
     }
 
     [Fact]
+    public void EditingTextNeverTriggersPlaybackEvenWhenF1IsCustomized()
+    {
+        OperatorShortcutAssignment[] custom =
+        [
+            new(OperatorShortcutAction.Play, OperatorShortcutKey.F1, OperatorShortcutModifiers.None),
+            new(OperatorShortcutAction.Help, OperatorShortcutKey.F6, OperatorShortcutModifiers.Control),
+            new(OperatorShortcutAction.Pause, OperatorShortcutKey.F6, OperatorShortcutModifiers.None)
+        ];
+        Assert.True(OperatorShortcutPolicy.TryValidateAssignments(custom, out _));
+        Assert.Equal(OperatorShortcutAction.None,
+            OperatorShortcutPolicy.Resolve(OperatorShortcutKey.F1, OperatorShortcutModifiers.None,
+                true, false, false, custom));
+        Assert.Equal(OperatorShortcutAction.Help,
+            OperatorShortcutPolicy.Resolve(OperatorShortcutKey.F6, OperatorShortcutModifiers.Control,
+                true, false, false, custom));
+        Assert.Equal(OperatorShortcutAction.Play,
+            OperatorShortcutPolicy.Resolve(OperatorShortcutKey.F1, OperatorShortcutModifiers.None,
+                false, false, false, custom));
+    }
+
+    [Fact]
     public void CustomBindingsReplaceOldDefaultsWithoutAddingHiddenDuplicates()
     {
         OperatorShortcutAssignment[] customized =
