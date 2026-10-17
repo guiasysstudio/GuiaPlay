@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>GuiaPlay — estudo isolado do YouTube IFrame Player</title>
+  <title>GuiaPlay — YouTube (saída pública)</title>
   <style>
     html, body { margin: 0; width: 100%; height: 100%; background: #101820; color: #fff;
                  font: 13px/1.35 system-ui, sans-serif; }
@@ -13,16 +13,18 @@
   </style>
 </head>
 <body>
-  <!-- GP-I08: isolated integration spike, deliberately NOT wired into GUI.
-       The actual YouTube iframe is visible. No frame capture, stream extraction,
-       hidden audio player, iframe-overlay or suppression of official controls. -->
+  <!-- Official, visible YouTube IFrame Player. Single public output only.
+       Never hide ads/branding or extract/re-stream/capture video frames. -->
   <div id="player"></div>
   <div id="unavailable" role="alert"></div>
   <script>
     "use strict";
 
     const bridge = window.chrome?.webview;
-    const videoId = new URL(location.href).searchParams.get("videoId") || "";
+    const params = new URL(location.href).searchParams;
+    const videoId = params.get("videoId") || "";
+    // Adding a link never loads this page; only an explicit Play action does.
+    const autoplayRequested = params.get("autoplay") === "1";
     const validId = /^[A-Za-z0-9_-]{11}$/.test(videoId);
     let player = null;
     let ready = false;
@@ -72,14 +74,20 @@
         playerVars: {
           controls: 1,
           playsinline: 1,
+          autoplay: autoplayRequested ? 1 : 0,
           origin: location.origin
-          // Do not autoplay, mask YouTube branding or disable advertising.
+          // Preserve the actual player and comply with browser autoplay policy.
         },
         events: {
-          onReady() {
+          onReady(event) {
             ready = true;
             send("ready");
             poll();
+            // Auto-start refers only to the video the operator explicitly
+            // started via GuiaPlay Play; browsers may still block sound autoplay.
+            if (autoplayRequested) {
+              event.target.playVideo();
+            }
           },
           onStateChange(event) {
             send("state", { state: event.data });
