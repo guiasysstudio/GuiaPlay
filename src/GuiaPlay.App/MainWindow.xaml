@@ -15,6 +15,12 @@
                             CornerRadius="0" UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
     <Window.Resources>
+        <Geometry x:Key="GPSave">M840-680v480q0 33-23.5 56.5T760-120H200q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h480l160 160Zm-80 34L646-760H200v560h560v-446ZM565-275q35-35 35-85t-35-85q-35-35-85-35t-85 35q-35 35-35 85t35 85q35 35 85 35t85-35ZM240-560h360v-160H240v160Zm-40-86v446-560 114Z</Geometry>
+        <Geometry x:Key="GPTrash">M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z</Geometry>
+        <Geometry x:Key="GPArrowUp">m296-224-56-56 240-240 240 240-56 56-184-183-184 183Zm0-240-56-56 240-240 240 240-56 56-184-183-184 183Z</Geometry>
+        <Geometry x:Key="GPArrowDown">M480-200 240-440l56-56 184 183 184-183 56 56-240 240Zm0-240L240-680l56-56 184 183 184-183 56 56-240 240Z</Geometry>
+        <Geometry x:Key="GPFolder">M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z</Geometry>
+        <Geometry x:Key="GPFolderOpen">M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640H447l-80-80H160v480l96-320h684L837-217q-8 26-29.5 41.5T760-160H160Zm84-80h516l72-240H316l-72 240Zm0 0 72-240-72 240Zm-84-400v-80 80Z</Geometry>
         <Geometry x:Key="GPSkipPrevious">M220-240v-480h80v480h-80Zm520 0L380-480l360-240v480Zm-80-240Zm0 90v-180l-136 90 136 90Z</Geometry>
         <Geometry x:Key="GPSkipNext">M660-240v-480h80v480h-80Zm-440 0v-480l360 240-360 240Zm80-240Zm0 90 136-90-136-90v180Z</Geometry>
         <Geometry x:Key="GPBackFive">M339.5-108.5q-65.5-28.5-114-77t-77-114Q120-365 120-440h80q0 117 81.5 198.5T480-160q117 0 198.5-81.5T760-440q0-117-81.5-198.5T480-720h-6l62 62-56 58-160-160 160-160 56 58-62 62h6q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-440q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-80q-75 0-140.5-28.5ZM380-320v-60h120v-40H380v-140h180v60H440v40h80q17 0 28.5 11.5T560-420v60q0 17-11.5 28.5T520-320H380Z</Geometry>
@@ -477,7 +483,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path Data="{StaticResource FolderOpenIconGeometry}" Width="17" Height="17"
+                                <Path Data="{StaticResource GPFolderOpen}" Width="17" Height="17"
                                       Stretch="Uniform" Fill="{DynamicResource GuiaPlayAccentBrush}"
                                       VerticalAlignment="Center" />
                                 <TextBlock Text="PLAYLISTS" FontSize="14" FontWeight="SemiBold"
@@ -507,7 +513,7 @@
                                                 <ColumnDefinition Width="20" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <Path Data="{StaticResource FolderOpenIconGeometry}"
+                                            <Path Data="{StaticResource GPPlaylist}"
                                                   Fill="{DynamicResource GuiaPlayAccentBrush}"
                                                   Width="16" Height="16" Stretch="Uniform"
                                                   VerticalAlignment="Center" />
@@ -518,7 +524,7 @@
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                               FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                               FontSize="14" TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Grid.Column="1" Text="{Binding ActiveLabel}"
                                                                Margin="3,0,0,0" FontSize="9"
                                                                Foreground="{DynamicResource GuiaPlayAccentBrush}" />
@@ -762,8 +768,8 @@
                  matching the approved horizontal layout instead of being squeezed
                  into the operator preview card. Backed by real playlist data. -->
                     <!-- GP-I03: playback-order grid linked to the existing playlist catalog. -->
-                    <Border Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="3" Margin="0,12,0,0" CornerRadius="8" BorderThickness="1"
-                            Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                    <Border Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="3" Margin="0,12,0,0" CornerRadius="9" BorderThickness="1"
+                            Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}"
                             BorderBrush="{DynamicResource GuiaPlayDividerBrush}" Padding="7">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -788,43 +794,43 @@
                                         ToolTip="Adicionar arquivo, pasta completa ou link do YouTube"
                                         AutomationProperties.Name="Adicionar mídias">
                                     <StackPanel Orientation="Horizontal">
-                                        <Path Data="{StaticResource DocumentAddIconGeometry}"
+                                        <Path Data="{StaticResource GPPlus}"
                                               Style="{StaticResource ButtonIconStyle}" />
-                                        <TextBlock Text="Adicionar ▾" VerticalAlignment="Center" />
+                                        <TextBlock Text="Adicionar  ⌄" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <Button Grid.Column="1" Content="Nova Playlist" Margin="0,0,6,0"
+                                <Button <Button Grid.Column="1" Margin="0,0,6,0"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Criar uma playlist vazia"
-                                        Click="NewPlaylistButton_OnClick" />
-                                <Button Grid.Column="2" Content="Salvar" Margin="0,0,6,0"
+                                        Click="NewPlaylistButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPPlaylist}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="Nova Playlist" VerticalAlignment="Center"/></StackPanel></Button>
+                                <Button <Button Grid.Column="2" Margin="0,0,6,0"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Salvar a playlist"
-                                        Click="SavePlaylistPresetButton_OnClick" />
-                                <Button Grid.Column="3" x:Name="MediaRemoveSelectedButton"
-                                        Content="Remover" Margin="0,0,6,0" IsEnabled="False"
+                                        Click="SavePlaylistPresetButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPSave}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="Salvar" VerticalAlignment="Center"/></StackPanel></Button>
+                                <Button <Button Grid.Column="3" x:Name="MediaRemoveSelectedButton"
+                                        Margin="0,0,6,0" IsEnabled="False"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Remover da lista a mídia selecionada na tabela sem excluir o arquivo"
-                                        Click="RemoveSelectedMediaButton_OnClick" />
-                                <Button x:Name="MediaMoveUpButton" Grid.Column="4" Content="↑"
+                                        Click="RemoveSelectedMediaButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPTrash}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="Remover" VerticalAlignment="Center"/></StackPanel></Button>
+                                <Button <Button x:Name="MediaMoveUpButton" Grid.Column="4"
                                         IsEnabled="False" MinWidth="31" Margin="0,0,4,0"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Mover a mídia selecionada para cima"
                                         AutomationProperties.Name="Subir mídia"
-                                        Click="MediaMoveUpButton_OnClick" />
-                                <Button x:Name="MediaMoveDownButton" Grid.Column="5" Content="↓"
+                                        Click="MediaMoveUpButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPArrowUp}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="" VerticalAlignment="Center"/></StackPanel></Button>
+                                <Button <Button x:Name="MediaMoveDownButton" Grid.Column="5"
                                         IsEnabled="False" MinWidth="31"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Mover a mídia selecionada para baixo"
                                         AutomationProperties.Name="Descer mídia"
-                                        Click="MediaMoveDownButton_OnClick" />
+                                        Click="MediaMoveDownButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPArrowDown}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="" VerticalAlignment="Center"/></StackPanel></Button>
                                 <TextBlock x:Name="MediaGridCountText" Grid.Column="6"
                                            VerticalAlignment="Center" HorizontalAlignment="Right"
                                            Text="0 mídias" Margin="5,0,9,0" FontSize="11"
                                            Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
                                 <TextBox x:Name="MediaSearchBox" Grid.Column="7"
                                          VerticalContentAlignment="Center" Margin="0,0,5,0"
-                                         Height="32" MinWidth="120"
+                                         Height="40" MinWidth="160"
                                          TextChanged="MediaSearchBox_OnTextChanged"
                                          ToolTip="Buscar mídia por nome, grupo ou caminho (Ctrl + F)"
                                          AutomationProperties.Name="Buscar na playlist" />
