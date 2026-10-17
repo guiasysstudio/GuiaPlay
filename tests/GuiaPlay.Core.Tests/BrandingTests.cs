@@ -595,6 +595,55 @@ public sealed class BrandingTests
     }
 
     [Fact]
+    public void GP_I24_KeyboardCustomizationLivesInSettingsAndAudioCardOpensSelector()
+    {
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var mainCode = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+        var settings = XDocument.Load(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
+        var settingsCode = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml.cs"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+        Assert.DoesNotContain("ToolTip=\"Atalhos (F1)\"", main, StringComparison.Ordinal);
+        Assert.Contains(settings.Descendants(), e =>
+            (string?)e.Attribute(x + "Name") == "ShortcutsTab");
+        Assert.Contains(settings.Descendants(), e =>
+            (string?)e.Attribute(x + "Name") == "ShortcutsNavigationButton");
+        Assert.Contains(settings.Descendants(), e =>
+            (string?)e.Attribute("Click") == "RestoreDefaultShortcutsButton_OnClick");
+        Assert.Contains("OperatorShortcutPolicy.TryValidateAssignments", settingsCode, StringComparison.Ordinal);
+        Assert.Contains("ShortcutAssignments = result.ShortcutAssignments", mainCode, StringComparison.Ordinal);
+        Assert.Contains("Settings.ShortcutAssignments", mainCode, StringComparison.Ordinal);
+
+        Assert.Contains("x:Name=\"ChangeAudioOutputButton\"", main, StringComparison.Ordinal);
+        Assert.Contains("PlacementTarget = ChangeAudioOutputButton", mainCode, StringComparison.Ordinal);
+        Assert.Contains("AudioOutput = choice.Output", mainCode, StringComparison.Ordinal);
+        Assert.Contains("AudioOutputCombo", settingsCode, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GP_I25_NamedPlaylistOwnsFoldersMediaAndAllThreePanelsScroll()
+    {
+        var xaml = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var library = xaml.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "SavedPlaylistsList");
+        var tree = xaml.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "PlaylistTree");
+        var grid = xaml.Descendants().Single(e => (string?)e.Attribute(x + "Name") == "MediaGrid");
+        Assert.Equal("Auto", (string?)library.Attribute("ScrollViewer.VerticalScrollBarVisibility"));
+        Assert.Equal("Auto", (string?)tree.Attribute("ScrollViewer.VerticalScrollBarVisibility"));
+        Assert.Equal("Auto", (string?)grid.Attribute("VerticalScrollBarVisibility"));
+        Assert.Equal("SavedPlaylistsList_OnPreviewMouseLeftButtonUp",
+            (string?)library.Attribute("PreviewMouseLeftButtonUp"));
+        Assert.Contains("new TextPromptWindow(\"Nova playlist\"", code, StringComparison.Ordinal);
+        Assert.Contains("_playlistPresetStore.Save(prompt.Value, PlaylistDocument.Empty)", code, StringComparison.Ordinal);
+        Assert.Contains("if (!HasNamedPlaylist()) return;", code, StringComparison.Ordinal);
+        Assert.Contains("SaveActivePlaylistPreset();", code, StringComparison.Ordinal);
+        Assert.Contains("TryLoadPlaylistPreset(selected.Id)", code, StringComparison.Ordinal);
+        Assert.Contains("MediaGridFilter", code, StringComparison.Ordinal);
+        Assert.Contains("IgnoreNonSpace", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GP_I23_GridSeparatesRealMediaPreviewFromFilenameWithoutClipping()
     {
         var xaml = XDocument.Load(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
