@@ -2080,6 +2080,11 @@ public partial class MainWindow : Window
         OperatorIndicatorText.Text = state.Text;
         OperatorPanelText.Text = state.Text;
         OperatorPanelText.ToolTip = state.Text;
+        OperatorStatusText.Text = _operatorMonitor is null
+            ? "Nenhuma tela do operador conectada. Abra Monitores para configurar."
+            : _operatorRequiresConfiguration
+                ? "Tela provisória: configure e salve o operador antes de enviar vídeo ao público."
+                : "Esta tela é exclusiva do operador e não pode ser selecionada como saída pública.";
         OperatorIndicatorBorder.ToolTip = state.IsWarning
             ? "A tela do operador salva está desconectada ou precisa ser configurada. Abra Configurações."
             : "Tela configurada como operador";
