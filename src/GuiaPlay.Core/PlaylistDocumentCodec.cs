@@ -213,17 +213,6 @@ internal static class PlaylistDocumentCodec
             return false;
         }
 
-        string fullPath;
-        try
-        {
-            fullPath = Path.GetFullPath(originalPath);
-        }
-        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            reason = "o caminho original é inválido.";
-            return false;
-        }
-
         var kind = MediaKind.Unknown;
         if (TryGetProperty(element, "kind", out var kindElement))
         {
@@ -242,6 +231,19 @@ internal static class PlaylistDocumentCodec
                 reason = "o tipo de mídia é inválido.";
                 return false;
             }
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = kind == MediaKind.YouTube
+                ? CanonicalYouTubePath(originalPath)
+                : Path.GetFullPath(originalPath);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            reason = "o caminho ou link da mídia é inválido.";
+            return false;
         }
 
         if (kind == MediaKind.Unknown)
