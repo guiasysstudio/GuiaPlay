@@ -2754,10 +2754,13 @@ public partial class MainWindow : Window
         await OpenSettingsAsync(openUpdates: false, openLicense: false);
 
     private async void HeaderMonitorsButton_OnClick(object sender, RoutedEventArgs e) =>
-        await OpenSettingsAsync(openUpdates: false, openLicense: false);
+        await OpenSettingsAsync(openUpdates: false, openLicense: false, openMonitors: true);
 
-    private async void HeaderAboutButton_OnClick(object sender, RoutedEventArgs e) =>
-        await OpenSettingsAsync(openUpdates: false, openLicense: false, openAbout: true);
+    private void HeaderAboutButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new AboutWindow { Owner = this };
+        _ = dialog.ShowDialog();
+    }
 
     private async void ChangeAudioOutputButton_OnClick(object sender, RoutedEventArgs e) =>
         await OpenSettingsAsync(openUpdates: false, openLicense: false, openAudio: true);
@@ -2775,7 +2778,8 @@ public partial class MainWindow : Window
         OpenSettingsAsync(openUpdates: false, openLicense: true);
 
     private async Task OpenSettingsAsync(
-        bool openUpdates, bool openLicense, bool openAbout = false, bool openAudio = false)
+        bool openUpdates, bool openLicense, bool openAbout = false, bool openAudio = false,
+        bool openMonitors = false)
     {
         var app = Application.Current as App;
         if (app is not
@@ -2817,7 +2821,8 @@ public partial class MainWindow : Window
             playbackActive,
             _operatorRecoverySettingsAllowed,
             openAbout,
-            openAudio)
+            openAudio,
+            openMonitors)
         { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Result is not { } result)
         {
