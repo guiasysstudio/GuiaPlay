@@ -21,7 +21,12 @@ internal sealed class PlaylistItemNode(Guid groupId, PlaylistItem item) : INotif
     public Guid GroupId { get; } = groupId;
     public PlaylistItem Item { get; } = item;
     public string Name => Item.DisplayName;
-    public string KindLabel => Item.Kind == MediaKind.Audio ? "Áudio" : "Vídeo";
+    public string KindLabel => Item.Kind switch
+    {
+        MediaKind.Audio => "Áudio",
+        MediaKind.YouTube => "YouTube",
+        _ => "Vídeo"
+    };
     public bool IsAvailable => _availability is PlaylistItemAvailability.Unknown or PlaylistItemAvailability.Available;
     public string AvailabilityLabel => _availability switch
     {
