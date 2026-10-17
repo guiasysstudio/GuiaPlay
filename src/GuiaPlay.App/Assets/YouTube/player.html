@@ -25,6 +25,7 @@
     const videoId = params.get("videoId") || "";
     // Adding a link never loads this page; only an explicit Play action does.
     const autoplayRequested = params.get("autoplay") === "1";
+    const initiallyMuted = params.get("muted") === "1";
     const validId = /^[A-Za-z0-9_-]{11}$/.test(videoId);
     let player = null;
     let ready = false;
@@ -81,13 +82,14 @@
         events: {
           onReady(event) {
             ready = true;
+            // Secondary screen audio stays muted for the whole session.
+            // Main output preserves user volume/mute setting in GuiaPlay.
+            if (initiallyMuted) event.target.mute();
             send("ready");
             poll();
-            // Auto-start refers only to the video the operator explicitly
-            // started via GuiaPlay Play; browsers may still block sound autoplay.
-            if (autoplayRequested) {
-              event.target.playVideo();
-            }
+            // Play only because the operator explicitly pressed GuiaPlay Play.
+            // The embedded browser can still block sound autoplay.
+            if (autoplayRequested) event.target.playVideo();
           },
           onStateChange(event) {
             send("state", { state: event.data });
@@ -139,7 +141,7 @@
           player.mute();
           break;
         case "unmute":
-          player.unMute();
+          if (!initiallyMuted) player.unMute();
           break;
         case "status":
           poll();
