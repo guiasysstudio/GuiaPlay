@@ -86,8 +86,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Title = $"GuiaPlay {ProductInfo.Version}";
+        VersionHeaderText.Text = $"v{ProductInfo.Version}";
         _renderFrameCallback = RenderLatestFrame;
         OutputsList.ItemsSource = _outputChoices;
+        SidebarOutputsList.ItemsSource = _outputChoices;
         PlaylistTree.ItemsSource = _playlistGroups;
         var app = Application.Current as App;
         var settings = app?.Settings ?? AppSettings.Default;
@@ -1026,6 +1028,35 @@ public partial class MainWindow : Window
         }
     }
 
+    // GP-I01: every navigation control has a live destination, never a decorative placeholder.
+    private void HeaderPlaylistButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess)
+        {
+            return;
+        }
+
+        _ = PlaylistTree.Focus();
+        StatusText.Text = "Playlist de trabalho selecionada.";
+    }
+
+    private void HeaderMediaButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_licensingAllowsAccess && !_controlsBusy)
+        {
+            OpenButton_OnClick(sender, e);
+        }
+    }
+
+    private async void HeaderSettingsButton_OnClick(object sender, RoutedEventArgs e) =>
+        await OpenSettingsAsync(openUpdates: false, openLicense: false);
+
+    private async void HeaderMonitorsButton_OnClick(object sender, RoutedEventArgs e) =>
+        await OpenSettingsAsync(openUpdates: false, openLicense: false);
+
+    private async void HeaderAboutButton_OnClick(object sender, RoutedEventArgs e) =>
+        await OpenSettingsAsync(openUpdates: false, openLicense: false, openAbout: true);
+
     private async void ConfigureScreensButton_OnClick(object sender, RoutedEventArgs e) =>
         await OpenSettingsAsync(openUpdates: false, openLicense: false);
 
@@ -1038,7 +1069,7 @@ public partial class MainWindow : Window
     internal Task OpenLicenseSettingsAsync() =>
         OpenSettingsAsync(openUpdates: false, openLicense: true);
 
-    private async Task OpenSettingsAsync(bool openUpdates, bool openLicense)
+    private async Task OpenSettingsAsync(bool openUpdates, bool openLicense, bool openAbout = false)
     {
         var app = Application.Current as App;
         if (app is not
@@ -1066,7 +1097,8 @@ public partial class MainWindow : Window
             openUpdates,
             openLicense,
             _coordinator.IsActive,
-            _operatorRecoverySettingsAllowed)
+            _operatorRecoverySettingsAllowed,
+            openAbout)
         { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Result is not { } result)
         {
@@ -2055,6 +2087,8 @@ public partial class MainWindow : Window
     {
         _controlsBusy = busy;
         OpenButton.IsEnabled = !busy && _licensingAllowsAccess;
+        HeaderMediaButton.IsEnabled = !busy && _licensingAllowsAccess;
+        HeaderPlaylistButton.IsEnabled = !busy && _licensingAllowsAccess;
         SetConfigurationControlsEnabled(!busy && !_coordinator.IsActive);
         RefreshPlaybackControls();
     }
@@ -2125,6 +2159,8 @@ public partial class MainWindow : Window
         }
 
         OpenButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
+        HeaderMediaButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
+        HeaderPlaylistButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
         RefreshPlaybackControls();
     }
 
