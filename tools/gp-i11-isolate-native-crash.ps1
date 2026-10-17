@@ -94,8 +94,8 @@ function Run-Case([string]$name, [string[]]$disabled) {
         } -ErrorAction Stop | Where-Object { $_.Message -match 'GuiaPlay.exe' } |
             Sort-Object TimeCreated -Descending | Select-Object -First 3)
         foreach ($event in $events) {
-            $module = [regex]::Match($event.Message, '(?im)^(?:Nome do modulo com falha|Faulting module name):\s*([^,\r\n]+)').Groups[1].Value
-            $exception = [regex]::Match($event.Message, '(?im)(?:codigo de excecao|exception code):\s*(0x)?([0-9a-f]{8})').Groups[2].Value
+            $module = [regex]::Match($event.Message, '(?im)^(?:Nome do m.dulo com falha|Faulting module name):\s*([^,\r\n]+)').Groups[1].Value
+            $exception = [regex]::Match($event.Message, '(?im)(?:C.digo de exce..o|exception code):\s*(0x)?([0-9a-f]{8})').Groups[2].Value
             Add-Result ("WER: event={0} module={1} exception={2}" -f $event.Id, $module, $exception)
         }
     } catch { Add-Result ('WER read: ' + $_.Exception.Message) }
