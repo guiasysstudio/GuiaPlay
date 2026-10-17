@@ -1818,6 +1818,9 @@ public partial class MainWindow : Window
     private async void HeaderAboutButton_OnClick(object sender, RoutedEventArgs e) =>
         await OpenSettingsAsync(openUpdates: false, openLicense: false, openAbout: true);
 
+    private async void ChangeAudioOutputButton_OnClick(object sender, RoutedEventArgs e) =>
+        await OpenSettingsAsync(openUpdates: false, openLicense: false, openAudio: true);
+
     private async void ConfigureScreensButton_OnClick(object sender, RoutedEventArgs e) =>
         await OpenSettingsAsync(openUpdates: false, openLicense: false);
 
@@ -1830,7 +1833,8 @@ public partial class MainWindow : Window
     internal Task OpenLicenseSettingsAsync() =>
         OpenSettingsAsync(openUpdates: false, openLicense: true);
 
-    private async Task OpenSettingsAsync(bool openUpdates, bool openLicense, bool openAbout = false)
+    private async Task OpenSettingsAsync(
+        bool openUpdates, bool openLicense, bool openAbout = false, bool openAudio = false)
     {
         var app = Application.Current as App;
         if (app is not
@@ -1859,11 +1863,13 @@ public partial class MainWindow : Window
             openLicense,
             _coordinator.IsActive,
             _operatorRecoverySettingsAllowed,
-            openAbout)
+            openAbout,
+            openAudio)
         { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Result is not { } result)
         {
             ApplyLicensingState(licensing.Current);
+            RefreshAudioPanel();
             StatusText.Text = openLicense
                 ? licensing.Current.Message ?? (licensing.Current.HasAccess ? "Estado da licença atualizado." : "Ativação necessária para usar o GuiaPlay.")
                 : "Configurações fechadas; nenhuma preferência pendente foi salva.";
@@ -1889,6 +1895,7 @@ public partial class MainWindow : Window
             app.ApplyAppearance(result.Appearance, result.AccentColor, persist: false);
             await _engine.ApplyEqualizerAsync(result.Equalizer);
             StatusText.Text = "Aparência, equalizador e atualizações salvos; reprodução preservada.";
+            RefreshAudioPanel();
             return;
         }
 
@@ -1985,6 +1992,8 @@ public partial class MainWindow : Window
         StatusText.Text = _audioPreferenceAvailable || recoveringOperatorDuringPlayback
             ? "Configurações salvas e aplicadas."
             : "Configurações salvas; a preferência de áudio indisponível foi preservada sem fallback.";
+        RefreshAudioPanel();
+        RefreshStageDashboard();
     }
 
     private void UpdateManager_OnStateChanged(object? sender, EventArgs e) => Dispatch(RefreshUpdateIndicator);
@@ -2068,6 +2077,8 @@ public partial class MainWindow : Window
             savedOperatorConnected,
             _operatorRequiresConfiguration);
         OperatorIndicatorText.Text = state.Text;
+        OperatorPanelText.Text = state.Text;
+        OperatorPanelText.ToolTip = state.Text;
         OperatorIndicatorBorder.ToolTip = state.IsWarning
             ? "A tela do operador salva está desconectada ou precisa ser configurada. Abra Configurações."
             : "Tela configurada como operador";
