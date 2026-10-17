@@ -28,14 +28,16 @@ internal static class PlaylistDocumentCodec
                     .OrderBy(item => item.Order)
                     .Select((item, itemOrder) =>
                     {
-                        var fullPath = Path.GetFullPath(item.OriginalPath);
+                        var fullPath = item.Kind == MediaKind.YouTube
+                            ? CanonicalYouTubePath(item.OriginalPath)
+                            : Path.GetFullPath(item.OriginalPath);
                         var kind = item.Kind == MediaKind.Unknown
                             ? MediaTypeDetector.Detect(fullPath)
                             : item.Kind;
                         return item with
                         {
                             DisplayName = string.IsNullOrWhiteSpace(item.DisplayName)
-                                ? Path.GetFileName(fullPath)
+                                ? item.Kind == MediaKind.YouTube ? "YouTube" : Path.GetFileName(fullPath)
                                 : item.DisplayName.Trim(),
                             OriginalPath = fullPath,
                             Kind = kind,
@@ -45,6 +47,16 @@ internal static class PlaylistDocumentCodec
                     .ToArray()))
             .ToArray();
         return new PlaylistDocument(PlaylistDocument.CurrentSchemaVersion, groups);
+    }
+
+    private static string CanonicalYouTubePath(string value)
+    {
+        if (!YouTubeVideoReferenceParser.TryParse(value, out var reference))
+        {
+            throw new ArgumentException("O link do YouTube é inválido.", nameof(value));
+        }
+
+        return reference!.WatchUri.AbsoluteUri;
     }
 
     public static PlaylistDocumentReadResult Read(string json)
