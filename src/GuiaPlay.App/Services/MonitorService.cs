@@ -3,6 +3,8 @@ using GuiaPlay.App.Models;
 
 namespace GuiaPlay.App.Services;
 
+internal sealed record ActiveDisplayCloneGroup(string SourceDeviceName, int PhysicalScreenCount);
+
 internal static class MonitorService
 {
     private const uint MonitorInfoPrimary = 0x00000001;
@@ -85,6 +87,87 @@ internal static class MonitorService
             .ThenBy(monitor => monitor.Top)
             .Select((monitor, index) => monitor with { Number = index + 1 })
             .ToArray();
+    }
+
+    /// <summary>
+    /// Read-only detection of physical outputs that already share one Windows
+    /// desktop source. Never calls SetDisplayConfig or modifies a display.
+    /// The Windows UI enumerates clone groups as one logical monitor.
+    /// </summary>
+    public static IReadOnlyList<ActiveDisplayCloneGroup> GetActiveCloneGroups()
+    {
+        if (DevelopmentDiagnostics.SkipDisplayConfig)
+        {
+            return [];
+        }
+
+        try
+        {
+            for (var attempt = 0; attempt < 3; attempt++)
+            {
+                var error = GetDisplayConfigBufferSizes(QueryOnlyActivePaths,
+                    out var pathCount, out var modeCount);
+                if (error != ErrorSuccess)
+                {
+                    FileLogger.Info($"GP-YT05: QueryDisplayConfig buffer error={error}");
+                    return [];
+                }
+
+                var paths = new DisplayConfigPathInfo[pathCount];
+                var modes = new DisplayConfigModeInfo[modeCount];
+                error = QueryDisplayConfig(QueryOnlyActivePaths,
+                    ref pathCount, paths, ref modeCount, modes, nint.Zero);
+                if (error == ErrorInsufficientBuffer)
+                {
+                    continue;
+                }
+
+                if (error != ErrorSuccess)
+                {
+                    FileLogger.Info($"GP-YT05: QueryDisplayConfig active paths error={error}");
+                    return [];
+                }
+
+                return paths.Take((int)pathCount)
+                    .Where(path => path.TargetInfo.TargetAvailable && (path.Flags & 1u) != 0)
+                    .GroupBy(path => (path.SourceInfo.AdapterId.LowPart,
+                        path.SourceInfo.AdapterId.HighPart, path.SourceInfo.Id))
+                    .Where(group => group.Select(path =>
+                        (path.TargetInfo.AdapterId.LowPart,
+                         path.TargetInfo.AdapterId.HighPart,
+                         path.TargetInfo.Id)).Distinct().Count() > 1)
+                    .Select(group =>
+                    {
+                        var sourceName = new DisplayConfigSourceDeviceName
+                        {
+                            Header = new DisplayConfigDeviceInfoHeader
+                            {
+                                Type = 1,
+                                Size = (uint)Marshal.SizeOf<DisplayConfigSourceDeviceName>(),
+                                AdapterId = group.First().SourceInfo.AdapterId,
+                                Id = group.First().SourceInfo.Id
+                            }
+                        };
+                        var name = DisplayConfigGetDeviceInfo(ref sourceName) == ErrorSuccess
+                            ? sourceName.ViewGdiDeviceName
+                            : string.Empty;
+                        return new ActiveDisplayCloneGroup(name,
+                            group.Select(path =>
+                                (path.TargetInfo.AdapterId.LowPart,
+                                 path.TargetInfo.AdapterId.HighPart,
+                                 path.TargetInfo.Id)).Distinct().Count());
+                    })
+                    .Where(group => !string.IsNullOrWhiteSpace(group.SourceDeviceName))
+                    .ToArray();
+            }
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or
+            EntryPointNotFoundException or InvalidOperationException)
+        {
+            FileLogger.Error("GP-YT05: consulta somente leitura da topologia falhou.", exception);
+        }
+
+        return [];
     }
 
     private static Dictionary<string, IReadOnlyList<PersistentIdentity>> GetPersistentIdentities()
