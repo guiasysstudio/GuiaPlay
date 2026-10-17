@@ -446,6 +446,55 @@ public partial class MainWindow : Window
         return false;
     }
 
+    private void FolderAddMenuButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || !HasNamedPlaylist()) return;
+        var menu = new ContextMenu
+        {
+            PlacementTarget = FolderAddMenuButton,
+            Placement = PlacementMode.Bottom
+        };
+        var virtualFolder = new MenuItem { Header = "Criar pasta virtual…" };
+        virtualFolder.Click += NewGroupButton_OnClick;
+        var windowsFolder = new MenuItem { Header = "Vincular pasta do Windows…" };
+        windowsFolder.Click += LinkWindowsFolderButton_OnClick;
+        menu.Items.Add(virtualFolder);
+        menu.Items.Add(windowsFolder);
+        menu.IsOpen = true;
+    }
+
+    private async void LinkWindowsFolderButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || !HasNamedPlaylist()) return;
+        var picker = new OpenFolderDialog
+        {
+            Title = "Vincular uma pasta existente do Windows",
+            Multiselect = false
+        };
+        if (picker.ShowDialog(this) != true) return;
+        try
+        {
+            var snapshot = _playlistCatalog.Snapshot;
+            var alreadyLinked = snapshot.Groups.Any(group =>
+                string.Equals(group.SourceDirectory, Path.GetFullPath(picker.FolderName),
+                    StringComparison.OrdinalIgnoreCase));
+            if (!alreadyLinked)
+            {
+                _playlistCatalog.CreateLinkedGroup(picker.FolderName);
+                SavePlaylistAndRefresh("Pasta do Windows vinculada; nenhum arquivo foi copiado.");
+            }
+            // The scanner is bounded, read-only, cancellable, ignores junctions,
+            // and stores references to the existing files rather than copies.
+            await ImportFolderAsync(picker.FolderName);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+            ArgumentException or NotSupportedException)
+        {
+            FileLogger.Error("Não foi possível vincular a pasta selecionada.", exception);
+            StatusText.Text = "Não foi possível vincular a pasta: " + exception.Message;
+        }
+    }
+
     private void NewGroupButton_OnClick(object sender, RoutedEventArgs e)
     {
         if (!_licensingAllowsAccess || _controlsBusy || !HasNamedPlaylist()) return;
