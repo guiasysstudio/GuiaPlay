@@ -1199,6 +1199,7 @@ public partial class MainWindow : Window
 
             _loadedPlaylistItemId = node.Item.Id;
             _loadedPlaylistRevision = _playlistRevision;
+            RefreshAudioPanel();
             _bitmap = null;
             PreviewImage.Source = null;
             ProgramImage.Source = null;
