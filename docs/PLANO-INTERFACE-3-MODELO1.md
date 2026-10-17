@@ -44,7 +44,7 @@ Reconstruir o espaço de trabalho do operador segundo o **Modelo 1 aprovado**: c
 | **GP-I07** | Atalhos do operador | **Implementado no código:** 17 atalhos locais e documentados, ajuda F1 e menu Atalhos, proteção de foco/edição, repetição de teclas e modificadores de sistema, reutilizando comandos reais. Testes xUnit escritos; execução em GP-I10. |
 | **GP-I08** | YouTube — viabilidade técnica | **Parecer concluído:** GO **condicionado** ao player IFrame oficial único e visível, controle via WebView2; **NO-GO** para espelho WPF de quadros/múltiplas saídas sincronizadas sem prova e autorização. Parser, política de requisitos, HTML isolado e testes escritos. Ver `RELATORIO-GP-I08.md`. |
 | **GP-I09** | YouTube — integração funcional | **Código implementado na branch experimental:** Adicionar link, schema v2 com backup da v1, um player oficial WebView2 em tela pública, comandos e telemetria. Sem prévia YouTube em vídeo no operador nem sincronismo entre projetores; testes e aceite comercial pendentes. Ver `RELATORIO-GP-I09.md`. |
-| **GP-I10** | Qualidade e aceite local | Refinar fidelidade ao Modelo 1, testes automatizados, build Debug/Release, smoke no VS Code e matriz x86/x64/DPI/monitores, sem instalador. |
+| **GP-I10** | Qualidade e aceite local | **Código e gate automatizado concluídos:** 427/427 testes em Debug e Release (854/854 execuções), 0 erros/warnings de build, pastas smoke win-x64/win-x86 com HTML do player verificadas no Windows CI. Matriz física e script PowerShell preparados, **smoke humano e autorização de Release ainda pendentes**. Ver `RELATORIO-GP-I10.md` e `ACEITE-GP-I10.md`. |
 
 O **controle remoto Android/LAN** é projeto futuro separado, após conclusão e validação de todos os itens acima.
 
