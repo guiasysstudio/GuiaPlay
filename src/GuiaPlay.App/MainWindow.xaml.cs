@@ -4003,6 +4003,12 @@ public partial class MainWindow : Window
 
     private nint WindowMessageHook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
+        if (message == WindowWorkAreaMaximizer.WmGetMinMaxInfo)
+        {
+            handled = WindowWorkAreaMaximizer.Apply(hwnd, lParam);
+            return nint.Zero;
+        }
+
         if (message == WmDisplayChange)
         {
             if (!_displayChangeDebouncer.TryAccept())
