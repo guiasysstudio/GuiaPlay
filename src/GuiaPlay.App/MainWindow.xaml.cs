@@ -62,6 +62,13 @@ public partial class MainWindow : Window
     private long _frameGeneration;
     private int _renderPending;
     private bool _isDraggingProgress;
+    private Slider? _draggingProgressSlider;
+    private bool _automaticAdvanceInProgress;
+    private Guid? _loadedPlaylistItemId;
+    private long _loadedPlaylistRevision;
+    private PlaylistPlaybackMode _playbackMode = PlaylistPlaybackMode.Manual;
+    private PlaylistRepeatMode _repeatMode = PlaylistRepeatMode.Off;
+    private bool _shufflePlayback;
     private bool _isClosing;
     private bool _allowClose;
     private long _frameCallbacks;
@@ -143,6 +150,8 @@ public partial class MainWindow : Window
             IsEnabled = false
         };
         _settingsInitialized = true;
+        PlaybackModeCombo.SelectedIndex = 0;
+        RefreshPlaylistTransport();
         if (app?.UpdateManager is { } updateManager)
         {
             updateManager.StateChanged += UpdateManager_OnStateChanged;
@@ -243,7 +252,8 @@ public partial class MainWindow : Window
     private async Task<MediaLoadOutcome> LoadMediaAsync(
         string path,
         bool playImmediately,
-        MediaProbeStatus? verifiedProbe = null)
+        MediaProbeStatus? verifiedProbe = null,
+        Guid? playlistItemId = null)
     {
         if (!_licensingAllowsAccess)
         {
@@ -295,6 +305,7 @@ public partial class MainWindow : Window
             return MediaLoadOutcome.Cancelled;
         }
 
+        _loadedPlaylistItemId = null;
         _audioReconfigurationRequired = false;
         RefreshAudioDevices(force: true);
         try
@@ -306,6 +317,8 @@ public partial class MainWindow : Window
             await _engine.LoadAsync(path, kind, _coordinator.Generation, audioOutput);
             _engine.Volume = (int)VolumeSlider.Value;
             _engine.Muted = MuteButton.Tag as bool? ?? false;
+            _loadedPlaylistItemId = playlistItemId;
+            _loadedPlaylistRevision = _playlistRevision;
             _bitmap = null;
             PreviewImage.Source = null;
             ProgramImage.Source = null;
@@ -319,6 +332,7 @@ public partial class MainWindow : Window
             ProgressSlider.Value = 0;
             ProgressSlider.Maximum = 1;
             UpdateTimeLabels(0, 0);
+            RefreshPlaylistTransport();
             StatusText.Text = kind == MediaKind.Audio
                 ? "Áudio carregado; pronto para reproduzir."
                 : _outputChoices.Any(choice => choice.IsSelected)
@@ -1003,7 +1017,8 @@ public partial class MainWindow : Window
         var outcome = await LoadMediaAsync(
             item.Item.OriginalPath,
             playImmediately: action == PlaylistActivationAction.LoadAndPlay,
-            verifiedProbe: probe);
+            verifiedProbe: probe,
+            playlistItemId: item.Item.Id);
         if (outcome == MediaLoadOutcome.DecodeFailed)
         {
             item.SetDecodeFailure();
@@ -1551,6 +1566,10 @@ public partial class MainWindow : Window
         _mediaGridView?.Refresh();
         MediaGrid.SelectedItem = _mediaRows.FirstOrDefault(row => row.ItemId == previousSelection);
         UpdateMediaGridStatus();
+        if (_settingsInitialized)
+        {
+            RefreshPlaylistTransport();
+        }
 
         var token = _playlistAvailabilityCancellation.Token;
         _ = RefreshLocalPlaylistAvailabilityAsync(token);
