@@ -370,6 +370,8 @@ public partial class MainWindow : Window
         // LibVLC or load its native DLLs merely to display a JPG/PNG.
         if (kind == MediaKind.Image)
         {
+            _stillImage = null;
+            PreviewImage.Source = null;
             try
             {
                 SetControlsBusy(true);
@@ -731,8 +733,14 @@ public partial class MainWindow : Window
         container.Focus();
         var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
 
-        if (node is PlaylistGroupNode)
+        if (node is PlaylistGroupNode selectedFolder)
         {
+            if (selectedFolder.Group.SourceDirectory is { } windowsPath)
+            {
+                var refresh = new MenuItem { Header = "Atualizar mídias da pasta vinculada" };
+                refresh.Click += async (_, _) => await ImportFolderAsync(windowsPath);
+                menu.Items.Add(refresh);
+            }
             var rename = new MenuItem { Header = "Renomear pasta / grupo…" };
             rename.Click += RenameGroupButton_OnClick;
             var add = new MenuItem { Header = "Adicionar mídia…" };
