@@ -106,6 +106,7 @@ internal sealed class YouTubeOutputWindow : Window
             throw new InvalidOperationException("A janela pública foi encerrada.");
         }
 
+        FileLogger.Info($"GP-YT-02: inicializando WebView2 para vídeo={video.VideoId}.");
         var localFolder = Path.Combine(AppContext.BaseDirectory, "Assets", "YouTube");
         if (!File.Exists(Path.Combine(localFolder, "player.html")))
         {
@@ -185,7 +186,14 @@ internal sealed class YouTubeOutputWindow : Window
         };
         core.NavigationCompleted += (_, args) =>
         {
-            if (!_closed && !args.IsSuccess)
+            if (_closed)
+            {
+                return;
+            }
+
+            FileLogger.Info("GP-YT-02: navegação do player finalizada; " +
+                $"sucesso={args.IsSuccess}; status={args.WebErrorStatus}.");
+            if (!args.IsSuccess)
             {
                 ReportFailure("Página do YouTube não carregou (" +
                     args.WebErrorStatus + "). Verifique conexão e bloqueios de rede.");
@@ -270,6 +278,7 @@ internal sealed class YouTubeOutputWindow : Window
             switch (type)
             {
                 case "ready":
+                    FileLogger.Info("GP-YT-02: API oficial do YouTube sinalizou ready.");
                     _ready = true;
                     _startupTimer.Stop();
                     _state = "PRONTO";

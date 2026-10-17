@@ -1219,18 +1219,27 @@ public partial class MainWindow : Window
 
     private async void AddYouTubeLinkButton_OnClick(object sender, RoutedEventArgs e)
     {
+        FileLogger.Info("GP-YT-02: botão Adicionar link do YouTube acionado.");
         if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
         {
+            StatusText.Text = "Não foi possível adicionar YouTube: programa bloqueado ou operação em andamento.";
+            FileLogger.Info($"GP-YT-02: operação bloqueada; acesso={_licensingAllowsAccess}; " +
+                $"busy={_controlsBusy}; importando={_folderImportActive}.");
             return;
         }
 
         if (_playlistCatalog.Snapshot.Groups.Count == 0)
         {
             StatusText.Text = "Crie uma pasta na playlist antes de adicionar mídias.";
+            FileLogger.Info("GP-YT-02: link não adicionado, playlist sem pasta.");
             return;
         }
 
-        if (!HasNamedPlaylist()) return;
+        if (!HasNamedPlaylist())
+        {
+            FileLogger.Info("GP-YT-02: link não adicionado, playlist sem nome confirmado.");
+            return;
+        }
 
         var dialog = new YouTubeLinkPromptWindow { Owner = this };
         if (dialog.ShowDialog() != true)
@@ -1248,37 +1257,66 @@ public partial class MainWindow : Window
         var groupId = SelectedPlaylistGroup()?.Id ??
             catalog.Snapshot.Groups.FirstOrDefault()?.Id ??
             catalog.CreateGroup("YouTube").Id;
+        var link = dialog.Reference;
+        var existing = catalog.Snapshot.Groups
+            .First(group => group.Id == groupId).Items
+            .FirstOrDefault(item => item.Kind == MediaKind.YouTube &&
+                string.Equals(item.OriginalPath, link.WatchUri.AbsoluteUri,
+                    StringComparison.Ordinal));
         PlaylistItem addedItem;
-        try
+        if (existing is not null)
         {
-            addedItem = catalog.AddYouTubeItem(groupId, dialog.Reference, dialog.DisplayName);
+            // The same video may have been tested earlier. Reuse it rather than
+            // showing a duplicate error and silently refusing playback.
+            addedItem = existing;
+            FileLogger.Info($"GP-YT-02: link já cadastrado; abrindo item {addedItem.Id:D}.");
         }
-        catch (ArgumentException exception)
+        else
         {
-            StatusText.Text = exception.Message;
-            return;
+            try
+            {
+                addedItem = catalog.AddYouTubeItem(groupId, link, dialog.DisplayName);
+            }
+            catch (ArgumentException exception)
+            {
+                StatusText.Text = exception.Message;
+                FileLogger.Error("GP-YT-02: validação de playlist recusou link: " + exception.Message);
+                return;
+            }
+
+            var saved = app.PlaylistStore.Save(catalog.Snapshot);
+            if (!saved.Succeeded)
+            {
+                StatusText.Text = "Não foi possível salvar o link na playlist.";
+                FileLogger.Error($"GP-YT-02: falha ao salvar link: {saved.Error}");
+                return;
+            }
+
+            _playlistCatalog.ApplyPersistedChanges(catalog.Snapshot);
+            app.Playlist = _playlistCatalog.Snapshot;
+            RebuildPlaylistTree();
+            if (!SaveActivePlaylistPreset())
+            {
+                // The URL is already persisted in the current playlist. A
+                // failed preset save must not block an independent playback.
+                FileLogger.Error("GP-YT-02: preset não foi salvo, mas link existe na playlist.");
+            }
+
+            RefreshActivePlaylistMarkers();
         }
 
-        var saved = app.PlaylistStore.Save(catalog.Snapshot);
-        if (!saved.Succeeded)
-        {
-            StatusText.Text = "Não foi possível salvar o link na playlist.";
-            FileLogger.Error($"Falha ao salvar link YouTube: {saved.Error}");
-            return;
-        }
-
-        _playlistCatalog.ApplyPersistedChanges(catalog.Snapshot);
-        app.Playlist = _playlistCatalog.Snapshot;
-        RebuildPlaylistTree();
-        if (!SaveActivePlaylistPreset()) return;
-        RefreshActivePlaylistMarkers();
-        StatusText.Text = "Link salvo. Abrindo o player do YouTube…";
+        StatusText.Text = "Link do YouTube localizado. Abrindo o player…";
         var addedNode = _playlistGroups.SelectMany(group => group.Items)
             .FirstOrDefault(candidate => candidate.Item.Id == addedItem.Id);
-        if (addedNode is not null)
+        if (addedNode is null)
         {
-            await LoadYouTubeItemAsync(addedNode);
+            FileLogger.Error($"GP-YT-02: item {addedItem.Id:D} não encontrado na árvore atual.");
+            StatusText.Text = "Link salvo, mas item não encontrado. Feche e reabra a playlist.";
+            return;
         }
+
+        FileLogger.Info($"GP-YT-02: enviando item {addedItem.Id:D} ao player.");
+        await LoadYouTubeItemAsync(addedNode);
     }
 
     private void CancelFolderImportButton_OnClick(object sender, RoutedEventArgs e) =>
@@ -1478,27 +1516,29 @@ public partial class MainWindow : Window
 
     private async Task LoadYouTubeItemAsync(PlaylistItemNode node)
     {
+        FileLogger.Info($"GP-YT-02: carregamento solicitado; item={node.Item.Id:D}; " +
+            $"acesso={_licensingAllowsAccess}; busy={_controlsBusy}; fechando={_isClosing}.");
         if (!_licensingAllowsAccess || _controlsBusy || _isClosing ||
             !YouTubeVideoReferenceParser.TryParse(node.Item.OriginalPath, out var reference))
         {
             StatusText.Text = "Link do YouTube inválido ou GuiaPlay indisponível.";
+            FileLogger.Error("GP-YT-02: não foi possível iniciar o player (guarda de segurança ou URL inválida).");
             return;
         }
 
         var selected = _outputChoices.Where(choice => choice.IsSelected)
             .Select(choice => choice.Monitor).ToArray();
-        if (selected.Length > 1 ||
-            (selected.Length == 1 &&
-             (_operatorRequiresConfiguration || _operatorMonitor is null ||
-              selected[0].Id == _operatorMonitor.Id)))
-        {
-            StatusText.Text = "Selecione no máximo uma tela pública diferente da tela do operador.";
-            return;
-        }
 
-        // Zero public screens: open the single visible official player in an
-        // operator-owned window. Do not make a tiny iframe inside the preview.
-        var monitor = selected.FirstOrDefault();
+        // Exactly one valid public output: show the YouTube player there.
+        // Zero, multiple or unsafe outputs: always open one official visible
+        // player in an operator-owned window. Never pick an arbitrary projector.
+        var monitor = selected.Length == 1 && !_operatorRequiresConfiguration &&
+                      _operatorMonitor is not null &&
+                      selected[0].Id != _operatorMonitor.Id
+            ? selected[0]
+            : null;
+        FileLogger.Info($"GP-YT-02: vídeo={reference!.VideoId}; telas selecionadas={selected.Length}; " +
+            $"destino={(monitor is null ? "janela do operador" : monitor.ShortLabel)}.");
         var eligible = YouTubeEmbedGate.Assess(
             monitor?.Width ?? 960, monitor?.Height ?? 540,
             hasAppIdentification: true,
@@ -1506,7 +1546,8 @@ public partial class MainWindow : Window
             visibleViewportFraction: 1, otherAutoPlayingYouTubePlayersOnSameScreen: 0);
         if (!eligible.Allowed)
         {
-            StatusText.Text = eligible.Reason ?? "A saída pública não atende às exigências do YouTube.";
+            StatusText.Text = eligible.Reason ?? "A janela não atende às exigências do YouTube.";
+            FileLogger.Error("GP-YT-02: player não autorizado: " + StatusText.Text);
             return;
         }
 
@@ -1516,6 +1557,7 @@ public partial class MainWindow : Window
                 "Trocar reprodução", MessageBoxButton.YesNo, MessageBoxImage.Warning)
                 != MessageBoxResult.Yes)
         {
+            FileLogger.Info("GP-YT-02: operador cancelou substituição do player.");
             return;
         }
 
@@ -1561,7 +1603,9 @@ public partial class MainWindow : Window
             };
 
             window.Show();
+            FileLogger.Info("GP-YT-02: janela exibida. Iniciando WebView2.");
             await window.InitializeAsync(reference!);
+            FileLogger.Info("GP-YT-02: WebView2 configurado; aguardando carregamento do YouTube.");
             if (_isClosing || !_licensingAllowsAccess)
             {
                 CloseYouTubeWindow();
@@ -1618,7 +1662,14 @@ public partial class MainWindow : Window
         }
 
         var firstReady = _youtubeSnapshot?.Ready != true && status.Ready;
+        var previousState = _youtubeSnapshot?.State;
         _youtubeSnapshot = status;
+        if (firstReady || status.State != previousState || status.State == "ERRO")
+        {
+            FileLogger.Info($"GP-YT-02: estado do player={status.State}; " +
+                $"ready={status.Ready}; erro={status.ErrorCode?.ToString() ?? "nenhum"}; " +
+                $"detalhes={status.Message ?? "sem mensagem"}.");
+        }
         if (firstReady && _youtubeWindow is { } readyWindow)
         {
             readyWindow.Command("volume", VolumeSlider.Value);
