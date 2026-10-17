@@ -2093,9 +2093,9 @@ public partial class MainWindow : Window
             playedInShuffleCycle: _shufflePlayedItems);
         PreviousMediaButton.IsEnabled = eligible && previous is not null;
         NextMediaButton.IsEnabled = eligible && next is not null;
-        RepeatModeButton.IsEnabled = _licensingAllowsAccess && !_controlsBusy;
-        ShufflePlaylistCheckBox.IsEnabled = _licensingAllowsAccess && !_controlsBusy;
-        PlaybackModeCombo.IsEnabled = _licensingAllowsAccess && !_controlsBusy;
+        RepeatModeButton.IsEnabled = _youtubeWindow is null && _licensingAllowsAccess && !_controlsBusy;
+        ShufflePlaylistCheckBox.IsEnabled = _youtubeWindow is null && _licensingAllowsAccess && !_controlsBusy;
+        PlaybackModeCombo.IsEnabled = _youtubeWindow is null && _licensingAllowsAccess && !_controlsBusy;
         RefreshSeekAvailability();
 
         if (_loadedPlaylistItemId is null)
