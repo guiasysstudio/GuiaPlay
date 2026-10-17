@@ -378,7 +378,7 @@ public sealed class BrandingTests
         // GP-I10: The approved 3-panel UI supersedes M10.3's two-column layout.
         Assert.Contains("<ColumnDefinition Width=\"300\" MinWidth=\"265\" />", main, StringComparison.Ordinal);
         Assert.Contains("<ColumnDefinition Width=\"*\" MinWidth=\"345\" />", main, StringComparison.Ordinal);
-        Assert.Contains("<ColumnDefinition Width=\"246\" MinWidth=\"220\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<ColumnDefinition Width=\"286\" MinWidth=\"260\" />", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"PreviewProgressSlider\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"MediaGrid\"", main, StringComparison.Ordinal);
         Assert.Contains("SavePlaylistPresetButton_OnClick", main, StringComparison.Ordinal);
@@ -407,6 +407,26 @@ public sealed class BrandingTests
         Assert.Contains("GuiaPlay-Logo.svg", manifest, StringComparison.Ordinal);
         Assert.Contains("GuiaPlay-Wordmark.svg", manifest, StringComparison.Ordinal);
         Assert.Contains("sha256", manifest, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GP_I12_ApprovedLayoutKeepsPanoramicPreviewsAndFullWidthMediaActions()
+    {
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml"));
+        var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+
+        Assert.Contains("Grid.RowSpan=\"2\"", main, StringComparison.Ordinal);
+        Assert.Contains("<RowDefinition Height=\"46*\" MinHeight=\"250\" />", main, StringComparison.Ordinal);
+        Assert.Contains("Grid.Row=\"1\" Grid.Column=\"2\" Grid.ColumnSpan=\"3\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"MediaRemoveSelectedButton\"", main, StringComparison.Ordinal);
+        Assert.Contains("Click=\"RemoveSelectedMediaButton_OnClick\"", main, StringComparison.Ordinal);
+        Assert.Contains("RemoveMediaGridRow(SelectedMediaRow())", code, StringComparison.Ordinal);
+        Assert.Contains("MediaRemoveSelectedButton.IsEnabled = canMove;", code, StringComparison.Ordinal);
+        Assert.Contains("Click=\"SavePlaylistPresetButton_OnClick\"", main, StringComparison.Ordinal);
+        Assert.Contains("Click=\"NewPlaylistButton_OnClick\"", main, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"AddMediaMenuButton\"", main, StringComparison.Ordinal);
+        Assert.Equal(1, main.Split("x:Name=\"MediaGrid\"", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, main.Split("x:Name=\"AddMediaMenuButton\"", StringSplitOptions.None).Length - 1);
     }
 
     [Fact]
