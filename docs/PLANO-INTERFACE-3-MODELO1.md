@@ -42,8 +42,8 @@ Reconstruir o espaço de trabalho do operador segundo o **Modelo 1 aprovado**: c
 | **GP-I05** | Prévia, programa, telas e áudio | **Implementada no código:** prévias de operador e Programa a partir do mesmo frame, estados provenientes das janelas públicas reais, monitor do operador excluído, rotas de áudio e volume sincronizados; troca de dispositivo pelo painel de áudio existente. Verificação física pendente do GP-I10. |
 | **GP-I06** | Controles de reprodução | **Implementado no código:** duas timelines operacionais ligadas ao mesmo LibVLC, seekability real, anterior/próximo carregando sem autoplay, ±5 s, modo manual/sequencial, repetição desativada/atual/lista e aleatório sem repetição por ciclo; transições protegidas. Compilação/aceite no GP-I10. |
 | **GP-I07** | Atalhos do operador | **Implementado no código:** 17 atalhos locais e documentados, ajuda F1 e menu Atalhos, proteção de foco/edição, repetição de teclas e modificadores de sistema, reutilizando comandos reais. Testes xUnit escritos; execução em GP-I10. |
-| **GP-I08** | YouTube — viabilidade técnica | Protótipo isolado com player oficial/termos aplicáveis: URL, play/pause/seek, preview/saídas e sincronismo. Gate GO/NO-GO antes de prometer equivalência total. |
-| **GP-I09** | YouTube — integração funcional | `Adicionar > Link do YouTube`, tipo e persistência, erro de rede/restrições de incorporação, controles na mesma região, comportamento de áudio/saídas e testes. |
+| **GP-I08** | YouTube — viabilidade técnica | **Parecer concluído:** GO **condicionado** ao player IFrame oficial único e visível, controle via WebView2; **NO-GO** para espelho WPF de quadros/múltiplas saídas sincronizadas sem prova e autorização. Parser, política de requisitos, HTML isolado e testes escritos. Ver `RELATORIO-GP-I08.md`. |
+| **GP-I09** | YouTube — integração funcional | Condicionada ao parecer GP-I08: preservar esquema v1, implementar migração segura e tipo separado, backend WebView2/IFrame visível, controles e avisos reais; **não anunciar equivalência visual com LibVLC** nem expor botão sem feature plenamente funcional. |
 | **GP-I10** | Qualidade e aceite local | Refinar fidelidade ao Modelo 1, testes automatizados, build Debug/Release, smoke no VS Code e matriz x86/x64/DPI/monitores, sem instalador. |
 
 O **controle remoto Android/LAN** é projeto futuro separado, após conclusão e validação de todos os itens acima.
@@ -69,6 +69,14 @@ O **controle remoto Android/LAN** é projeto futuro separado, após conclusão e
 - Investigar incorporação pelo player oficial (API de player embutido/WebView2) e restrições de comercialização, exibição e reprodução em vários monitores.
 - A interface dos controles será unificada, mas os recursos só serão habilitados quando o backend do YouTube realmente suportá-los (ex.: seek e duração podem variar).
 - Se a reprodução oficial em saídas públicas simultâneas não puder cumprir os requisitos sem violar regras, registrar bloqueio e solicitar decisão de produto — não implementar um atalho não conforme.
+
+## Resolução do gate YouTube — GP-I08
+
+Em 16/10/2026, pesquisa em requisitos oficiais (atualizados em 15/10/2026) identificou que controles externos de play/pause/seek são suportados pela **IFrame Player API**, mas a API **não fornece frames decodificados** para a `WriteableBitmap` usada pelos vídeos locais. Além disso, impõe viewport mínimo de 200 × 200 pixels, player visível, identidade HTTPS/`Referer`, respeito à marca/publicidade e restrições de autoplay. Segundo player público independente não garante sincronização.
+
+**GO CONDICIONADO**: um player YouTube real, incorporado e visível numa saída pública, com a interface do operador recebendo telemetria; **NO-GO** para declarar uma imagem de prévia real idêntica no operador e múltiplas saídas em sincronismo sem implementação autorizada comprovada. Não substituir por download/extração/captura de stream ou esconder player. Documento completo em `docs/RELATORIO-GP-I08.md`.
+
+**Decisão de produto a obter antes da liberação comercial**: aceitar explicitamente uma prévia operacional informativa sem quadro ao vivo para YouTube ou manter integração não anunciada. O objetivo do vídeo local não foi alterado.
 
 ## Regra de execução revisada (decisão de 16/10/2026)
 
