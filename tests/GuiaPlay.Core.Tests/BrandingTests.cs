@@ -607,6 +607,7 @@ public sealed class BrandingTests
         Assert.Equal(2, cards.Length);
         Assert.Equal("0", (string?)cards[0].Attribute("Grid.Row"));
         Assert.Equal("1", (string?)cards[1].Attribute("Grid.Row"));
+        Assert.Equal("True", (string?)cards[1].Attribute("ClipToBounds"));
         Assert.Equal("80", (string?)panel.Attribute("Height"));
 
         var seeker = cards[0].Descendants().Single(e =>
