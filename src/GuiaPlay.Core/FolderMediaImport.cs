@@ -210,23 +210,35 @@ public static class FolderMediaPlaylistMerge
                 continue;
             }
 
+            var directory = string.IsNullOrEmpty(scan.RootPath) ? null
+                : Path.GetFullPath(Path.Combine(scan.RootPath, entry.RelativeFolder));
             var name = GroupName(scan.RootName, entry.RelativeFolder);
-            // Identically named folders in two distinct roots must never share
-            // a playlist group accidentally. Reimports from the same root reuse it.
-            if (!string.IsNullOrEmpty(scan.RootPath) &&
-                groups.Any(group => string.Equals(group.Name, name, StringComparison.OrdinalIgnoreCase) &&
-                    (group.Items.Count == 0 || group.Items.Any(item =>
-                        !BelongsToRoot(item.OriginalPath, scan.RootPath)))))
+            // Linked Windows folders are matched by identity of their source path,
+            // not merely by display name; empty links work too.
+            var index = directory is null ? -1 : groups.FindIndex(group =>
+                string.Equals(group.SourceDirectory, directory, StringComparison.OrdinalIgnoreCase));
+            if (index < 0 && groups.Any(group =>
+                string.Equals(group.Name, name, StringComparison.OrdinalIgnoreCase) &&
+                (group.SourceDirectory is not null && !string.Equals(group.SourceDirectory,
+                    directory, StringComparison.OrdinalIgnoreCase) ||
+                 group.Items.Count > 0 && group.Items.Any(item =>
+                    !BelongsToRoot(item.OriginalPath, scan.RootPath)))))
             {
                 name = MakeBoundedName(name, scan.RootPath);
             }
 
-            var index = groups.FindIndex(group =>
-                string.Equals(group.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                index = groups.FindIndex(group =>
+                    string.Equals(group.Name, name, StringComparison.OrdinalIgnoreCase) &&
+                    (group.SourceDirectory is null || directory is null ||
+                     string.Equals(group.SourceDirectory, directory, StringComparison.OrdinalIgnoreCase)));
+            }
+
             if (index < 0)
             {
                 index = groups.Count;
-                groups.Add(new PlaylistGroup(Guid.NewGuid(), name, index, []));
+                groups.Add(new PlaylistGroup(Guid.NewGuid(), name, index, [], directory));
                 created++;
             }
 
