@@ -60,6 +60,13 @@ public sealed record OperatorShortcutBinding(
     string Gesture,
     string Description);
 
+
+/// <summary>One user override; defaults remain intact for commands not customized.</summary>
+public sealed record OperatorShortcutAssignment(
+    OperatorShortcutAction Action,
+    OperatorShortcutKey Key,
+    OperatorShortcutModifiers Modifiers);
+
 /// <summary>
 /// Window-scoped operator shortcuts. No global hooks or input simulation.
 /// Keystrokes inside editors remain untouched; Space on native controls stays native.
@@ -111,7 +118,8 @@ public static class OperatorShortcutPolicy
         OperatorShortcutModifiers modifiers,
         bool textEntryFocused,
         bool spaceHandledByControl,
-        bool isRepeated)
+        bool isRepeated,
+        IReadOnlyList<OperatorShortcutAssignment>? assignments = null)
     {
         if (key == OperatorShortcutKey.None || isRepeated ||
             (modifiers & (OperatorShortcutModifiers.Windows | OperatorShortcutModifiers.Alt)) != 0)
@@ -129,14 +137,55 @@ public static class OperatorShortcutPolicy
             return OperatorShortcutAction.None;
         }
 
+        // Override by action (rather than adding shortcuts): moving an action
+        // must never leave the old key active as a hidden duplicate.
         foreach (var shortcut in Bindings)
         {
-            if (shortcut.Key == key && shortcut.Modifiers == modifiers)
+            var configured = assignments?.FirstOrDefault(a => a.Action == shortcut.Action);
+            var gestureKey = configured?.Key ?? shortcut.Key;
+            var gestureModifiers = configured?.Modifiers ?? shortcut.Modifiers;
+            if (gestureKey == key && gestureModifiers == modifiers)
             {
                 return shortcut.Action;
             }
         }
 
         return OperatorShortcutAction.None;
+    }
+
+    public static bool TryValidateAssignments(
+        IReadOnlyList<OperatorShortcutAssignment>? overrides,
+        out string? error)
+    {
+        error = null;
+        if (overrides is null || overrides.Count == 0) return true;
+        var actions = Bindings.Select(b => b.Action).ToHashSet();
+        var usedActions = new HashSet<OperatorShortcutAction>();
+        var usedKeys = new HashSet<(OperatorShortcutKey, OperatorShortcutModifiers)>();
+        foreach (var item in overrides)
+        {
+            if (!actions.Contains(item.Action) || !usedActions.Add(item.Action) ||
+                !Enum.IsDefined(item.Key) ||
+                (item.Modifiers & ~(OperatorShortcutModifiers.Control | OperatorShortcutModifiers.Shift)) != 0)
+            {
+                error = "Um atalho possui ação, tecla ou modificador inválido.";
+                return false;
+            }
+        }
+
+        foreach (var binding in Bindings)
+        {
+            var custom = overrides.FirstOrDefault(o => o.Action == binding.Action);
+            var gestureKey = custom?.Key ?? binding.Key;
+            var gestureMods = custom?.Modifiers ?? binding.Modifiers;
+            if (gestureKey == OperatorShortcutKey.None) continue; // Disable this command's keyboard gesture.
+            if (!usedKeys.Add((gestureKey, gestureMods)))
+            {
+                error = $"A combinação {gestureMods} + {gestureKey} está atribuída a mais de uma ação.";
+                return false;
+            }
+        }
+
+        return true;
     }
 }
