@@ -34,7 +34,8 @@ public static class PlaylistPlaybackNavigation
         PlaylistRepeatMode repeat,
         bool shuffle,
         bool automatic,
-        int randomCandidateIndex = 0)
+        int randomCandidateIndex = 0,
+        IReadOnlySet<Guid>? playedInShuffleCycle = null)
     {
         ArgumentNullException.ThrowIfNull(playlist);
         if (automatic && mode != PlaylistPlaybackMode.Sequential)
@@ -56,7 +57,20 @@ public static class PlaylistPlaybackNavigation
 
         if (shuffle && order.Length > 1)
         {
-            var candidates = order.Where(item => item != current).ToArray();
+            var candidates = order.Where(item => item != current &&
+                (playedInShuffleCycle is null || !playedInShuffleCycle.Contains(item))).ToArray();
+            if (candidates.Length == 0)
+            {
+                // Completing a shuffle cycle with Repeat Off means stop. An explicit
+                // Next request may start another draw without starting playback.
+                if (automatic && repeat != PlaylistRepeatMode.All)
+                {
+                    return null;
+                }
+
+                candidates = order.Where(item => item != current).ToArray();
+            }
+
             var choice = Math.Abs((long)randomCandidateIndex) % candidates.Length;
             return candidates[choice];
         }
