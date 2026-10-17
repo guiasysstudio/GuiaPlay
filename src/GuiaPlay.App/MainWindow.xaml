@@ -834,10 +834,21 @@
                                         </Grid>
                                     </Grid>
                                 </Border>
-                                <Button Grid.Column="8" Content="Limpar" Height="41"
+                                <Button Grid.Column="8" x:Name="PlaylistOptionsMenuButton"
+                                        Click="PlaylistOptionsMenuButton_OnClick"
+                                        Height="41" Width="40" MinWidth="0" Padding="7,2"
                                         Style="{StaticResource CompactTransportButtonStyle}"
-                                        ToolTip="Limpar pesquisa de mídia"
-                                        Click="ClearMediaSearchButton_OnClick" />
+                                        ToolTip="Opções da playlist e modo de reprodução"
+                                        AutomationProperties.Name="Opções da playlist">
+                                    <Path Data="{StaticResource GPPlaylist}" Width="21" Height="21"
+                                          Stretch="Uniform" Fill="{DynamicResource GuiaPlayTextPrimaryBrush}"/>
+                                </Button>
+                                <!-- Programmatic entry points retained; open files via Adicionar. -->
+                                <Button x:Name="OpenButton" Grid.Column="6" Visibility="Collapsed"
+                                        IsTabStop="False" Content="Abrir mídia" Click="OpenButton_OnClick"/>
+                                <Button x:Name="ClearMediaSearchButton" Grid.Column="6" Visibility="Collapsed"
+                                        IsTabStop="False" Content="Limpar pesquisa" Click="ClearMediaSearchButton_OnClick"/>
+
                             </Grid>
                             <Grid Grid.Row="1">
                                 <DataGrid x:Name="MediaGrid" AutoGenerateColumns="False"
