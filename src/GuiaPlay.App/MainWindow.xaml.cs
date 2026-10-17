@@ -474,7 +474,7 @@ public partial class MainWindow : Window
 
         if (MessageBox.Show(
                 this,
-                $"Excluir a playlist salva “{entry.Name}”?\\n\\nSomente o preset JSON será excluído. A lista de trabalho e os arquivos originais serão preservados.",
+                $"Excluir a playlist salva “{entry.Name}”?\n\nSomente o preset JSON será excluído. A lista de trabalho e os arquivos originais serão preservados.",
                 "Excluir playlist salva",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning) != MessageBoxResult.Yes)
@@ -562,8 +562,8 @@ public partial class MainWindow : Window
 
         var decision = MessageBox.Show(
             this,
-            "A playlist de trabalho contém alterações que não foram salvas em um preset.\\n\\n" +
-            "Sim — Salvar antes de continuar\\nNão — Continuar sem salvar as alterações\\nCancelar — manter a playlist atual",
+            "A playlist de trabalho contém alterações que não foram salvas em um preset.\n\n" +
+            "Sim — Salvar antes de continuar\nNão — Continuar sem salvar as alterações\nCancelar — manter a playlist atual",
             "Alterações não salvas",
             MessageBoxButton.YesNoCancel,
             MessageBoxImage.Warning);
@@ -657,6 +657,9 @@ public partial class MainWindow : Window
 
         SavedPlaylistsList.SelectedItem = _savedPlaylists.FirstOrDefault(item => item.Id == selectedId);
         SavedPlaylistsCountText.Text = _savedPlaylists.Count.ToString(System.Globalization.CultureInfo.CurrentCulture);
+        SavedPlaylistsEmptyText.Text = result.Warnings.Count > 0
+            ? "Algumas playlists não puderam ser lidas. Consulte o log."
+            : "Nenhuma playlist salva. Use Salvar para criar uma.";
         SavedPlaylistsEmptyText.Visibility = _savedPlaylists.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         RefreshSavedPlaylistActions();
     }
