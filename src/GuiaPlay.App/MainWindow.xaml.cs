@@ -64,6 +64,7 @@ public partial class MainWindow : Window
     private bool _isDraggingProgress;
     private Slider? _draggingProgressSlider;
     private bool _automaticAdvanceInProgress;
+    private bool _suppressAutoAdvance;
     private Guid? _loadedPlaylistItemId;
     private long _loadedPlaylistRevision;
     private PlaylistPlaybackMode _playbackMode = PlaylistPlaybackMode.Manual;
@@ -1847,9 +1848,10 @@ public partial class MainWindow : Window
         {
             var result = await LoadMediaAsync(
                 item.Item.OriginalPath, playImmediately: true, playlistItemId: targetId);
-            if (result != MediaLoadOutcome.Loaded)
+            if (result != MediaLoadOutcome.Loaded ||
+                _coordinator.Status is not (PlaybackStatus.Preparing or PlaybackStatus.Playing))
             {
-                StatusText.Text = $"Reprodução sequencial interrompida: {item.Name} não foi carregada.";
+                StatusText.Text = $"Reprodução sequencial interrompida: {item.Name} não pôde iniciar.";
                 return false;
             }
 
@@ -1966,6 +1968,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        _suppressAutoAdvance = true;
         SetControlsBusy(true);
         CloseOutputWindows();
         var stoppedSafely = false;
@@ -2006,6 +2009,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _suppressAutoAdvance = false;
             SetControlsBusy(false);
         }
 
@@ -2567,6 +2571,11 @@ public partial class MainWindow : Window
 
     private async void Engine_OnEndReached(long generation)
     {
+        if (_suppressAutoAdvance)
+        {
+            return; // Explicit StopAsync is never interpreted as natural playlist end.
+        }
+
         var transition = _coordinator.NaturalEnd(generation);
         if (!transition.Accepted)
         {
