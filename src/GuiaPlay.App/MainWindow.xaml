@@ -355,11 +355,11 @@
                 <RowDefinition Height="51*" MinHeight="185" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="255" MinWidth="240" />
+                <ColumnDefinition Width="1.05*" MinWidth="230" />
                 <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" MinWidth="345" />
+                <ColumnDefinition Width="3.4*" MinWidth="345" />
                 <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="280" MinWidth="240" />
+                <ColumnDefinition Width="1.1*" MinWidth="235" />
             </Grid.ColumnDefinitions>
             <Border Grid.Column="2" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
                 <Grid>
