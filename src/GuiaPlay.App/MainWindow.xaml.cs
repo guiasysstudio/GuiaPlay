@@ -867,7 +867,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var menu = new ContextMenu { PlacementTarget = AddMediaMenuButton, Placement = PlacementMode.Top };
+        var menu = new ContextMenu { PlacementTarget = AddMediaMenuButton, Placement = PlacementMode.Bottom };
         var addFiles = new MenuItem { Header = "Adicionar arquivo(s)…" };
         addFiles.Click += AddPlaylistItemButton_OnClick;
         var addFolder = new MenuItem { Header = "Adicionar pasta e subpastas…" };
