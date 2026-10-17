@@ -552,6 +552,114 @@ public partial class MainWindow : Window
     private void SavedPlaylistsList_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
         RefreshSavedPlaylistActions();
 
+    // Context actions target the ACTUAL clicked preset, not a stale selection.
+    // This preserves the existing open/save/delete implementations and their
+    // confirmations, while removing redundant permanent sidebar buttons.
+    private void SavedPlaylistsList_OnPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy)
+        {
+            return;
+        }
+
+        if (e.OriginalSource is not DependencyObject origin ||
+            ItemsControl.ContainerFromElement(SavedPlaylistsList, origin) is not ListBoxItem item)
+        {
+            return;
+        }
+
+        item.IsSelected = true;
+        item.Focus();
+        var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
+        var open = new MenuItem { Header = "Abrir playlist" };
+        open.Click += OpenSelectedPresetButton_OnClick;
+        var save = new MenuItem { Header = "Salvar playlist de trabalho…" };
+        save.Click += SavePlaylistPresetButton_OnClick;
+        var create = new MenuItem { Header = "Nova playlist…" };
+        create.Click += NewPlaylistButton_OnClick;
+        var delete = new MenuItem { Header = "Excluir playlist salva…" };
+        delete.Click += DeleteSelectedPresetButton_OnClick;
+
+        menu.Items.Add(open);
+        menu.Items.Add(save);
+        menu.Items.Add(create);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(delete);
+        menu.IsOpen = true;
+        e.Handled = true;
+    }
+
+    // The right-click group/item menus operate on the clicked TreeViewItem.
+    // Deletion removes catalog references only; underlying files are never deleted.
+    private void PlaylistTree_OnPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || _folderImportActive)
+        {
+            return;
+        }
+
+        if (e.OriginalSource is not DependencyObject origin)
+        {
+            return;
+        }
+
+        var node = FindPlaylistNode(origin);
+        var container = FindAncestor<TreeViewItem>(origin);
+        if (container is null)
+        {
+            return;
+        }
+
+        container.IsSelected = true;
+        container.Focus();
+        var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
+
+        if (node is PlaylistGroupNode)
+        {
+            var rename = new MenuItem { Header = "Renomear pasta / grupo…" };
+            rename.Click += RenameGroupButton_OnClick;
+            var add = new MenuItem { Header = "Adicionar mídia…" };
+            add.Click += AddPlaylistItemButton_OnClick;
+            var delete = new MenuItem { Header = "Excluir pasta / grupo…" };
+            delete.Click += DeleteGroupButton_OnClick;
+            menu.Items.Add(add);
+            menu.Items.Add(rename);
+            menu.Items.Add(new Separator());
+            menu.Items.Add(delete);
+        }
+        else if (node is PlaylistItemNode media)
+        {
+            var open = new MenuItem { Header = "Abrir mídia" };
+            open.Click += async (_, _) => await ActivatePlaylistItemAsync(media);
+            var remove = new MenuItem { Header = "Remover mídia do grupo…" };
+            remove.Click += (_, _) =>
+            {
+                if (MessageBox.Show(
+                        this, $"Remover “{media.Name}” da playlist? O arquivo original será preservado.",
+                        "Remover referência", MessageBoxButton.YesNo, MessageBoxImage.Question)
+                    != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                if (_playlistCatalog.RemoveItem(media.GroupId, media.Item.Id))
+                {
+                    SavePlaylistAndRefresh("Mídia removida da playlist; arquivo original preservado.");
+                }
+            };
+            menu.Items.Add(open);
+            menu.Items.Add(new Separator());
+            menu.Items.Add(remove);
+        }
+        else
+        {
+            return;
+        }
+
+        menu.IsOpen = true;
+        e.Handled = true;
+    }
+
     private void SavedPlaylistsList_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is DependencyObject origin &&
