@@ -1819,7 +1819,13 @@ public partial class MainWindow : Window
 
     private async Task RefreshLocalPlaylistAvailabilityAsync(CancellationToken cancellationToken)
     {
-        var items = _playlistGroups.SelectMany(group => group.Items).ToArray();
+        var items = _playlistGroups.SelectMany(group => group.Items)
+            .Where(item => item.Item.Kind != MediaKind.YouTube).ToArray();
+        if (items.Length == 0)
+        {
+            return;
+        }
+
         try
         {
             var results = await MediaFileProbe.ProbeManyAsync(
