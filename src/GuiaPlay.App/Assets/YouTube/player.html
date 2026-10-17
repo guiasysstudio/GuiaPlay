@@ -30,6 +30,9 @@
     let player = null;
     let ready = false;
     let telemetryTimer = null;
+    let mutedFallbackAttempted = false;
+    let waitingForMutedFallback = false;
+    let blockedFinal = false;
 
     const send = (type, details = {}) => {
       if (bridge) bridge.postMessage({ type, videoId, ...details });
@@ -94,6 +97,12 @@
             if (autoplayRequested) event.target.playVideo();
           },
           onStateChange(event) {
+            if (event.data === YT.PlayerState.PLAYING && waitingForMutedFallback) {
+              waitingForMutedFallback = false;
+              send("autoplayMutedPlaying", {
+                message: "O YouTube iniciou automaticamente sem som porque o navegador bloqueou o áudio."
+              });
+            }
             send("state", { state: event.data });
             poll();
           },
@@ -103,9 +112,25 @@
             fail("Este vídeo não pode ser reproduzido pelo player incorporado.", event.data);
           },
           onAutoplayBlocked() {
-            send("autoplayBlocked", {
-              message: "O YouTube/navegador exige interação direta do usuário."
-            });
+            // Never override the browser's autoplay policy. A single muted
+            // retry is allowed; if that too is blocked, ask for a real click.
+            if (autoplayRequested && !initiallyMuted && !mutedFallbackAttempted) {
+              mutedFallbackAttempted = true;
+              waitingForMutedFallback = true;
+              player.mute();
+              send("autoplayMutedRetry", {
+                message: "Autoplay com áudio bloqueado. Tentando iniciar sem som."
+              });
+              player.playVideo();
+              return;
+            }
+            if (!blockedFinal) {
+              blockedFinal = true;
+              waitingForMutedFallback = false;
+              send("autoplayBlocked", {
+                message: "O navegador bloqueou o autoplay. Clique no Play do player oficial na tela pública."
+              });
+            }
           }
         }
       });
