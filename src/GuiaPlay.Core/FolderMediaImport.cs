@@ -12,7 +12,10 @@ public sealed record FolderMediaScanResult(
     int SkippedUnsupported,
     int SkippedUnsafe,
     bool Limited,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings)
+{
+    public string RootPath { get; init; } = string.Empty;
+}
 
 public sealed record FolderMediaMergeResult(
     PlaylistDocument Playlist,
@@ -172,7 +175,10 @@ public static class FolderMediaScanner
 
         return new FolderMediaScanResult(
             rootInfo.Name, candidates, visited, skippedUnsupported,
-            skippedUnsafe, limited, warnings);
+            skippedUnsafe, limited, warnings)
+        {
+            RootPath = root
+        };
     }
 }
 
@@ -205,6 +211,16 @@ public static class FolderMediaPlaylistMerge
             }
 
             var name = GroupName(scan.RootName, entry.RelativeFolder);
+            // Identically named folders in two distinct roots must never share
+            // a playlist group accidentally. Reimports from the same root reuse it.
+            if (!string.IsNullOrEmpty(scan.RootPath) &&
+                groups.Any(group => string.Equals(group.Name, name, StringComparison.OrdinalIgnoreCase) &&
+                    (group.Items.Count == 0 || group.Items.Any(item =>
+                        !BelongsToRoot(item.OriginalPath, scan.RootPath)))))
+            {
+                name = MakeBoundedName(name, scan.RootPath);
+            }
+
             var index = groups.FindIndex(group =>
                 string.Equals(group.Name, name, StringComparison.OrdinalIgnoreCase));
             if (index < 0)
@@ -236,16 +252,24 @@ public static class FolderMediaPlaylistMerge
         var readable = string.IsNullOrWhiteSpace(relativeFolder)
             ? rootName
             : $"{rootName} / {relativeFolder.Replace('\\', '/').Replace("/", " / ")}";
-        if (PlaylistGroupName.IsValid(readable))
-        {
-            return readable;
-        }
+        return PlaylistGroupName.IsValid(readable)
+            ? readable
+            : MakeBoundedName(readable, readable);
+    }
 
-        // Stable suffix disambiguates separate deep folders even when their visible
-        // prefix exceeds the 80-character group name limit of schema v1.
-        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(readable.ToUpperInvariant()));
+    private static string MakeBoundedName(string readable, string sourceKey)
+    {
+        // Stable suffix disambiguates deep folders and identical labels from
+        // other media roots while respecting the 80-character schema limit.
+        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(sourceKey.ToUpperInvariant()));
         var suffix = Convert.ToHexString(digest.AsSpan(0, 5));
-        var maxPrefix = 80 - suffix.Length - 2;
+        var maxPrefix = 80 - suffix.Length - 1;
         return $"{readable[..Math.Min(maxPrefix, readable.Length)].TrimEnd()}~{suffix}";
+    }
+
+    private static bool BelongsToRoot(string filePath, string root)
+    {
+        var prefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
+        return filePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     }
 }
