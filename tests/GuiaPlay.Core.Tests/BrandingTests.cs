@@ -409,6 +409,30 @@ public sealed class BrandingTests
         Assert.Contains("sha256", manifest, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void GP_I11_LicensingSettingsMustNotInitializeNativeLibVlc()
+    {
+        // A startup-only license prompt used to construct LibVLC because the
+        // settings window requested _engine.EqualizerCatalog. This is a native
+        // access-violation regression guard for code that does not need media.
+        var main = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
+        var start = main.IndexOf("    private async Task OpenSettingsAsync(", StringComparison.Ordinal);
+        var end = main.IndexOf("    private void UpdateManager_OnStateChanged(", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var settingsHandler = main[start..end];
+
+        Assert.Contains("_engineInstance?.EqualizerCatalog", settingsHandler, StringComparison.Ordinal);
+        Assert.DoesNotContain("_engine.EqualizerCatalog", settingsHandler, StringComparison.Ordinal);
+        Assert.DoesNotContain("await _engine.ApplyEqualizerAsync", settingsHandler, StringComparison.Ordinal);
+        Assert.Contains("if (_engineInstance is { } activeEngine)", settingsHandler, StringComparison.Ordinal);
+        Assert.Contains("if (_engineInstance is { } engineForSettings)", settingsHandler, StringComparison.Ordinal);
+
+        var mute = main.IndexOf("    private void MuteButton_OnClick(", StringComparison.Ordinal);
+        var muteEnd = main.IndexOf("    private void UpdateMuteVisual(", mute, StringComparison.Ordinal);
+        Assert.True(mute >= 0 && muteEnd > mute);
+        Assert.DoesNotContain("_engine.Muted", main[mute..muteEnd], StringComparison.Ordinal);
+    }
+
     private static string PathInRepository(string relativePath) =>
         Path.Combine(RepositoryRoot, Normalize(relativePath));
 
