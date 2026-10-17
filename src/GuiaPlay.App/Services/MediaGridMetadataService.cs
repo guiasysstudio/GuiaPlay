@@ -19,14 +19,21 @@ internal static class MediaGridMetadataService
     public const int MaximumInspectedRows = 150;
     private const int ParseTimeoutMs = 1500;
 
-    public static async Task InspectAsync(
+    public static Task InspectAsync(
         IReadOnlyList<MediaGridRow> rows,
         Func<MediaGridRow, MediaGridMetadata, Task> onResult,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(onResult);
+        return Task.Run(() => InspectCoreAsync(rows, onResult, cancellationToken), cancellationToken);
+    }
 
+    private static async Task InspectCoreAsync(
+        IReadOnlyList<MediaGridRow> rows,
+        Func<MediaGridRow, MediaGridMetadata, Task> onResult,
+        CancellationToken cancellationToken)
+    {
         // LibVLC is isolated from the application's active playback engine.
         LibVLC? parser = null;
         try
