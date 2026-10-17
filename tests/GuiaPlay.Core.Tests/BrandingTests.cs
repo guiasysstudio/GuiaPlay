@@ -54,7 +54,9 @@ public sealed class BrandingTests
         var settingsWindow = File.ReadAllText(PathInRepository("src/GuiaPlay.App/Windows/ScreenConfigurationWindow.xaml"));
 
         Assert.Contains("Assets/Branding/Icons/GuiaPlay.ico", mainWindow, StringComparison.Ordinal);
-        Assert.Contains("Assets/Branding/GuiaPlay-Wordmark-UI.png", mainWindow, StringComparison.Ordinal);
+        // GP-I15 uses the ORIGINAL SVG contours in the main window; no scaled bitmap.
+        Assert.Contains("GPVectorSymbol", mainWindow, StringComparison.Ordinal);
+        Assert.Contains("GPVectorWordmark", mainWindow, StringComparison.Ordinal);
         Assert.Contains("Assets/Branding/Icons/GuiaPlay.ico", settingsWindow, StringComparison.Ordinal);
         Assert.Contains("Assets/Branding/GuiaPlay-Wordmark-UI.png", settingsWindow, StringComparison.Ordinal);
         Assert.Contains("Header=\"Sobre\"", settingsWindow, StringComparison.Ordinal);
@@ -440,7 +442,7 @@ public sealed class BrandingTests
         Assert.Contains("x:Name=\"MediaRemoveSelectedButton\"", main, StringComparison.Ordinal);
         Assert.Contains("Click=\"RemoveSelectedMediaButton_OnClick\"", main, StringComparison.Ordinal);
         Assert.Contains("RemoveMediaGridRow(SelectedMediaRow())", code, StringComparison.Ordinal);
-        Assert.Contains("MediaRemoveSelectedButton.IsEnabled = canMove;", code, StringComparison.Ordinal);
+        Assert.Contains("MediaRemoveSelectedButton.IsEnabled = available;", code, StringComparison.Ordinal);
         Assert.Contains("Click=\"SavePlaylistPresetButton_OnClick\"", main, StringComparison.Ordinal);
         Assert.Contains("Click=\"NewPlaylistButton_OnClick\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"AddMediaMenuButton\"", main, StringComparison.Ordinal);
