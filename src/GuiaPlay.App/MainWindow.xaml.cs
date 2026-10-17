@@ -605,6 +605,19 @@ public partial class MainWindow : Window
             return false;
         }
 
+        // A Save confirmation can overwrite the very preset being opened.
+        // Re-read after that decision so the current on-disk snapshot wins.
+        loaded = _playlistPresetStore.Load(presetId);
+        if (loaded.Preset is not { } latestPreset)
+        {
+            FileLogger.Error($"A playlist salva {presetId:D} mudou durante a confirmação: {loaded.Error}");
+            RefreshSavedPlaylists();
+            StatusText.Text = "A playlist salva mudou ou desapareceu; a lista de trabalho foi preservada.";
+            return false;
+        }
+
+        preset = latestPreset;
+
         if (Application.Current is not App app || app.PlaylistStore is null)
         {
             StatusText.Text = "O armazenamento da playlist ainda não está disponível.";
