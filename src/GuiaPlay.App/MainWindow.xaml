@@ -805,26 +805,26 @@
                                         <TextBlock Text="Adicionar  ⌄" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <Button <Button Grid.Column="1" Margin="0,0,6,0"
+                                <Button Grid.Column="1" Margin="0,0,6,0"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Criar uma playlist vazia"
                                         Click="NewPlaylistButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPPlaylist}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="Nova Playlist" VerticalAlignment="Center"/></StackPanel></Button>
-                                <Button <Button Grid.Column="2" Margin="0,0,6,0"
+                                <Button Grid.Column="2" Margin="0,0,6,0"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Salvar a playlist"
                                         Click="SavePlaylistPresetButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPSave}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="Salvar" VerticalAlignment="Center"/></StackPanel></Button>
-                                <Button <Button Grid.Column="3" x:Name="MediaRemoveSelectedButton"
+                                <Button Grid.Column="3" x:Name="MediaRemoveSelectedButton"
                                         Margin="0,0,6,0" IsEnabled="False"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Remover da lista a mídia selecionada na tabela sem excluir o arquivo"
                                         Click="RemoveSelectedMediaButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPTrash}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="Remover" VerticalAlignment="Center"/></StackPanel></Button>
-                                <Button <Button x:Name="MediaMoveUpButton" Grid.Column="4"
+                                <Button x:Name="MediaMoveUpButton" Grid.Column="4"
                                         IsEnabled="False" MinWidth="31" Margin="0,0,4,0"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Mover a mídia selecionada para cima"
                                         AutomationProperties.Name="Subir mídia"
                                         Click="MediaMoveUpButton_OnClick"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource GPArrowUp}" Style="{StaticResource ButtonIconStyle}" Width="17" Height="17"/><TextBlock Text="" VerticalAlignment="Center"/></StackPanel></Button>
-                                <Button <Button x:Name="MediaMoveDownButton" Grid.Column="5"
+                                <Button x:Name="MediaMoveDownButton" Grid.Column="5"
                                         IsEnabled="False" MinWidth="31"
                                         Style="{StaticResource CompactTransportButtonStyle}"
                                         ToolTip="Mover a mídia selecionada para baixo"
