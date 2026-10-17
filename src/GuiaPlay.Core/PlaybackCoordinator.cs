@@ -71,7 +71,7 @@ public sealed class PlaybackCoordinator
         return MediaKind switch
         {
             MediaKind.Audio => true,
-            MediaKind.Video => selectedVideoOutputCount > 0,
+            MediaKind.Video or MediaKind.Image => selectedVideoOutputCount > 0,
             _ => false
         };
     }
