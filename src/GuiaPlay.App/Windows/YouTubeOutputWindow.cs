@@ -86,7 +86,8 @@ internal sealed class YouTubeOutputWindow : Window
     public bool Ready => _ready;
     public event EventHandler<YouTubePlaybackSnapshot>? PlaybackStateChanged;
 
-    public async Task InitializeAsync(YouTubeVideoReference video, bool autoplayRequested = false)
+    public async Task InitializeAsync(YouTubeVideoReference video,
+        bool autoplayRequested = false, bool initiallyMuted = false)
     {
         ArgumentNullException.ThrowIfNull(video);
         if (_closed)
@@ -200,7 +201,8 @@ internal sealed class YouTubeOutputWindow : Window
         FileLogger.Info($"GP-YT-03: navegação com início automático solicitado={autoplayRequested}.");
         core.Navigate(HostOrigin + "/player.html?videoId=" +
             Uri.EscapeDataString(video.VideoId) +
-            "&autoplay=" + (autoplayRequested ? "1" : "0"));
+            "&autoplay=" + (autoplayRequested ? "1" : "0") +
+            "&muted=" + (initiallyMuted ? "1" : "0"));
     }
 
     public void Command(string action, double? value = null)
