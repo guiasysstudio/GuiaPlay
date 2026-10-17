@@ -770,8 +770,11 @@
                 </Border>
             </Grid>
             <!-- GP-I05: actual monitor topology, active output windows and configured audio. -->
-            <Border Grid.Column="4" Style="{StaticResource CardStyle}"
-                    Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="10">
+            <ScrollViewer Grid.Column="4"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <Border Style="{StaticResource CardStyle}"
+                        Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="10">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -890,7 +893,8 @@
                                 Click="HeaderMonitorsButton_OnClick" />
                     </StackPanel>
                 </Grid>
-            </Border>
+                </Border>
+            </ScrollViewer>
         </Grid>
 
         <Border x:Name="LicenseBlockedOverlay" Grid.Row="1" Visibility="Collapsed"
