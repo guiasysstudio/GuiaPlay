@@ -2741,7 +2741,8 @@ public partial class MainWindow : Window
 
         var action = OperatorShortcutPolicy.Resolve(
             ToOperatorShortcutKey(e.Key == Key.System ? e.SystemKey : e.Key),
-            modifiers, textEditing, nativeSpace, e.IsRepeat);
+            modifiers, textEditing, nativeSpace, e.IsRepeat,
+            (Application.Current as App)?.Settings.ShortcutAssignments);
         if (action == OperatorShortcutAction.None)
         {
             return;
@@ -2776,11 +2777,8 @@ public partial class MainWindow : Window
         _ => OperatorShortcutKey.None
     };
 
-    private void KeyboardShortcutsButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        var help = new OperatorShortcutHelpWindow { Owner = this };
-        _ = help.ShowDialog();
-    }
+    private async void KeyboardShortcutsButton_OnClick(object sender, RoutedEventArgs e) =>
+        await OpenSettingsAsync(openUpdates: false, openLicense: false, openShortcuts: true);
 
     private bool ExecuteOperatorShortcut(OperatorShortcutAction action)
     {
@@ -2921,7 +2919,7 @@ public partial class MainWindow : Window
 
     private async Task OpenSettingsAsync(
         bool openUpdates, bool openLicense, bool openAbout = false, bool openAudio = false,
-        bool openMonitors = false)
+        bool openMonitors = false, bool openShortcuts = false)
     {
         var app = Application.Current as App;
         if (app is not
@@ -2964,7 +2962,8 @@ public partial class MainWindow : Window
             _operatorRecoverySettingsAllowed,
             openAbout,
             openAudio,
-            openMonitors)
+            openMonitors,
+            openShortcuts)
         { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Result is not { } result)
         {
@@ -2984,6 +2983,7 @@ public partial class MainWindow : Window
                 Appearance = result.Appearance,
                 AccentColor = result.AccentColor,
                 Equalizer = result.Equalizer,
+                ShortcutAssignments = result.ShortcutAssignments,
                 CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
                 InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
             }, out var activeSaveError))
@@ -3033,6 +3033,7 @@ public partial class MainWindow : Window
             AccentColor = result.AccentColor,
             AudioOutput = result.AudioOutput,
             Equalizer = result.Equalizer,
+            ShortcutAssignments = result.ShortcutAssignments,
             CheckUpdatesAutomatically = result.CheckUpdatesAutomatically,
             InstallUpdatesAutomatically = result.InstallUpdatesAutomatically
         }, out var error))
