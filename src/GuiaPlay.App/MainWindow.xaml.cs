@@ -2921,7 +2921,9 @@ public partial class MainWindow : Window
         }
 
         _ = TrySeek(MediaControlBehavior.PositionFromPoint(
-            e.GetPosition(slider).X, slider.ActualWidth, _engine.Length));
+            e.GetPosition(slider).X, slider.ActualWidth,
+            _youtubeWindow is null ? _engine.Length :
+                _youtubeSnapshot?.DurationMilliseconds ?? 0));
         e.Handled = true;
     }
 
@@ -2942,14 +2944,20 @@ public partial class MainWindow : Window
     {
         if (_isDraggingProgress && ReferenceEquals(sender, _draggingProgressSlider))
         {
-            UpdateTimeLabels((long)e.NewValue, Math.Max(0, _engine.Length));
+            UpdateTimeLabels((long)e.NewValue, Math.Max(0,
+                _youtubeWindow is null ? _engine.Length :
+                    _youtubeSnapshot?.DurationMilliseconds ?? 0));
         }
     }
 
     private void ProgressSlider_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
         if (sender is Slider slider && slider.IsEnabled &&
-            TrySeek(MediaControlBehavior.AdjustPosition(_engine.Time, _engine.Length, e.Delta)))
+            TrySeek(MediaControlBehavior.AdjustPosition(
+                _youtubeWindow is null ? _engine.Time :
+                    _youtubeSnapshot?.ElapsedMilliseconds ?? 0,
+                _youtubeWindow is null ? _engine.Length :
+                    _youtubeSnapshot?.DurationMilliseconds ?? 0, e.Delta)))
         {
             e.Handled = true;
         }
