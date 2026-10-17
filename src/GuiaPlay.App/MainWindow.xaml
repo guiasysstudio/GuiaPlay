@@ -419,9 +419,12 @@
                                 </Grid>
                                 <Border Grid.Row="1" Background="Black" CornerRadius="6" ClipToBounds="True"
                                         MinHeight="110">
+                                    <Grid>
                                     <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Center" VerticalAlignment="Center">
                                       <Grid Width="1600" Height="900">
                                         <Image x:Name="PreviewImage" Stretch="Uniform" />
+                                      </Grid>
+                                    </Viewbox>
                                         <StackPanel x:Name="PreviewEmptyState" Margin="12"
                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                                     MaxWidth="220">
@@ -435,9 +438,8 @@
                                                        Foreground="#FF9FA7B3" FontSize="10"
                                                        Margin="0,4,0,0" TextWrapping="Wrap" TextAlignment="Center" />
                                         </StackPanel>
-                                      </Grid>
-                                    </Viewbox>
-                                </Border>
+  
+                                    </Grid>                             </Border>
                                 <!-- Same LibVLC position as transport below; bindings prevent drift. -->
                                 <Grid Grid.Row="2" Margin="2,6,2,1" Visibility="Collapsed">
                                     <Grid.ColumnDefinitions>
@@ -484,10 +486,13 @@
                                 </Grid>
                                 <Border Grid.Row="1" Background="Black" CornerRadius="6"
                                         ClipToBounds="True" MinHeight="110">
+                                    <Grid>
                                     <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Center" VerticalAlignment="Center">
                                       <Grid Width="1600" Height="900">
                                         <Image x:Name="ProgramImage" Stretch="Uniform" Visibility="Collapsed"
                                                ToolTip="Espelho do quadro entregue pelo GuiaPlay às janelas públicas; não é captura física do monitor" />
+                                      </Grid>
+                                    </Viewbox>
                                         <StackPanel x:Name="ProgramEmptyState" Margin="12"
                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                                     MaxWidth="220">
@@ -509,9 +514,8 @@
                                                        Margin="0,6,0,0" TextWrapping="Wrap"
                                                        TextAlignment="Center" />
                                         </StackPanel>
-                                      </Grid>
-                                    </Viewbox>
-                                </Border>
+  
+                                    </Grid>                             </Border>
                             </Grid>
                         </Border>
                     </Grid>
