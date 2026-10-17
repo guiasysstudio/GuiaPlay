@@ -10,6 +10,7 @@ Situação: **implementado no código; build, testes automatizados e smoke de mo
 1. **Linha de tempo na Prévia do Operador** e **linha de tempo no transporte inferior**, ambas associadas à posição da mesma sessão do LibVLC. A barra superior recebe o valor/máximo da barra inferior por binding bidirecional, para não existir um segundo relógio/estado paralelo.
 2. Arraste do marcador, clique na barra e roda do mouse nas duas timelines. O tempo decorrido/restante é atualizado durante a interação. Ambas chamam o mesmo `TrySeek`, que verifica `_engine.IsSeekable`, duração conhecida, licença, operação ocupada e ciclo válido; entradas impossíveis não prometem seek.
 3. Botões **mídia anterior**, **retroceder 5 segundos**, **reproduzir**, **pausar**, **avançar 5 segundos**, **próxima mídia** e **parar**; mudo/volume continuam operando na sessão original (GP-I05 adicionou o segundo controle lateral ligado ao mesmo volume).
+3.1. Botão **⛶ Prévia em tela cheia** abre uma janela sem bordas **somente no monitor do operador**, com a mesma origem WPF da prévia principal, sem novo LibVLC ou saída pública. **Esc/F11/Alt+F4** fecha a janela e retorna ao painel. Fecha também se o monitor do operador se desconectar ou a licença for revogada.
 4. Anterior e Próxima buscam a ordem real de `PlaylistDocument`, inclusive entre grupos e ignorando filtros de busca visual. **Não iniciam reprodução automaticamente**: preparam a mídia, mantendo a confirmação existente se a reprodução anterior estiver ativa.
 5. Estado da música/faixa atual associado ao ID efetivo do item da playlist após carga bem-sucedida. Arquivos abertos diretamente fora da playlist não ativam avanços automáticos sem ID.
 6. **Modo Manual (padrão seguro):** no fim natural da mídia, fecha a janela pública como antes e não inicia o próximo item. Esse padrão é aplicado em cada inicialização, sem migrar schema de preferências.
@@ -27,6 +28,7 @@ Situação: **implementado no código; build, testes automatizados e smoke de mo
 - `src/GuiaPlay.App/MainWindow.xaml`: nova barra na prévia, botões de navegação/seek, alternância Manual/Sequencial, Repetir e Aleatório, resumo da próxima mídia.
 - `src/GuiaPlay.App/MainWindow.xaml.cs`: eventos e estados reais, sincronismo de timelines, alteração de modos, prevenção de autoplay indevido, transição no término de mídia e restauração de controles.
 - `src/GuiaPlay.App/Playback/LibVlcPlaybackEngine.cs`: propriedade somente leitura `IsSeekable`, protegida pela trava de sessão nativa.
+- `src/GuiaPlay.App/Windows/OperatorPreviewWindow.cs`: fullscreen apenas para a prévia local com fonte de imagem vinculada à janela principal, sem duplicar decodificação.
 - `src/GuiaPlay.Core/PlaylistPlaybackNavigation.cs`: política sem dependência WPF para seleção das faixas.
 - `tests/GuiaPlay.Core.Tests/PlaylistPlaybackNavigationTests.cs`: oito testes de política preparados, sem execução.
 - `docs/PLANO-INTERFACE-3-MODELO1.md`: progresso atualizado.
@@ -47,7 +49,7 @@ Situação: **implementado no código; build, testes automatizados e smoke de mo
 - Sequencial: vídeo→vídeo, áudio→vídeo, troca de grupos, última faixa, repetição atual/lista, shuffle sem repetição, falha de mídia, saída desconectada e licença revogada.
 - Verificar se alterações da playlist interrompem autoplay seguro e se uma nova carga solicitada pelo operador cancela a fila assíncrona anterior.
 - Testar parar manualmente enquanto uma transição está em andamento; procurar qualquer evento de fim nativo atrasado.
-- Conferir UI mínima 1366×768, 100%, 125% e 150% de escala, mantendo botões clicáveis e legíveis.
+- Conferir UI mínima 1366×768, 100%, 125% e 150% de escala, mantendo botões clicáveis e legíveis; abrir/fechar fullscreen da prévia em monitor do operador, incluindo Esc/F11, perda de monitor e revogação da licença.
 
 ## Próxima
 
