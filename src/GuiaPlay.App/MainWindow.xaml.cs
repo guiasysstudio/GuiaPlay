@@ -2813,7 +2813,8 @@ public partial class MainWindow : Window
 
     private async Task TryAutomaticInstallationAsync()
     {
-        if (_autoInstallInProgress || _coordinator.IsActive || Application.Current is not App { UpdateManager: { } manager } app ||
+        if (_autoInstallInProgress || _coordinator.IsActive || _youtubeWindow is not null ||
+            Application.Current is not App { UpdateManager: { } manager } app ||
             !UpdateInstallationPolicy.CanAutoInstall(
                 app.Settings.InstallUpdatesAutomatically,
                 manager.LastResult?.Status == UpdateCheckStatus.UpdateAvailable,
