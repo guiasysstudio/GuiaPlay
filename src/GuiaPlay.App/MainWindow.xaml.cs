@@ -873,7 +873,7 @@ public partial class MainWindow : Window
                     this,
                     $"A varredura encontrou {scanned.Candidates.Count} mídia(s), mas nem todos os caminhos foram lidos. " +
                     $"Pastas verificadas: {scanned.DirectoriesVisited}. Entradas ignoradas por proteção/erro: {scanned.SkippedUnsafe}. " +
-                    $"Limite alcançado: {(scanned.Limited ? "sim" : "não")}.\\n\\n" +
+                    $"Limite alcançado: {(scanned.Limited ? "sim" : "não")}.\n\n" +
                     "Deseja importar somente os arquivos encontrados?",
                     "Importação parcial de pasta",
                     MessageBoxButton.YesNo,
