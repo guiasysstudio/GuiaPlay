@@ -4,6 +4,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -34,11 +35,14 @@ public partial class MainWindow : Window
 
     private const int WmDisplayChange = 0x007E;
     private const string PlaylistDragFormat = "GuiaPlay.PlaylistNode";
+    private const string MediaGridDragFormat = "GuiaPlay.MediaGridRow";
     private readonly PlaybackCoordinator _coordinator = new();
     private readonly LibVlcPlaybackEngine _engine;
     private readonly ObservableCollection<MonitorChoice> _outputChoices = [];
     private readonly ObservableCollection<PlaylistGroupNode> _playlistGroups = [];
     private readonly ObservableCollection<SavedPlaylistEntry> _savedPlaylists = [];
+    private readonly ObservableCollection<MediaGridRow> _mediaRows = [];
+    private ICollectionView? _mediaGridView;
     private readonly PlaylistWorkspace _playlistWorkspace;
     private readonly PlaylistPresetStore _playlistPresetStore;
     private readonly PlaylistCatalog _playlistCatalog;
@@ -81,6 +85,8 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _playlistAvailabilityCancellation;
     private Point _playlistDragStart;
     private object? _playlistDragSource;
+    private Point _mediaGridDragStart;
+    private MediaGridRow? _mediaGridDragSource;
     private bool _autoInstallInProgress;
 
     public MainWindow()
@@ -93,6 +99,9 @@ public partial class MainWindow : Window
         SidebarOutputsList.ItemsSource = _outputChoices;
         PlaylistTree.ItemsSource = _playlistGroups;
         SavedPlaylistsList.ItemsSource = _savedPlaylists;
+        _mediaGridView = CollectionViewSource.GetDefaultView(_mediaRows);
+        _mediaGridView.Filter = MediaGridFilter;
+        MediaGrid.ItemsSource = _mediaGridView;
         var app = Application.Current as App;
         var settings = app?.Settings ?? AppSettings.Default;
         _playlistWorkspace = new PlaylistWorkspace(app?.Playlist ?? PlaylistDocument.Empty);
@@ -803,6 +812,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        await ActivatePlaylistItemAsync(item);
+    }
+
+    private async Task ActivatePlaylistItemAsync(PlaylistItemNode item)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy)
+        {
+            return;
+        }
+
         StatusText.Text = "Verificando disponibilidade da mídia…";
         var probe = await MediaFileProbe.ProbeAsync(item.Item.OriginalPath, TimeSpan.FromSeconds(4));
         item.SetAvailability(probe);
@@ -830,6 +849,277 @@ public partial class MainWindow : Window
         {
             item.SetDecodeFailure();
         }
+    }
+
+    // GP-I03: table search is a view filter. It never reorders persisted playback data.
+    private bool MediaGridFilter(object value)
+    {
+        if (value is not MediaGridRow row)
+        {
+            return false;
+        }
+
+        var query = MediaSearchBox?.Text?.Trim();
+        if (string.IsNullOrEmpty(query))
+        {
+            return true;
+        }
+
+        return row.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+               row.GroupName.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+               row.FilePath.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+               row.Kind.Contains(query, StringComparison.CurrentCultureIgnoreCase);
+    }
+
+    private void MediaSearchBox_OnTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_mediaGridView is null)
+        {
+            return;
+        }
+
+        _mediaGridView.Refresh();
+        UpdateMediaGridStatus();
+    }
+
+    private void ClearMediaSearchButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        MediaSearchBox.Clear();
+        _ = MediaSearchBox.Focus();
+    }
+
+    private MediaGridRow? SelectedMediaRow() => MediaGrid.SelectedItem as MediaGridRow;
+
+    private void MediaGrid_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        UpdateMediaGridActions();
+
+    private void UpdateMediaGridStatus()
+    {
+        var visible = _mediaGridView?.Cast<MediaGridRow>().Count() ?? _mediaRows.Count;
+        MediaGridCountText.Text = visible == _mediaRows.Count
+            ? $"{_mediaRows.Count} mídias"
+            : $"{visible} de {_mediaRows.Count} mídias";
+        MediaGridEmptyText.Text = _mediaRows.Count == 0
+            ? "Crie um grupo e adicione mídias para montar a reprodução."
+            : "Nenhuma mídia corresponde à pesquisa.";
+        MediaGridEmptyText.Visibility = visible == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateMediaGridActions();
+    }
+
+    private void UpdateMediaGridActions()
+    {
+        var row = SelectedMediaRow();
+        var canMove = row is not null && _licensingAllowsAccess && !_controlsBusy;
+        var items = canMove
+            ? _playlistCatalog.Snapshot.Groups.FirstOrDefault(group => group.Id == row!.GroupId)?.Items
+            : null;
+        var index = items is null ? -1 : items.ToList().FindIndex(item => item.Id == row!.ItemId);
+        MediaMoveUpButton.IsEnabled = canMove && index > 0;
+        MediaMoveDownButton.IsEnabled = canMove && index >= 0 && index < (items?.Count ?? 0) - 1;
+    }
+
+    private void MediaMoveUpButton_OnClick(object sender, RoutedEventArgs e) =>
+        MoveMediaGridRow(SelectedMediaRow(), -1);
+
+    private void MediaMoveDownButton_OnClick(object sender, RoutedEventArgs e) =>
+        MoveMediaGridRow(SelectedMediaRow(), 1);
+
+    private void MoveMediaGridRow(MediaGridRow? row, int direction)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || row is null || Math.Abs(direction) != 1)
+        {
+            return;
+        }
+
+        var group = _playlistCatalog.Snapshot.Groups.FirstOrDefault(item => item.Id == row.GroupId);
+        if (group is null)
+        {
+            return;
+        }
+
+        var index = group.Items.ToList().FindIndex(item => item.Id == row.ItemId);
+        var next = index + direction;
+        if (index < 0 || next < 0 || next >= group.Items.Count)
+        {
+            return;
+        }
+
+        if (_playlistCatalog.MoveItem(row.GroupId, row.ItemId, row.GroupId, next))
+        {
+            SavePlaylistAndRefresh("Ordem das mídias atualizada.");
+        }
+    }
+
+    private async void MediaGrid_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject)?.Item is MediaGridRow row)
+        {
+            await ActivateMediaGridRowAsync(row);
+        }
+    }
+
+    private async Task ActivateMediaGridRowAsync(MediaGridRow row)
+    {
+        var node = _playlistGroups.FirstOrDefault(group => group.Id == row.GroupId)?
+            .Items.FirstOrDefault(item => item.Item.Id == row.ItemId);
+        if (node is not null)
+        {
+            await ActivatePlaylistItemAsync(node);
+        }
+    }
+
+    private void RemoveMediaGridRow(MediaGridRow? row)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || row is null)
+        {
+            return;
+        }
+
+        if (_playlistCatalog.RemoveItem(row.GroupId, row.ItemId))
+        {
+            SavePlaylistAndRefresh("Referência removida da playlist; arquivo original preservado.");
+        }
+    }
+
+    private void MediaRowActionsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not MediaGridRow row ||
+            !_licensingAllowsAccess || _controlsBusy)
+        {
+            return;
+        }
+
+        MediaGrid.SelectedItem = row;
+        var menu = new ContextMenu();
+        var play = new MenuItem { Header = "Reproduzir", IsEnabled = row.Node.IsAvailable };
+        play.Click += async (_, _) => await ActivateMediaGridRowAsync(row);
+        var moveUp = new MenuItem { Header = "Mover para cima" };
+        moveUp.Click += (_, _) => MoveMediaGridRow(row, -1);
+        var moveDown = new MenuItem { Header = "Mover para baixo" };
+        moveDown.Click += (_, _) => MoveMediaGridRow(row, 1);
+        var remove = new MenuItem { Header = "Remover referência" };
+        remove.Click += (_, _) => RemoveMediaGridRow(row);
+        menu.Items.Add(play);
+        menu.Items.Add(moveUp);
+        menu.Items.Add(moveDown);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(remove);
+
+        var group = _playlistCatalog.Snapshot.Groups.FirstOrDefault(item => item.Id == row.GroupId);
+        var index = group?.Items.ToList().FindIndex(item => item.Id == row.ItemId) ?? -1;
+        moveUp.IsEnabled = index > 0;
+        moveDown.IsEnabled = group is not null && index >= 0 && index < group.Items.Count - 1;
+        menu.PlacementTarget = button;
+        menu.Placement = PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+
+    private void MediaGrid_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _mediaGridDragStart = e.GetPosition(MediaGrid);
+        // Buttons and scrollbars must not accidentally initiate media reordering.
+        if (FindAncestor<ButtonBase>(e.OriginalSource as DependencyObject) is not null ||
+            FindAncestor<ScrollBar>(e.OriginalSource as DependencyObject) is not null)
+        {
+            _mediaGridDragSource = null;
+            return;
+        }
+
+        _mediaGridDragSource = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject)?.Item
+            as MediaGridRow;
+    }
+
+    private void MediaGrid_OnPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy ||
+            e.LeftButton != MouseButtonState.Pressed || _mediaGridDragSource is null)
+        {
+            return;
+        }
+
+        var current = e.GetPosition(MediaGrid);
+        if (Math.Abs(current.X - _mediaGridDragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(current.Y - _mediaGridDragStart.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        var data = new DataObject();
+        data.SetData(MediaGridDragFormat, _mediaGridDragSource);
+        _ = DragDrop.DoDragDrop(MediaGrid, data, DragDropEffects.Move);
+        _mediaGridDragSource = null;
+    }
+
+    private void MediaGrid_OnPreviewDragOver(object sender, DragEventArgs e)
+    {
+        var target = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject)?.Item
+            as MediaGridRow;
+        e.Effects = target is not null && e.Data.GetDataPresent(MediaGridDragFormat) &&
+                    _licensingAllowsAccess && !_controlsBusy
+            ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void MediaGrid_OnDrop(object sender, DragEventArgs e)
+    {
+        var target = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject)?.Item
+            as MediaGridRow;
+        var source = e.Data.GetDataPresent(MediaGridDragFormat)
+            ? e.Data.GetData(MediaGridDragFormat) as MediaGridRow
+            : null;
+        if (source is null || target is null || !_licensingAllowsAccess || _controlsBusy)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        var destGroup = _playlistCatalog.Snapshot.Groups.FirstOrDefault(group => group.Id == target.GroupId);
+        var targetIndex = destGroup?.Items.ToList().FindIndex(item => item.Id == target.ItemId) ?? -1;
+        if (targetIndex >= 0 && _playlistCatalog.MoveItem(
+                source.GroupId, source.ItemId, target.GroupId, targetIndex))
+        {
+            SavePlaylistAndRefresh("Mídia reposicionada; ordem de reprodução salva.");
+        }
+
+        e.Handled = true;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? origin) where T : DependencyObject
+    {
+        var current = origin;
+        while (current is not null)
+        {
+            if (current is T target)
+            {
+                return target;
+            }
+
+            current = current is Visual or System.Windows.Media.Media3D.Visual3D
+                ? VisualTreeHelper.GetParent(current)
+                : LogicalTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+
+    private async Task RefreshMediaGridMetadataAsync(
+        IReadOnlyList<MediaGridRow> snapshotRows, CancellationToken token)
+    {
+        await MediaGridMetadataService.InspectAsync(snapshotRows, async (row, metadata) =>
+        {
+            if (token.IsCancellationRequested || _isClosing)
+            {
+                return;
+            }
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (!token.IsCancellationRequested && !_isClosing && _mediaRows.Contains(row))
+                {
+                    row.ApplyMetadata(metadata);
+                }
+            }, DispatcherPriority.Background, token);
+        }, token);
     }
 
     private void PlaylistTree_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -1002,20 +1292,33 @@ public partial class MainWindow : Window
 
     private void RebuildPlaylistTree()
     {
+        var previousSelection = SelectedMediaRow()?.ItemId;
         _playlistAvailabilityCancellation?.Cancel();
         _playlistAvailabilityCancellation?.Dispose();
         _playlistAvailabilityCancellation = new CancellationTokenSource();
         _playlistGroups.Clear();
+        _mediaRows.Clear();
+        var order = 0;
         foreach (var group in _playlistCatalog.Snapshot.Groups)
         {
-            _playlistGroups.Add(new PlaylistGroupNode(group));
+            var node = new PlaylistGroupNode(group);
+            _playlistGroups.Add(node);
+            foreach (var item in node.Items)
+            {
+                _mediaRows.Add(new MediaGridRow(++order, group.Name, item));
+            }
         }
 
         PlaylistEmptyState.Visibility = _playlistGroups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        var mediaCount = _playlistGroups.Sum(group => group.Items.Count);
+        var mediaCount = _mediaRows.Count;
         WorkingPlaylistSummaryText.Text = $"{_playlistGroups.Count} grupos · {mediaCount} mídias";
+        _mediaGridView?.Refresh();
+        MediaGrid.SelectedItem = _mediaRows.FirstOrDefault(row => row.ItemId == previousSelection);
+        UpdateMediaGridStatus();
 
-        _ = RefreshLocalPlaylistAvailabilityAsync(_playlistAvailabilityCancellation.Token);
+        var token = _playlistAvailabilityCancellation.Token;
+        _ = RefreshLocalPlaylistAvailabilityAsync(token);
+        _ = RefreshMediaGridMetadataAsync(_mediaRows.ToArray(), token);
     }
 
     private async Task RefreshLocalPlaylistAvailabilityAsync(CancellationToken cancellationToken)
@@ -2311,6 +2614,7 @@ public partial class MainWindow : Window
         HeaderPlaylistButton.IsEnabled = !busy && _licensingAllowsAccess;
         SetConfigurationControlsEnabled(!busy && !_coordinator.IsActive);
         RefreshSavedPlaylistActions();
+        UpdateMediaGridActions();
         RefreshPlaybackControls();
     }
 
@@ -2383,6 +2687,7 @@ public partial class MainWindow : Window
         HeaderMediaButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
         HeaderPlaylistButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
         RefreshSavedPlaylistActions();
+        UpdateMediaGridActions();
         RefreshPlaybackControls();
     }
 
