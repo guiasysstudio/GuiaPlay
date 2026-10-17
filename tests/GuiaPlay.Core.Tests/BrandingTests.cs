@@ -416,7 +416,7 @@ public sealed class BrandingTests
         var code = File.ReadAllText(PathInRepository("src/GuiaPlay.App/MainWindow.xaml.cs"));
 
         Assert.Contains("Grid.RowSpan=\"2\"", main, StringComparison.Ordinal);
-        Assert.Contains("<RowDefinition Height=\"46*\" MinHeight=\"250\" />", main, StringComparison.Ordinal);
+        Assert.Contains("<RowDefinition Height=\"46*\" MinHeight=\"160\" />", main, StringComparison.Ordinal);
         Assert.Contains("Grid.Row=\"1\" Grid.Column=\"2\" Grid.ColumnSpan=\"3\"", main, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"MediaRemoveSelectedButton\"", main, StringComparison.Ordinal);
         Assert.Contains("Click=\"RemoveSelectedMediaButton_OnClick\"", main, StringComparison.Ordinal);
