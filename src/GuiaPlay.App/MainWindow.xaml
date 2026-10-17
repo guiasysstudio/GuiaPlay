@@ -38,6 +38,40 @@
             <Setter Property="Height" Value="17" />
             <Setter Property="Margin" Value="0,0,7,0" />
         </Style>
+        <Style x:Key="SavedPlaylistItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemSurface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource GuiaPlayControlHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource GuiaPlaySelectionBrush}" />
+                                <Setter TargetName="ItemSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBorderBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource GuiaPlaySelectionForegroundBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ItemSurface" Property="BorderBrush" Value="{DynamicResource GuiaPlayAccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="OutputChipStyle" TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource GuiaPlayTextPrimaryBrush}" />
             <Setter Property="Background" Value="{DynamicResource GuiaPlayControlSurfaceBrush}" />
@@ -93,9 +127,14 @@
         </Style>
         <HierarchicalDataTemplate DataType="{x:Type models:PlaylistGroupNode}" ItemsSource="{Binding Items}">
             <Grid Margin="2,2">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                <Border Grid.Column="1" Margin="10,0,2,0" Padding="7,2" CornerRadius="9"
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="17" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Path Data="{StaticResource FolderOpenIconGeometry}" Width="15" Height="15"
+                      Fill="{DynamicResource GuiaPlayAccentBrush}" Stretch="Uniform" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding Name}" Margin="5,0,0,0"
+                           FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <Border Grid.Column="2" Margin="6,0,2,0" Padding="7,2" CornerRadius="9"
                         Background="{DynamicResource GuiaPlayAccentSubtleBrush}">
                     <TextBlock Text="{Binding Items.Count}" FontSize="11" />
                 </Border>
@@ -261,72 +300,201 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="0" Style="{StaticResource CardStyle}" Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="12">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <Grid Margin="0,0,0,9">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock Text="PLAYLIST" FontSize="15" FontWeight="SemiBold" />
-                            <TextBlock Text="Organize e execute mídias sem copiar os arquivos"
-                                       Style="{StaticResource SecondaryTextStyle}" Margin="0,3,0,0" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Click="NewGroupButton_OnClick" ToolTip="Criar grupo virtual"
-                                    AutomationProperties.Name="Criar grupo" Style="{StaticResource CompactPrimaryButtonStyle}" Margin="0,0,5,0">
-                                <StackPanel Orientation="Horizontal"><Path Data="{StaticResource FolderAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Grupo" VerticalAlignment="Center" /></StackPanel>
-                            </Button>
-                            <Button Click="RenameGroupButton_OnClick" ToolTip="Renomear grupo selecionado"
-                                    AutomationProperties.Name="Renomear grupo" Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,5,0">
-                                <Path Data="{StaticResource EditIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
-                            </Button>
-                            <Button Click="DeleteGroupButton_OnClick" ToolTip="Excluir grupo virtual"
-                                    AutomationProperties.Name="Excluir grupo" Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,5,0">
-                                <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
-                            </Button>
-                            <Button Click="SavePlaylistPresetButton_OnClick" ToolTip="Salvar a playlist atual como preset"
-                                    AutomationProperties.Name="Salvar playlist" Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,5,0">
-                                <Path Data="{StaticResource SaveIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
-                            </Button>
-                            <Button Click="LoadPlaylistPresetButton_OnClick" ToolTip="Carregar ou excluir uma playlist salva"
-                                    AutomationProperties.Name="Carregar playlist" Style="{StaticResource PlaylistCommandButtonStyle}">
-                                <Path Data="{StaticResource FolderOpenIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
-                            </Button>
-                        </StackPanel>
+            <!-- GP-I02: saved presets and working groups are real persisted data, not mock folders. -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40*" />
+                    <RowDefinition Height="10" />
+                    <RowDefinition Height="60*" />
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Style="{StaticResource CardStyle}"
+                        Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="9">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid Margin="2,0,2,7">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource FolderOpenIconGeometry}" Width="17" Height="17"
+                                      Stretch="Uniform" Fill="{DynamicResource GuiaPlayAccentBrush}"
+                                      VerticalAlignment="Center" />
+                                <TextBlock Text="PLAYLISTS" FontSize="14" FontWeight="SemiBold"
+                                           Margin="7,0,7,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="SavedPlaylistsCountText" Text="0"
+                                           Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                           VerticalAlignment="Center" FontSize="11" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="+" ToolTip="Criar nova playlist vazia"
+                                    AutomationProperties.Name="Nova playlist"
+                                    Style="{StaticResource PlaylistCommandButtonStyle}"
+                                    Click="NewPlaylistButton_OnClick" />
+                        </Grid>
+                        <Grid Grid.Row="1">
+                            <ListBox x:Name="SavedPlaylistsList" Background="Transparent"
+                                     BorderThickness="0" SelectionMode="Single"
+                                     ItemContainerStyle="{StaticResource SavedPlaylistItemStyle}"
+                                     SelectionChanged="SavedPlaylistsList_OnSelectionChanged"
+                                     MouseDoubleClick="SavedPlaylistsList_OnMouseDoubleClick"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     AutomationProperties.Name="Playlists salvas">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type models:SavedPlaylistEntry}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="20" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Path Data="{StaticResource FolderOpenIconGeometry}"
+                                                  Fill="{DynamicResource GuiaPlayAccentBrush}"
+                                                  Width="16" Height="16" Stretch="Uniform"
+                                                  VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                               FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding ActiveLabel}"
+                                                               Margin="3,0,0,0" FontSize="9"
+                                                               Foreground="{DynamicResource GuiaPlayAccentBrush}" />
+                                                </Grid>
+                                                <TextBlock Text="{Binding Details}" TextTrimming="CharacterEllipsis"
+                                                           FontSize="10" Margin="0,3,0,0"
+                                                           Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock x:Name="SavedPlaylistsEmptyText"
+                                       Text="Nenhuma playlist salva. Use Salvar para criar uma."
+                                       VerticalAlignment="Center" HorizontalAlignment="Center"
+                                       Margin="9" TextAlignment="Center" TextWrapping="Wrap"
+                                       IsHitTestVisible="False"
+                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                        </Grid>
+                        <Grid Grid.Row="2" Margin="0,7,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="Nova" Margin="0,0,3,0"
+                                    Style="{StaticResource CompactTransportButtonStyle}"
+                                    ToolTip="Iniciar uma playlist de trabalho vazia"
+                                    Click="NewPlaylistButton_OnClick" />
+                            <Button Grid.Column="1" Content="Salvar" Margin="2,0,2,0"
+                                    Style="{StaticResource CompactPrimaryButtonStyle}"
+                                    ToolTip="Salvar a playlist de trabalho como preset"
+                                    Click="SavePlaylistPresetButton_OnClick" />
+                            <Button x:Name="OpenSelectedPresetButton" Grid.Column="2" Content="Abrir"
+                                    Margin="2,0,2,0" IsEnabled="False"
+                                    Style="{StaticResource CompactTransportButtonStyle}"
+                                    ToolTip="Carregar a playlist selecionada"
+                                    Click="OpenSelectedPresetButton_OnClick" />
+                            <Button x:Name="DeleteSelectedPresetButton" Grid.Column="3" Content="Excluir"
+                                    Margin="3,0,0,0" IsEnabled="False"
+                                    Style="{StaticResource CompactTransportButtonStyle}"
+                                    ToolTip="Excluir somente o preset selecionado, com confirmação"
+                                    Click="DeleteSelectedPresetButton_OnClick" />
+                        </Grid>
                     </Grid>
-                    <Border Grid.Row="1" CornerRadius="8" Padding="5" Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
-                            BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
-                        <Grid>
-                            <TreeView x:Name="PlaylistTree" MouseDoubleClick="PlaylistTree_OnMouseDoubleClick" AllowDrop="True"
-                                      PreviewMouseLeftButtonDown="PlaylistTree_OnPreviewMouseLeftButtonDown"
-                                      PreviewMouseMove="PlaylistTree_OnPreviewMouseMove" PreviewDragOver="PlaylistTree_OnPreviewDragOver"
-                                      Drop="PlaylistTree_OnDrop" BorderThickness="0" Background="Transparent"
-                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
-                            <StackPanel x:Name="PlaylistEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        MaxWidth="240" IsHitTestVisible="False">
-                                <Path Data="{StaticResource FolderAddIconGeometry}" Width="30" Height="30" Stretch="Uniform"
-                                      Fill="{DynamicResource GuiaPlayTextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,9" />
-                                <TextBlock Text="Playlist vazia" FontWeight="SemiBold" TextAlignment="Center" />
-                                <TextBlock Text="Crie um grupo e adicione mídias do computador ou do Explorer"
-                                           Style="{StaticResource SecondaryTextStyle}" TextAlignment="Center" Margin="0,4,0,0" />
+                </Border>
+                <Border Grid.Row="2" Style="{StaticResource CardStyle}"
+                        Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="9">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid Margin="2,0,2,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="PASTAS / GRUPOS" FontSize="14" FontWeight="SemiBold" />
+                                <TextBlock Text="Grupos virtuais da lista atual" FontSize="10"
+                                           Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Click="NewGroupButton_OnClick" ToolTip="Criar grupo virtual"
+                                        AutomationProperties.Name="Criar grupo"
+                                        Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,3,0">
+                                    <Path Data="{StaticResource FolderAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                                </Button>
+                                <Button Click="RenameGroupButton_OnClick" ToolTip="Renomear grupo selecionado"
+                                        AutomationProperties.Name="Renomear grupo"
+                                        Style="{StaticResource PlaylistCommandButtonStyle}" Margin="0,0,3,0">
+                                    <Path Data="{StaticResource EditIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                                </Button>
+                                <Button Click="DeleteGroupButton_OnClick" ToolTip="Excluir grupo e referências, sem apagar mídias"
+                                        AutomationProperties.Name="Excluir grupo"
+                                        Style="{StaticResource PlaylistCommandButtonStyle}">
+                                    <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                                </Button>
                             </StackPanel>
                         </Grid>
-                    </Border>
-                    <Grid Grid.Row="2" Margin="0,8,0,0">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <Button Click="AddPlaylistItemButton_OnClick" ToolTip="Adicionar referências de mídia ao grupo"
-                                Style="{StaticResource CompactTransportButtonStyle}" HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DocumentAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Adicionar mídia…" VerticalAlignment="Center" /></StackPanel>
-                        </Button>
-                        <Button Grid.Column="1" Click="RemovePlaylistItemButton_OnClick" ToolTip="Remover referência sem apagar o arquivo"
-                                Style="{StaticResource CompactTransportButtonStyle}">
-                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" /><TextBlock Text="Remover" VerticalAlignment="Center" /></StackPanel>
-                        </Button>
+                        <Border Grid.Row="1" CornerRadius="7" Padding="4"
+                                Background="{DynamicResource GuiaPlayControlSurfaceBrush}"
+                                BorderBrush="{DynamicResource GuiaPlayDividerBrush}" BorderThickness="1">
+                            <Grid>
+                                <TreeView x:Name="PlaylistTree" MouseDoubleClick="PlaylistTree_OnMouseDoubleClick"
+                                          AllowDrop="True"
+                                          PreviewMouseLeftButtonDown="PlaylistTree_OnPreviewMouseLeftButtonDown"
+                                          PreviewMouseMove="PlaylistTree_OnPreviewMouseMove"
+                                          PreviewDragOver="PlaylistTree_OnPreviewDragOver"
+                                          Drop="PlaylistTree_OnDrop" BorderThickness="0" Background="Transparent"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                          AutomationProperties.Name="Grupos e mídias da playlist" />
+                                <StackPanel x:Name="PlaylistEmptyState" HorizontalAlignment="Center"
+                                            VerticalAlignment="Center" MaxWidth="230" IsHitTestVisible="False">
+                                    <Path Data="{StaticResource FolderAddIconGeometry}"
+                                          Width="27" Height="27" Stretch="Uniform"
+                                          Fill="{DynamicResource GuiaPlayTextSecondaryBrush}"
+                                          HorizontalAlignment="Center" Margin="0,0,0,8" />
+                                    <TextBlock Text="Lista de trabalho vazia" FontWeight="SemiBold" TextAlignment="Center" />
+                                    <TextBlock Text="Crie um grupo e adicione mídias. Pastas do computador serão importadas no GP-I04."
+                                               Style="{StaticResource SecondaryTextStyle}"
+                                               TextAlignment="Center" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Grid Grid.Row="2" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="WorkingPlaylistSummaryText" Text="0 grupos · 0 mídias"
+                                       VerticalAlignment="Center" FontSize="10" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}" />
+                            <Button Grid.Column="1" Click="AddPlaylistItemButton_OnClick"
+                                    Style="{StaticResource CompactTransportButtonStyle}"
+                                    ToolTip="Adicionar vídeos e áudios ao grupo selecionado" Margin="3,0">
+                                <Path Data="{StaticResource DocumentAddIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                            </Button>
+                            <Button Grid.Column="2" Click="RemovePlaylistItemButton_OnClick"
+                                    Style="{StaticResource CompactTransportButtonStyle}"
+                                    ToolTip="Remover referência à mídia, sem apagar o arquivo" Margin="3,0,0,0">
+                                <Path Data="{StaticResource DeleteIconGeometry}" Style="{StaticResource ButtonIconStyle}" Margin="0" />
+                            </Button>
+                        </Grid>
                     </Grid>
-                </Grid>
-            </Border>
+                </Border>
+            </Grid>
             <!-- The same physical output choices shown by the operator controls; no mock monitors. -->
             <Border Grid.Column="4" Style="{StaticResource CardStyle}"
                     Background="{DynamicResource GuiaPlaySurfacePrimaryBrush}" Padding="11">
