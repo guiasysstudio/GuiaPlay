@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feat/gsl-v1-licensing
+      - feat/gp-interface-3-modelo1
   pull_request:
     branches:
       - main
