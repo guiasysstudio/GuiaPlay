@@ -127,11 +127,6 @@ public static class OperatorShortcutPolicy
             return OperatorShortcutAction.None;
         }
 
-        if (textEntryFocused && key != OperatorShortcutKey.F1)
-        {
-            return OperatorShortcutAction.None;
-        }
-
         if (spaceHandledByControl && key == OperatorShortcutKey.Space)
         {
             return OperatorShortcutAction.None;
@@ -146,7 +141,11 @@ public static class OperatorShortcutPolicy
             var gestureModifiers = configured?.Modifiers ?? shortcut.Modifiers;
             if (gestureKey == key && gestureModifiers == modifiers)
             {
-                return shortcut.Action;
+                // Only the Help action may work inside a text editor.
+                // Rebinding F1 to Play must never hijack typing or editing.
+                return textEntryFocused && shortcut.Action != OperatorShortcutAction.Help
+                    ? OperatorShortcutAction.None
+                    : shortcut.Action;
             }
         }
 
