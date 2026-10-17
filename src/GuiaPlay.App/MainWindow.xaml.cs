@@ -38,6 +38,7 @@ public partial class MainWindow : Window
     private readonly LibVlcPlaybackEngine _engine;
     private readonly ObservableCollection<MonitorChoice> _outputChoices = [];
     private readonly ObservableCollection<PlaylistGroupNode> _playlistGroups = [];
+    private readonly ObservableCollection<SavedPlaylistEntry> _savedPlaylists = [];
     private readonly PlaylistWorkspace _playlistWorkspace;
     private readonly PlaylistPresetStore _playlistPresetStore;
     private readonly PlaylistCatalog _playlistCatalog;
@@ -91,6 +92,7 @@ public partial class MainWindow : Window
         OutputsList.ItemsSource = _outputChoices;
         SidebarOutputsList.ItemsSource = _outputChoices;
         PlaylistTree.ItemsSource = _playlistGroups;
+        SavedPlaylistsList.ItemsSource = _savedPlaylists;
         var app = Application.Current as App;
         var settings = app?.Settings ?? AppSettings.Default;
         _playlistWorkspace = new PlaylistWorkspace(app?.Playlist ?? PlaylistDocument.Empty);
@@ -101,6 +103,7 @@ public partial class MainWindow : Window
                 ? PlaylistPresetStore.DefaultDirectoryPath
                 : Path.GetFullPath(presetPathOverride));
         RebuildPlaylistTree();
+        RefreshSavedPlaylists();
         foreach (var id in settings.SelectedOutputIds)
         {
             _explicitOutputIds.Add(id);
@@ -379,6 +382,126 @@ public partial class MainWindow : Window
     private void SavePlaylistPresetButton_OnClick(object sender, RoutedEventArgs e) =>
         TrySavePlaylistPreset();
 
+    private void NewPlaylistButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy)
+        {
+            return;
+        }
+
+        if (_playlistCatalog.Snapshot.Groups.Count > 0 || _playlistWorkspace.ActivePresetId is not null)
+        {
+            var createNew = MessageBox.Show(
+                this,
+                "Iniciar uma nova playlist vazia? A lista de trabalho será substituída, mas as playlists já salvas e os arquivos originais não serão apagados.",
+                "Nova playlist",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (createNew != MessageBoxResult.Yes)
+            {
+                return;
+            }
+        }
+
+        var replacementMode = ConfirmWorkspaceReplacement();
+        if (replacementMode is null)
+        {
+            return;
+        }
+
+        if (Application.Current is not App app || app.PlaylistStore is null)
+        {
+            StatusText.Text = "O armazenamento da playlist ainda não está disponível.";
+            return;
+        }
+
+        var persisted = app.PlaylistStore.Save(PlaylistDocument.Empty);
+        if (!persisted.Succeeded)
+        {
+            FileLogger.Error($"Falha ao iniciar nova playlist: {persisted.Error}");
+            MessageBox.Show(
+                this,
+                "A nova playlist não foi criada porque a lista de trabalho não pôde ser persistida.",
+                "GuiaPlay — nova playlist",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        if (!_playlistWorkspace.StartNew(replacementMode.Value).Succeeded)
+        {
+            StatusText.Text = "Alterações não salvas foram preservadas; nenhuma playlist foi substituída.";
+            return;
+        }
+
+        app.Playlist = _playlistCatalog.Snapshot;
+        RebuildPlaylistTree();
+        RefreshSavedPlaylists();
+        StatusText.Text = "Nova playlist vazia criada. As mídias e playlists salvas foram preservadas.";
+    }
+
+    private SavedPlaylistEntry? SelectedSavedPlaylist() =>
+        SavedPlaylistsList.SelectedItem as SavedPlaylistEntry;
+
+    private void SavedPlaylistsList_OnSelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        RefreshSavedPlaylistActions();
+
+    private void SavedPlaylistsList_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject origin &&
+            ItemsControl.ContainerFromElement(SavedPlaylistsList, origin) is ListBoxItem)
+        {
+            OpenSelectedPresetButton_OnClick(sender, e);
+        }
+    }
+
+    private void OpenSelectedPresetButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || SelectedSavedPlaylist() is not { } entry)
+        {
+            return;
+        }
+
+        TryLoadPlaylistPreset(entry.Id);
+    }
+
+    private void DeleteSelectedPresetButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (!_licensingAllowsAccess || _controlsBusy || SelectedSavedPlaylist() is not { } entry)
+        {
+            return;
+        }
+
+        if (MessageBox.Show(
+                this,
+                $"Excluir a playlist salva “{entry.Name}”?\\n\\nSomente o preset JSON será excluído. A lista de trabalho e os arquivos originais serão preservados.",
+                "Excluir playlist salva",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var result = _playlistPresetStore.Delete(entry.Id);
+        if (!result.Succeeded)
+        {
+            FileLogger.Error($"Falha ao excluir preset {entry.Id:D}: {result.Error}");
+            MessageBox.Show(
+                this,
+                result.Error ?? "Não foi possível excluir a playlist selecionada.",
+                "GuiaPlay — excluir playlist",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            RefreshSavedPlaylists();
+            return;
+        }
+
+        _playlistWorkspace.DetachPreset(entry.Id);
+        FileLogger.Info($"Preset excluído da biblioteca: {entry.Name} ({entry.Id:D}).");
+        RefreshSavedPlaylists();
+        StatusText.Text = $"Playlist salva “{entry.Name}” excluída; mídias originais preservadas.";
+    }
+
     private void LoadPlaylistPresetButton_OnClick(object sender, RoutedEventArgs e)
     {
         var listResult = _playlistPresetStore.LoadAll();
@@ -397,6 +520,7 @@ public partial class MainWindow : Window
                 "GuiaPlay — playlists salvas",
                 MessageBoxButton.OK,
                 listResult.Warnings.Count == 0 ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            RefreshSavedPlaylists();
             return;
         }
 
@@ -421,69 +545,145 @@ public partial class MainWindow : Window
         {
             Owner = this
         };
-        if (picker.ShowDialog() != true || picker.SelectedPreset is not { } presetToLoad)
+        var selected = picker.ShowDialog() == true ? picker.SelectedPreset : null;
+        RefreshSavedPlaylists();
+        if (selected is not null)
         {
-            return;
+            TryLoadPlaylistPreset(selected.Id);
+        }
+    }
+
+    private PlaylistReplacementMode? ConfirmWorkspaceReplacement()
+    {
+        if (!_playlistWorkspace.IsDirty)
+        {
+            return PlaylistReplacementMode.RequireCleanWorkspace;
         }
 
-        var replacementMode = PlaylistReplacementMode.RequireCleanWorkspace;
-        if (_playlistWorkspace.IsDirty)
-        {
-            var decision = MessageBox.Show(
-                this,
-                "A playlist atual tem mudanças que ainda não foram salvas em um preset.\n\n" +
-                "Sim — Salvar…\nNão — Continuar sem salvar\nCancelar — manter a playlist atual",
-                "Alterações não salvas",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Warning);
-            if (decision == MessageBoxResult.Cancel)
-            {
-                return;
-            }
+        var decision = MessageBox.Show(
+            this,
+            "A playlist de trabalho contém alterações que não foram salvas em um preset.\\n\\n" +
+            "Sim — Salvar antes de continuar\\nNão — Continuar sem salvar as alterações\\nCancelar — manter a playlist atual",
+            "Alterações não salvas",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Warning);
 
-            if (decision == MessageBoxResult.Yes)
-            {
-                if (!TrySavePlaylistPreset())
-                {
-                    return;
-                }
-            }
-            else
-            {
-                replacementMode = PlaylistReplacementMode.DiscardUnsavedChanges;
-            }
+        return decision switch
+        {
+            MessageBoxResult.Yes => TrySavePlaylistPreset()
+                ? PlaylistReplacementMode.RequireCleanWorkspace
+                : null,
+            MessageBoxResult.No => PlaylistReplacementMode.DiscardUnsavedChanges,
+            _ => null
+        };
+    }
+
+    private bool TryLoadPlaylistPreset(Guid presetId)
+    {
+        var loaded = _playlistPresetStore.Load(presetId);
+        if (loaded.Preset is not { } preset)
+        {
+            FileLogger.Error($"A playlist salva {presetId:D} não pôde ser carregada: {loaded.Error}");
+            MessageBox.Show(
+                this,
+                loaded.Error ?? "A playlist salva não foi encontrada.",
+                "GuiaPlay — abrir playlist",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            RefreshSavedPlaylists();
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(loaded.Error))
+        {
+            FileLogger.Info($"A playlist salva foi lida parcialmente: {loaded.Error}");
+        }
+
+        var replacementMode = ConfirmWorkspaceReplacement();
+        if (replacementMode is null)
+        {
+            return false;
         }
 
         if (Application.Current is not App app || app.PlaylistStore is null)
         {
             StatusText.Text = "O armazenamento da playlist ainda não está disponível.";
-            return;
+            return false;
         }
 
-        var persisted = app.PlaylistStore.Save(presetToLoad.Playlist);
+        // Persist the selected snapshot before swapping the live in-memory workspace.
+        var persisted = app.PlaylistStore.Save(preset.Playlist);
         if (!persisted.Succeeded)
         {
-            FileLogger.Error($"Falha ao persistir playlist carregada do preset {presetToLoad.Id:D}: {persisted.Error}");
+            FileLogger.Error($"Falha ao persistir playlist carregada do preset {preset.Id:D}: {persisted.Error}");
             MessageBox.Show(
                 this,
                 "A playlist salva não foi carregada porque a lista de trabalho não pôde ser persistida.",
-                "GuiaPlay — carregar playlist",
+                "GuiaPlay — abrir playlist",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
-            return;
+            return false;
         }
 
-        var loadResult = _playlistWorkspace.LoadPreset(presetToLoad, replacementMode);
-        if (!loadResult.Succeeded)
+        if (!_playlistWorkspace.LoadPreset(preset, replacementMode.Value).Succeeded)
         {
             StatusText.Text = "A playlist atual tem alterações não salvas e foi preservada.";
-            return;
+            return false;
         }
 
         app.Playlist = _playlistCatalog.Snapshot;
         RebuildPlaylistTree();
-        StatusText.Text = $"Playlist “{presetToLoad.Name}” carregada sem iniciar reprodução.";
-        FileLogger.Info($"Preset de playlist carregado: {presetToLoad.Name} ({presetToLoad.Id:D}).");
+        RefreshSavedPlaylists(preset.Id);
+        StatusText.Text = $"Playlist “{preset.Name}” aberta sem iniciar reprodução.";
+        FileLogger.Info($"Preset carregado pela biblioteca: {preset.Name} ({preset.Id:D}).");
+        return true;
+    }
+
+    private void RefreshSavedPlaylists(Guid? preferredId = null)
+    {
+        var selectedId = preferredId ?? SelectedSavedPlaylist()?.Id ?? _playlistWorkspace.ActivePresetId;
+        var result = _playlistPresetStore.LoadAll();
+        foreach (var warning in result.Warnings)
+        {
+            FileLogger.Info(warning);
+        }
+
+        _savedPlaylists.Clear();
+        foreach (var preset in result.Presets)
+        {
+            var active = _playlistWorkspace.ActivePresetId == preset.Id;
+            _savedPlaylists.Add(new SavedPlaylistEntry(preset, active, active && _playlistWorkspace.IsDirty));
+        }
+
+        SavedPlaylistsList.SelectedItem = _savedPlaylists.FirstOrDefault(item => item.Id == selectedId);
+        SavedPlaylistsCountText.Text = _savedPlaylists.Count.ToString(System.Globalization.CultureInfo.CurrentCulture);
+        SavedPlaylistsEmptyText.Visibility = _savedPlaylists.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        RefreshSavedPlaylistActions();
+    }
+
+    private void RefreshSavedPlaylistActions()
+    {
+        var canManage = _licensingAllowsAccess && !_controlsBusy && SelectedSavedPlaylist() is not null;
+        OpenSelectedPresetButton.IsEnabled = canManage;
+        DeleteSelectedPresetButton.IsEnabled = canManage;
+    }
+
+    private void RefreshActivePlaylistMarkers()
+    {
+        var selectedId = SelectedSavedPlaylist()?.Id;
+        for (var index = 0; index < _savedPlaylists.Count; index++)
+        {
+            var preset = _savedPlaylists[index].Preset;
+            var active = _playlistWorkspace.ActivePresetId == preset.Id;
+            _savedPlaylists[index] = new SavedPlaylistEntry(preset, active, active && _playlistWorkspace.IsDirty);
+        }
+
+        if (selectedId is { } id)
+        {
+            SavedPlaylistsList.SelectedItem = _savedPlaylists.FirstOrDefault(entry => entry.Id == id);
+        }
+
+        RefreshSavedPlaylistActions();
     }
 
     private bool TrySavePlaylistPreset()
@@ -533,6 +733,7 @@ public partial class MainWindow : Window
         }
 
         _playlistWorkspace.AcceptSavedPreset(savedPreset);
+        RefreshSavedPlaylists(savedPreset.Id);
         StatusText.Text = $"Playlist “{savedPreset.Name}” salva.";
         FileLogger.Info($"Preset de playlist salvo: {savedPreset.Name} ({savedPreset.Id:D}).");
         return true;
@@ -795,6 +996,8 @@ public partial class MainWindow : Window
         }
 
         PlaylistEmptyState.Visibility = _playlistGroups.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var mediaCount = _playlistGroups.Sum(group => group.Items.Count);
+        WorkingPlaylistSummaryText.Text = $"{_playlistGroups.Count} grupos · {mediaCount} mídias";
 
         _ = RefreshLocalPlaylistAvailabilityAsync(_playlistAvailabilityCancellation.Token);
     }
@@ -840,6 +1043,7 @@ public partial class MainWindow : Window
 
         app.Playlist = snapshot;
         RebuildPlaylistTree();
+        RefreshActivePlaylistMarkers();
         StatusText.Text = successMessage;
     }
 
@@ -1036,8 +1240,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        _ = PlaylistTree.Focus();
-        StatusText.Text = "Playlist de trabalho selecionada.";
+        _ = SavedPlaylistsList.Focus();
+        StatusText.Text = "Biblioteca de playlists selecionada.";
     }
 
     private void HeaderMediaButton_OnClick(object sender, RoutedEventArgs e)
@@ -2090,6 +2294,7 @@ public partial class MainWindow : Window
         HeaderMediaButton.IsEnabled = !busy && _licensingAllowsAccess;
         HeaderPlaylistButton.IsEnabled = !busy && _licensingAllowsAccess;
         SetConfigurationControlsEnabled(!busy && !_coordinator.IsActive);
+        RefreshSavedPlaylistActions();
         RefreshPlaybackControls();
     }
 
@@ -2161,6 +2366,7 @@ public partial class MainWindow : Window
         OpenButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
         HeaderMediaButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
         HeaderPlaylistButton.IsEnabled = snapshot.HasAccess && !_controlsBusy;
+        RefreshSavedPlaylistActions();
         RefreshPlaybackControls();
     }
 
