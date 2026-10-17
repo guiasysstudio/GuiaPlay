@@ -2273,6 +2273,13 @@ public partial class MainWindow : Window
 
     private void PauseButton_OnClick(object sender, RoutedEventArgs e)
     {
+        if (_youtubeWindow is { Ready: true } youtube && _licensingAllowsAccess)
+        {
+            youtube.Command("pause");
+            StatusText.Text = "Pausa solicitada ao YouTube.";
+            return;
+        }
+
         if (_coordinator.Status == PlaybackStatus.Playing)
         {
             _engine.Pause();
