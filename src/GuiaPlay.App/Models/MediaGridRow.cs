@@ -34,7 +34,12 @@ internal sealed class MediaGridRow : INotifyPropertyChanged
     public string Name => Node.Name;
     public string FilePath => Node.Item.OriginalPath;
     public string Kind => Node.KindLabel;
-    public string Glyph => Node.Item.Kind == MediaKind.Audio ? "♫" : "▶";
+    public string Glyph => Node.Item.Kind switch
+    {
+        MediaKind.Audio => "♫",
+        MediaKind.YouTube => "▶",
+        _ => "▶"
+    };
     public string AvailabilityLabel => Node.AvailabilityLabel;
     public string Duration => _duration;
     public string Resolution => _resolution;
