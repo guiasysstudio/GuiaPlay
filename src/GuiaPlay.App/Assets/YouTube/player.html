@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>GuiaPlay — estudo isolado do YouTube IFrame Player</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #101820; color: #fff;
+                 font: 13px/1.35 system-ui, sans-serif; }
+    #player { width: 100%; height: 100%; min-width: 200px; min-height: 200px; }
+    #unavailable { display: none; padding: 24px; }
+  </style>
+</head>
+<body>
+  <!-- GP-I08: isolated integration spike, deliberately NOT wired into GUI.
+       The actual YouTube iframe is visible. No frame capture, stream extraction,
+       hidden audio player, iframe-overlay or suppression of official controls. -->
+  <div id="player"></div>
+  <div id="unavailable" role="alert"></div>
+  <script>
+    "use strict";
+
+    const bridge = window.chrome?.webview;
+    const videoId = new URL(location.href).searchParams.get("videoId") || "";
+    const validId = /^[A-Za-z0-9_-]{11}$/.test(videoId);
+    let player = null;
+    let ready = false;
+    let telemetryTimer = null;
+
+    const send = (type, details = {}) => {
+      if (bridge) bridge.postMessage({ type, videoId, ...details });
+    };
+
+    const fail = (message, code = null) => {
+      const target = document.getElementById("unavailable");
+      target.style.display = "block";
+      target.textContent = message;
+      send("error", { code, message });
+    };
+
+    const poll = () => {
+      if (!ready || !player) return;
+      try {
+        send("position", {
+          seconds: player.getCurrentTime(),
+          durationSeconds: player.getDuration(),
+          state: player.getPlayerState(),
+          volume: player.getVolume(),
+          muted: player.isMuted()
+        });
+      } catch {
+        // A navigation/teardown can invalidate the embedded player.
+      }
+    };
+
+    function onYouTubeIframeAPIReady() {
+      if (!validId) {
+        fail("Link do YouTube inválido.");
+        return;
+      }
+
+      if (location.protocol !== "https:" || !location.origin) {
+        fail("A página do player precisa ter uma origem HTTPS identificável.");
+        return;
+      }
+
+      player = new YT.Player("player", {
+        width: "100%",
+        height: "100%",
+        videoId,
+        playerVars: {
+          controls: 1,
+          playsinline: 1,
+          origin: location.origin
+          // Do not autoplay, mask YouTube branding or disable advertising.
+        },
+        events: {
+          onReady() {
+            ready = true;
+            send("ready");
+            poll();
+          },
+          onStateChange(event) {
+            send("state", { state: event.data });
+            poll();
+          },
+          onError(event) {
+            // IFrame API error codes are authoritative; do not claim a video is
+            // playable from its URL alone.
+            fail("Este vídeo não pode ser reproduzido pelo player incorporado.", event.data);
+          },
+          onAutoplayBlocked() {
+            send("autoplayBlocked", {
+              message: "O YouTube/navegador exige interação direta do usuário."
+            });
+          }
+        }
+      });
+
+      // This is only status telemetry; no second YouTube player exists.
+      telemetryTimer = setInterval(poll, 500);
+    }
+
+    function applyCommand(message) {
+      if (!ready || !player || !message || typeof message !== "object") return;
+      // Origin verification, schema validation and authorization MUST also
+      // happen in the native WebView2 host before sending any command.
+      const action = message.action;
+      switch (action) {
+        case "play":
+          player.playVideo();
+          break;
+        case "pause":
+          player.pauseVideo();
+          break;
+        case "stop":
+          player.stopVideo();
+          break;
+        case "seek":
+          if (Number.isFinite(message.seconds) && message.seconds >= 0) {
+            player.seekTo(message.seconds, true);
+          }
+          break;
+        case "volume":
+          if (Number.isFinite(message.value)) {
+            player.setVolume(Math.max(0, Math.min(100, message.value)));
+          }
+          break;
+        case "mute":
+          player.mute();
+          break;
+        case "unmute":
+          player.unMute();
+          break;
+        case "status":
+          poll();
+          break;
+        default:
+          // Unknown commands are ignored, never evaluated as script.
+          break;
+      }
+    }
+
+    if (bridge) {
+      bridge.addEventListener("message", event => applyCommand(event.data));
+    }
+
+    if (!validId) {
+      fail("Informe um ID de vídeo válido no parâmetro videoId.");
+    } else {
+      const api = document.createElement("script");
+      api.src = "https://www.youtube.com/iframe_api";
+      api.onerror = () => fail("Não foi possível carregar a API oficial do YouTube.");
+      document.head.appendChild(api);
+    }
+
+    window.addEventListener("pagehide", () => {
+      if (telemetryTimer) clearInterval(telemetryTimer);
+      telemetryTimer = null;
+      ready = false;
+    });
+  </script>
+</body>
+</html>
