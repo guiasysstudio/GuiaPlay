@@ -265,8 +265,8 @@
 
         <Grid x:Name="LicensedWorkspace" Grid.Row="1">
             <Grid.RowDefinitions>
-                <RowDefinition Height="46*" MinHeight="250" />
-                <RowDefinition Height="54*" MinHeight="220" />
+                <RowDefinition Height="46*" MinHeight="160" />
+                <RowDefinition Height="54*" MinHeight="150" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="300" MinWidth="265" />
