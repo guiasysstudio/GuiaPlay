@@ -936,15 +936,11 @@
                             </Grid>
                         </ScrollViewer>
                         <Grid Grid.Row="2" Margin="10,3,10,10">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <TextBlock x:Name="OutputSelectedCountText" Text="0 selecionadas"
                                        FontSize="11" Foreground="{DynamicResource GuiaPlayTextSecondaryBrush}"
                                        VerticalAlignment="Center" ToolTip="Saídas de vídeo selecionadas"/>
-                            <Button x:Name="ConfigureYouTubeMirrorButton" Grid.Column="1" Content="Espelhar"
-                                    Click="ConfigureYouTubeMirrorButton_OnClick" Height="29" MinWidth="0" Padding="8,3"
-                                    Margin="0,0,5,0" Style="{StaticResource CompactTransportButtonStyle}"
-                                    ToolTip="YouTube: verificar duplicação de telas do Windows, sem alterar a configuração automaticamente"/>
-                            <Button x:Name="IdentifyButton" Grid.Column="2" Content="Identificar telas"
+                            <Button x:Name="IdentifyButton" Grid.Column="1" Content="Identificar telas"
                                     Click="IdentifyButton_OnClick" Height="29" MinWidth="0" Padding="9,3"
                                     Style="{StaticResource CompactTransportButtonStyle}"
                                     ToolTip="Identificar os monitores conectados"/>

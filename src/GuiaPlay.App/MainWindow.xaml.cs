@@ -52,15 +52,10 @@ public partial class MainWindow : Window
     private readonly PlaylistCatalog _playlistCatalog;
     private readonly Dictionary<string, OutputWindow> _outputWindows = new(StringComparer.OrdinalIgnoreCase);
     private YouTubeOutputWindow? _youtubeWindow;
-    // Each physical display hosts one visible official IFrame Player. The
-    // first selected screen is the audio-bearing primary; other screens
-    // are muted independent players with best-effort time alignment.
-    private readonly List<YouTubeOutputWindow> _youtubeMirrors = [];
-    private readonly Dictionary<YouTubeOutputWindow, YouTubePlaybackSnapshot> _youtubeMirrorSnapshots = [];
-    private readonly DispatcherTimer _youtubeSyncTimer = new()
-    {
-        Interval = TimeSpan.FromSeconds(2)
-    };
+    // One official WebView2 player and compositor-only window replicas.
+    // Each replica fills its own public monitor; Windows display topology is
+    // never modified. This is a GP-YT06 experimental prototype.
+    private readonly List<YouTubeMirrorOutputWindow> _youtubeMirrors = [];
     private YouTubeVideoReference? _youtubeReference;
     private YouTubePlaybackSnapshot? _youtubeSnapshot;
     private readonly List<IdentifierWindow> _identifierWindows = [];
@@ -75,8 +70,6 @@ public partial class MainWindow : Window
     private readonly HashSet<string> _explicitOutputIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action _renderFrameCallback;
     private IReadOnlyList<MonitorInfo> _monitors = [];
-    private IReadOnlyList<ActiveDisplayCloneGroup> _windowsCloneGroups = [];
-    private string _windowsCloneSignature = string.Empty;
     private WriteableBitmap? _bitmap;
     private ImageSource? _stillImage;
     private long _frameGeneration;
@@ -125,7 +118,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _youtubeSyncTimer.Tick += YouTubeSyncTimer_OnTick;
         Title = $"GuiaPlay {ProductInfo.Version}";
         VersionHeaderText.Text = $"v{ProductInfo.Version}";
         _renderFrameCallback = RenderLatestFrame;
@@ -1555,29 +1547,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        // A source duplicated by Windows is a single logical display.
-        // Multiple checked logical displays require independent YouTube
-        // streams, which cannot guarantee matching frames or uninterrupted
-        // playback. Never silently present them as "synchronized mirroring".
-        if (selected.Length > 1)
-        {
-            var confirmation = MessageBox.Show(this,
-                "As saídas selecionadas são telas lógicas independentes. " +
-                "O YouTube abrirá um player em cada uma, e eles podem " +
-                "dessincronizar ou mostrar anúncios diferentes.\n\n" +
-                "Para exibir exatamente a mesma imagem, use o botão Espelhar " +
-                "e duplique as telas públicas nas configurações do Windows.\n\n" +
-                "Deseja continuar mesmo assim com players independentes?",
-                "YouTube — saídas independentes",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (confirmation != MessageBoxResult.Yes)
-            {
-                StatusText.Text = "Reprodução cancelada. Configure a duplicação das telas públicas.";
-                FileLogger.Info("GP-YT05: operador cancelou players independentes.");
-                return;
-            }
-        }
-
+        // Physical monitors stay extended and independently addressable.
+        // Multiple public screens receive compositor replicas of one visible
+        // official WebView2 source, not independent YouTube sessions.
         // A screen may host one auto-playing YouTube player; the selected
         // monitors are distinct physical screens, not multiple players on
         // one screen. No frame capture/rebroadcast or hidden background video.
@@ -1597,9 +1569,9 @@ public partial class MainWindow : Window
         }
 
         var monitor = selected[0];
-        FileLogger.Info($"GP-YT-04: vídeo={reference!.VideoId}; " +
-            $"telas={string.Join(", ", selected.Select(output => output.ShortLabel))}; " +
-            $"áudio principal={monitor.ShortLabel}; sincronização aproximada.");
+        FileLogger.Info($"GP-YT06: vídeo={reference!.VideoId}; " +
+            $"destinos={string.Join(", ", selected.Select(output => output.ShortLabel))}; " +
+            $"origem única={monitor.ShortLabel}; DWM por janela; configuração Windows intacta.");
 
         if ((_coordinator.IsActive || _youtubeWindow is not null) &&
             MessageBox.Show(this,
@@ -1611,9 +1583,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Allocate all official windows before switching the active backend.
-        var windows = selected.Select(output => new YouTubeOutputWindow(output)).ToArray();
-        var window = windows[0];
+        // One IFrame player on the first public monitor. DWM compositor
+        // replicates its whole visible window on every additional monitor.
+        var window = new YouTubeOutputWindow(monitor);
+        var mirrorWindows = selected.Skip(1)
+            .Select(output => new YouTubeMirrorOutputWindow(output, window))
+            .ToArray();
         SetControlsBusy(true);
         _suppressAutoAdvance = true;
         try
@@ -1628,7 +1603,7 @@ public partial class MainWindow : Window
             CloseOutputWindows();
             CloseYouTubeWindow();
             _youtubeWindow = window;
-            _youtubeMirrors.AddRange(windows.Skip(1));
+            _youtubeMirrors.AddRange(mirrorWindows);
             _youtubeReference = reference;
             _youtubeSnapshot = new YouTubePlaybackSnapshot(
                 "CARREGANDO", false, 0, 0, null, null);
@@ -1648,7 +1623,6 @@ public partial class MainWindow : Window
 
             foreach (var mirror in _youtubeMirrors)
             {
-                mirror.PlaybackStateChanged += YouTubeMirror_OnStateChanged;
                 mirror.Closed += (_, _) =>
                 {
                     if (_youtubeMirrors.Contains(mirror))
@@ -1656,31 +1630,29 @@ public partial class MainWindow : Window
                         CloseYouTubeWindow();
                         if (!_isClosing)
                         {
-                            StatusText.Text = "Uma tela pública foi fechada; reprodução conjunta encerrada.";
+                            StatusText.Text = "Uma saída espelhada foi fechada; sessão encerrada.";
                             RefreshPlaybackControls();
                         }
                     }
                 };
             }
 
-            // Show the official players on every target screen before any
-            // scripted autoplay attempt, as required by YouTube.
-            foreach (var outputWindow in windows)
+            // The official source must be visible when it loads. GPU/DWM
+            // replicas use its top-level HWND; they do not load YouTube.
+            window.Show();
+            foreach (var mirror in _youtubeMirrors)
             {
-                outputWindow.Show();
+                mirror.Show();
             }
 
-            FileLogger.Info($"GP-YT-04: {windows.Length} janela(s) pública(s) visível(is). Iniciando WebView2.");
-            await Task.WhenAll(windows.Select((outputWindow, index) =>
-                outputWindow.InitializeAsync(reference!, autoplayRequested: true,
-                    initiallyMuted: index > 0)));
+            FileLogger.Info($"GP-YT06: 1 player WebView2 e " +
+                $"{_youtubeMirrors.Count} janela(s) de réplica DWM iniciada(s).");
+            await window.InitializeAsync(reference!, autoplayRequested: true);
             if (!ReferenceEquals(_youtubeWindow, window))
             {
-                return; // A screen was closed while asynchronous setup ran.
+                return;
             }
 
-            _youtubeSyncTimer.Start();
-            FileLogger.Info("GP-YT-04: players inicializados; acompanhando estado e alinhamento aproximado.");
             if (_isClosing || !_licensingAllowsAccess)
             {
                 CloseYouTubeWindow();
@@ -1705,8 +1677,8 @@ public partial class MainWindow : Window
             ProgressSlider.Value = 0;
             ProgressSlider.Maximum = 1;
             UpdateTimeLabels(0, 0);
-            StatusText.Text = $"YouTube enviado a {windows.Length} tela(s). " +
-                "Aguardando autoplay; caso bloqueado, será necessário clicar no player.";
+            StatusText.Text = $"YouTube em {selected.Length} tela(s) independentes. " +
+                "Uma reprodução oficial; imagem replicada pelo GuiaPlay/DWM.";
             RefreshPlaybackControls();
         }
         catch (Exception exception)
@@ -1737,20 +1709,6 @@ public partial class MainWindow : Window
         var firstReady = _youtubeSnapshot?.Ready != true && status.Ready;
         var previousState = _youtubeSnapshot?.State;
         _youtubeSnapshot = status;
-        if (status.State != previousState)
-        {
-            if (status.State is "PAUSADO" or "INTERAÇÃO NECESSÁRIA" or "ERRO")
-            {
-                // If the primary audio-bearing player is blocked, secondary
-                // muted players must not start presenting the video alone.
-                foreach (var mirror in _youtubeMirrors) mirror.Command("pause");
-            }
-            else if (status.State == "REPRODUZINDO")
-            {
-                foreach (var mirror in _youtubeMirrors) mirror.Command("play");
-            }
-        }
-
         if (firstReady || status.State != previousState || status.State == "ERRO")
         {
             FileLogger.Info($"GP-YT-02: estado do player={status.State}; " +
@@ -1779,77 +1737,23 @@ public partial class MainWindow : Window
         RefreshPlaybackControls();
     }
 
-    private void YouTubeMirror_OnStateChanged(object? sender, YouTubePlaybackSnapshot status)
-    {
-        if (sender is not YouTubeOutputWindow mirror ||
-            !_youtubeMirrors.Contains(mirror) || _isClosing) return;
-
-        var previous = _youtubeMirrorSnapshots.TryGetValue(mirror, out var old)
-            ? old.State : null;
-        _youtubeMirrorSnapshots[mirror] = status;
-        if (previous != status.State || status.State is "ERRO" or "INTERAÇÃO NECESSÁRIA")
-        {
-            FileLogger.Info($"GP-YT-04: {mirror.Monitor.ShortLabel}: {status.State}; " +
-                $"detalhes={status.Message ?? "nenhum"}");
-        }
-
-        if (old?.Ready != true && status.Ready)
-        {
-            mirror.Command("mute");
-            if (_youtubeSnapshot?.State == "REPRODUZINDO") mirror.Command("play");
-        }
-
-        if (status.State is "ERRO" or "INTERAÇÃO NECESSÁRIA")
-            StatusText.Text = $"{mirror.Monitor.ShortLabel}: " +
-                (status.Message ?? "o player requer atenção.");
-    }
-
-    // Independent YouTube network players cannot share decoded frames. Align
-    // their clocks approximately, without claiming frame-perfect sync.
-    private void YouTubeSyncTimer_OnTick(object? sender, EventArgs e)
-    {
-        if (_isClosing || !_licensingAllowsAccess || _youtubeWindow is null ||
-            _youtubeSnapshot is not { State: "REPRODUZINDO" } primary) return;
-
-        foreach (var mirror in _youtubeMirrors)
-        {
-            if (!_youtubeMirrorSnapshots.TryGetValue(mirror, out var state) ||
-                !state.Ready || state.State is "ERRO" or "INTERAÇÃO NECESSÁRIA") continue;
-            if (state.State is "PAUSADO" or "PRONTO") mirror.Command("play");
-            var drift = Math.Abs(primary.ElapsedMilliseconds - state.ElapsedMilliseconds);
-            if (primary.DurationMilliseconds > 0 && state.DurationMilliseconds > 0 &&
-                drift >= 1800)
-            {
-                mirror.Command("seek", primary.ElapsedMilliseconds / 1000d);
-                FileLogger.Info($"GP-YT-04: sincronização aproximada " +
-                    $"{mirror.Monitor.ShortLabel}, desvio={drift}ms");
-            }
-        }
-    }
-
     private void SendYouTubeCommand(string action, double? value = null)
     {
+        // Exactly one YouTube player exists in GP-YT06. DWM replicas have
+        // no independent clocks, sound, seek commands or network buffers.
         _youtubeWindow?.Command(action, value);
-        // Only the first selected screen has audible playback.
-        if (action is "play" or "pause" or "stop" or "seek")
-        {
-            foreach (var mirror in _youtubeMirrors) mirror.Command(action, value);
-        }
     }
 
     private void CloseYouTubeWindow()
     {
-        _youtubeSyncTimer.Stop();
         var old = _youtubeWindow;
         _youtubeWindow = null;
         _youtubeReference = null;
         _youtubeSnapshot = null;
         var mirrors = _youtubeMirrors.ToArray();
         _youtubeMirrors.Clear();
-        _youtubeMirrorSnapshots.Clear();
         foreach (var mirror in mirrors)
         {
-            mirror.PlaybackStateChanged -= YouTubeMirror_OnStateChanged;
             mirror.Close();
         }
 
@@ -3187,71 +3091,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ConfigureYouTubeMirrorButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        // Read-only probe. Changing display topology can move the operator UI
-        // and requires tested rollback/recovery; never do it implicitly.
-        var clones = MonitorService.GetActiveCloneGroups();
-        var selected = _outputChoices.Where(choice => choice.IsSelected)
-            .Select(choice => choice.Monitor).ToArray();
-        var active = clones.Where(group => selected.Any(monitor =>
-            string.Equals(group.SourceDeviceName, monitor.Id,
-                StringComparison.OrdinalIgnoreCase))).ToArray();
-
-        var report = active.Length > 0
-            ? "Duplicação já ativa nas saídas selecionadas: " +
-              string.Join("; ", active.Select(group =>
-                  $"{group.SourceDeviceName}: {group.PhysicalScreenCount} telas físicas")) +
-              ".\n\nO Windows apresenta cada grupo como uma única tela lógica ao GuiaPlay."
-            : "Não foi detectada uma saída selecionada já duplicada no Windows.";
-
-        if (active.Length == 0 && selected.Length >= 2)
-        {
-            // SDC_VALIDATE probes this exact mixed operator + clone layout
-            // without ever applying it or altering saved Windows settings.
-            var validation = MonitorService.ValidateProposedPublicClone(
-                selected.Select(monitor => monitor.Id).ToArray(), _operatorMonitor?.Id);
-            report += "\n\n" + validation.Message;
-            FileLogger.Info($"GP-YT05: validação de clonagem (somente leitura): " +
-                $"supported={validation.Supported?.ToString() ?? "indefinido"}; " +
-                $"message={validation.Message}");
-        }
-        else if (active.Length == 0)
-        {
-            report += "\n\nPara testar a compatibilidade, selecione duas telas públicas " +
-                "e clique novamente em Espelhar.";
-        }
-
-        FileLogger.Info($"GP-YT05: pré-verificação de duplicação: " +
-            $"selecionadas={selected.Length}; grupos={clones.Count}; ativos={active.Length}.");
-        var choice = MessageBox.Show(this,
-            report + "\n\nPara mostrar exatamente a mesma imagem em dois projetores, " +
-            "mantenha a tela do operador estendida e configure as duas telas " +
-            "públicas para DUPLICAR no Windows. Depois, volte ao GuiaPlay e " +
-            "selecione a saída lógica correspondente.\n\n" +
-            "Abrir as configurações de exibição do Windows agora? " +
-            "O GuiaPlay não modificará seus monitores.",
-            "GuiaPlay — YouTube · espelhamento seguro",
-            MessageBoxButton.YesNo, MessageBoxImage.Information);
-        if (choice != MessageBoxResult.Yes)
-        {
-            return;
-        }
-
-        try
-        {
-            Process.Start(new ProcessStartInfo("ms-settings:display")
-            {
-                UseShellExecute = true
-            });
-        }
-        catch (Exception exception)
-        {
-            FileLogger.Error("GP-YT05: falha ao abrir configurações de exibição.", exception);
-            StatusText.Text = "Não foi possível abrir as configurações de exibição do Windows.";
-        }
-    }
-
     private async void IdentifyButton_OnClick(object sender, RoutedEventArgs e)
     {
         CloseIdentifierWindows();
@@ -4286,17 +4125,10 @@ public partial class MainWindow : Window
             var status = _youtubeSnapshot?.State ?? "CARREGANDO";
             PreviewLiveStateText.Text = "YOUTUBE " + status;
             ProgramStatusBadgeText.Text = status;
-            var youtubeWindows = new[] { youtube }.Concat(_youtubeMirrors).ToArray();
-            var physicalCount = youtubeWindows.Sum(output =>
-                _windowsCloneGroups.FirstOrDefault(group => string.Equals(
-                    group.SourceDeviceName, output.Monitor.Id,
-                    StringComparison.OrdinalIgnoreCase))?.PhysicalScreenCount ?? 1);
-            ProgramPlaceholderText.Text = $"YouTube · {physicalCount} tela(s) física(s)";
+            ProgramPlaceholderText.Text = $"YouTube · {1 + _youtubeMirrors.Count} telas públicas";
             ProgramDetailsText.Text = _youtubeMirrors.Count > 0
-                ? "Players independentes em saídas lógicas: podem dessincronizar."
-                : physicalCount > 1
-                    ? "Um player oficial espelhado pelo Windows em várias saídas físicas."
-                    : "Player oficial na tela pública; sem espelho de quadros.";
+                ? "Uma reprodução e áudio únicos; réplica gráfica do GuiaPlay por DWM (experimental)."
+                : "Um player oficial na tela pública escolhida.";
             YouTubeStatusHintText.Visibility = Visibility.Visible;
             YouTubeStatusHintText.Text = _youtubeSnapshot?.Message ??
                 "Controle pela barra do GuiaPlay ou diretamente pelo player visível.";
@@ -4404,16 +4236,6 @@ public partial class MainWindow : Window
     {
         var previousMonitors = _monitors;
         var current = MonitorService.GetActiveMonitors();
-        _windowsCloneGroups = MonitorService.GetActiveCloneGroups();
-        var cloneSignature = string.Join(";", _windowsCloneGroups
-            .OrderBy(group => group.SourceDeviceName, StringComparer.OrdinalIgnoreCase)
-            .Select(group => $"{group.SourceDeviceName}:{group.PhysicalScreenCount}"));
-        if (!string.Equals(_windowsCloneSignature, cloneSignature, StringComparison.Ordinal))
-        {
-            _windowsCloneSignature = cloneSignature;
-            FileLogger.Info("GP-YT05: topologia de duplicação Windows alterada: " +
-                (cloneSignature.Length == 0 ? "nenhuma duplicação ativa" : cloneSignature));
-        }
         if (_youtubeWindow is { } activeYouTube)
         {
             var youtubeOutputs = new[] { activeYouTube }.Concat(_youtubeMirrors).ToArray();
@@ -4876,13 +4698,6 @@ public partial class MainWindow : Window
         var baseMessage = _monitors.Count <= 1
             ? "Somente o operador foi detectado. Vídeos exigem ao menos uma saída pública; áudio continua disponível."
             : "Marque uma ou mais saídas. Telas reconectadas ficam desmarcadas até nova seleção.";
-        if (_windowsCloneGroups.Count > 0)
-        {
-            baseMessage += " Duplicação Windows: " +
-                string.Join(", ", _windowsCloneGroups.Select(group =>
-                    $"{group.SourceDeviceName}: {group.PhysicalScreenCount} telas físicas")) +
-                ". Uma tela lógica do GuiaPlay controla cada grupo.";
-        }
         MonitorWarning.Text = unreliableCount == 0
             ? baseMessage
             : baseMessage + $" {unreliableCount} tela(s) têm identidade ambígua e não serão restauradas automaticamente.";
