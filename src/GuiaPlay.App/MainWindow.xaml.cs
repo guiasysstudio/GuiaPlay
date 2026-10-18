@@ -4238,19 +4238,22 @@ public partial class MainWindow : Window
         var current = MonitorService.GetActiveMonitors();
         if (_youtubeWindow is { } activeYouTube)
         {
-            var youtubeOutputs = new[] { activeYouTube }.Concat(_youtubeMirrors).ToArray();
-            if (youtubeOutputs.Any(output =>
-                MonitorTopologyReconciler.FindCurrent(output.Monitor, current) is null))
+            var youtubeMonitors = new[] { activeYouTube.Monitor }
+                .Concat(_youtubeMirrors.Select(mirror => mirror.Monitor)).ToArray();
+            if (youtubeMonitors.Any(output =>
+                MonitorTopologyReconciler.FindCurrent(output, current) is null))
             {
                 CloseYouTubeWindow();
                 StatusText.Text = "Tela pública do YouTube desconectada; reprodução conjunta interrompida.";
             }
             else
             {
-                foreach (var output in youtubeOutputs)
+                var primary = MonitorTopologyReconciler.FindCurrent(activeYouTube.Monitor, current);
+                if (primary is not null) activeYouTube.Reposition(primary);
+                foreach (var mirror in _youtubeMirrors.ToArray())
                 {
-                    var routed = MonitorTopologyReconciler.FindCurrent(output.Monitor, current);
-                    if (routed is not null) output.Reposition(routed);
+                    var routed = MonitorTopologyReconciler.FindCurrent(mirror.Monitor, current);
+                    if (routed is not null) mirror.Reposition(routed);
                 }
             }
         }
