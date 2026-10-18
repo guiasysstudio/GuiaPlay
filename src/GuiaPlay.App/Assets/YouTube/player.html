@@ -78,9 +78,10 @@
         playerVars: {
           controls: 1,
           playsinline: 1,
-          // Secondary screens must be muted before any start command.
-          // They start only after onReady() first calls mute().
-          autoplay: autoplayRequested && !initiallyMuted ? 1 : 0,
+          // Do not issue TWO autoplay requests (autoplay=1 + playVideo)
+          // during player initialization. Only onReady() requests playback
+          // after an explicit GuiaPlay Play action, and falls back once muted.
+          autoplay: 0,
           origin: location.origin
           // Preserve the actual player and comply with browser autoplay policy.
         },
