@@ -1555,6 +1555,29 @@ public partial class MainWindow : Window
             return;
         }
 
+        // A source duplicated by Windows is a single logical display.
+        // Multiple checked logical displays require independent YouTube
+        // streams, which cannot guarantee matching frames or uninterrupted
+        // playback. Never silently present them as "synchronized mirroring".
+        if (selected.Length > 1)
+        {
+            var confirmation = MessageBox.Show(this,
+                "As saídas selecionadas são telas lógicas independentes. " +
+                "O YouTube abrirá um player em cada uma, e eles podem " +
+                "dessincronizar ou mostrar anúncios diferentes.\n\n" +
+                "Para exibir exatamente a mesma imagem, use o botão Espelhar " +
+                "e duplique as telas públicas nas configurações do Windows.\n\n" +
+                "Deseja continuar mesmo assim com players independentes?",
+                "YouTube — saídas independentes",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (confirmation != MessageBoxResult.Yes)
+            {
+                StatusText.Text = "Reprodução cancelada. Configure a duplicação das telas públicas.";
+                FileLogger.Info("GP-YT05: operador cancelou players independentes.");
+                return;
+            }
+        }
+
         // A screen may host one auto-playing YouTube player; the selected
         // monitors are distinct physical screens, not multiple players on
         // one screen. No frame capture/rebroadcast or hidden background video.
