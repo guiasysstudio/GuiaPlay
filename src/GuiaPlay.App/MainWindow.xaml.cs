@@ -1612,6 +1612,9 @@ public partial class MainWindow : Window
             {
                 if (ReferenceEquals(_youtubeWindow, window))
                 {
+                    // The source has already finished closing; avoid calling
+                    // Close() on that disposed WPF Window again.
+                    _youtubeWindow = null;
                     CloseYouTubeWindow();
                     if (!_isClosing)
                     {
@@ -1625,8 +1628,9 @@ public partial class MainWindow : Window
             {
                 mirror.Closed += (_, _) =>
                 {
-                    if (_youtubeMirrors.Contains(mirror))
+                    if (_youtubeMirrors.Remove(mirror))
                     {
+                        // Mirror is already closed; do not close it twice.
                         CloseYouTubeWindow();
                         if (!_isClosing)
                         {
@@ -1683,12 +1687,12 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            FileLogger.Error("Falha ao preparar o player oficial do YouTube.", exception);
+            FileLogger.Error("GP-YT06: falha ao preparar player ou réplica DWM.", exception);
             CloseYouTubeWindow();
-            StatusText.Text = "Falha ao abrir o YouTube. Verifique o WebView2, a conexão e o log.";
+            StatusText.Text = "Falha ao iniciar YouTube ou réplica DWM. Consulte o log.";
             MessageBox.Show(this,
-                "Não foi possível iniciar o player oficial do YouTube.\n\n" +
-                "Verifique o Microsoft Edge WebView2 Runtime e o acesso ao YouTube.\n\n" +
+                "Não foi possível iniciar o player ou replicar sua janela.\n\n" +
+                "Verifique o WebView2, a conexão e a composição gráfica DWM.\n\n" +
                 "Detalhes: " + exception.Message,
                 "GuiaPlay — YouTube", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
